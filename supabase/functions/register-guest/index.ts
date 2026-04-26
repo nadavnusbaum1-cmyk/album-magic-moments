@@ -70,42 +70,31 @@ Deno.serve(async (req) => {
       })
       .eq("id", guest.id);
 
-    // Match against already-uploaded photos
-    const { data: photos } = await supabase.from("photos").select("id, storage_path");
+    // Retroactive match: search the collection by the new guest's face id.
+    // This finds any previously-uploaded event-photo faces that match this guest.
     let matchCount = 0;
-    if (photos) {
-      for (const photo of photos) {
-        try {
-          const { data: photoData } = await supabase.storage
-            .from("event-photos")
-            .download(photo.storage_path);
-          if (!photoData) continue;
-          const buf = new Uint8Array(await photoData.arrayBuffer());
-          const photoB64 = btoa(String.fromCharCode(...buf));
+    const guestFaceId = faceRecord.Face.FaceId;
+    const search = await rekognition("SearchFaces", {
+      CollectionId: COLLECTION_ID,
+      FaceId: guestFaceId,
+      FaceMatchThreshold: 80,
+      MaxFaces: 500,
+    }).catch(() => ({ FaceMatches: [] }));
 
-          const search = await rekognition("SearchFacesByImage", {
-            CollectionId: COLLECTION_ID,
-            Image: { Bytes: photoB64 },
-            FaceMatchThreshold: 85,
-            MaxFaces: 10,
-          });
-
-          const matched = (search.FaceMatches || []).some(
-            (m: { Face: { ExternalImageId: string } }) => m.Face.ExternalImageId === guest.id,
-          );
-          if (matched) {
-            await supabase
-              .from("photo_matches")
-              .insert({ guest_id: guest.id, photo_id: photo.id, similarity: 90 });
-            matchCount++;
-          }
-        } catch (e) {
-          console.error("photo scan error", e);
-        }
-      }
-      if (matchCount > 0) {
-        await supabase.from("guests").update({ photo_count: matchCount }).eq("id", guest.id);
-      }
+    const matchedPhotoIds = new Set<string>();
+    for (const m of search.FaceMatches || []) {
+      const ext = m.Face?.ExternalImageId as string | undefined;
+      if (!ext || !ext.startsWith("photo-")) continue;
+      const photoId = ext.slice("photo-".length);
+      if (matchedPhotoIds.has(photoId)) continue;
+      matchedPhotoIds.add(photoId);
+      const { error: mErr } = await supabase
+        .from("photo_matches")
+        .insert({ guest_id: guest.id, photo_id: photoId, similarity: m.Similarity });
+      if (!mErr) matchCount++;
+    }
+    if (matchCount > 0) {
+      await supabase.from("guests").update({ photo_count: matchCount }).eq("id", guest.id);
     }
 
     return new Response(
