@@ -39,7 +39,10 @@ async function getSigningKey(secret: string, dateStamp: string, region: string, 
 export async function rekognition(action: string, payload: Record<string, unknown>) {
   const accessKey = Deno.env.get("AWS_ACCESS_KEY_ID");
   const secretKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
-  const region = Deno.env.get("AWS_REGION") || "us-east-1";
+  const rawRegion = Deno.env.get("AWS_REGION") || "us-east-1";
+  // Extract a valid region code (e.g. "eu-west-2") from possibly verbose values like "Europe (London) eu-west-2"
+  const regionMatch = rawRegion.match(/[a-z]{2}-[a-z]+-\d/);
+  const region = regionMatch ? regionMatch[0] : rawRegion.trim();
   if (!accessKey || !secretKey) throw new Error("AWS credentials not configured");
 
   const service = "rekognition";
