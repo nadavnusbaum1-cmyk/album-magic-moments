@@ -1,17 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
+type GalleryPhoto = {
+  id: string;
+  url: string;
+  face_count: number;
+  processed: boolean;
+  created_at: string;
+};
+
 const Index = () => {
   const [name, setName] = useState("");
   const [selfie, setSelfie] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ token: string; photoCount: number } | null>(null);
+  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+
+  const loadGallery = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-photos", { body: {} });
+      if (error) throw error;
+      if (!data?.error) setGallery(data.photos || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadGallery();
+  }, []);
 
   const onFile = (file: File) => {
     const reader = new FileReader();
@@ -129,6 +152,41 @@ const Index = () => {
             <Upload className="w-4 h-4" /> Photographer? Upload event photos
           </Link>
         </div>
+
+        {gallery.length > 0 && (
+          <section className="max-w-5xl mx-auto mt-16">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl md:text-3xl font-serif text-foreground">All wedding photos</h2>
+              <p className="text-muted-foreground text-sm mt-2">
+                {gallery.length} {gallery.length === 1 ? "photo" : "photos"} from the celebration
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {gallery.map((p) => (
+                <a
+                  key={p.id}
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative group rounded-xl overflow-hidden bg-muted aspect-square block"
+                >
+                  <img
+                    src={p.url}
+                    alt="Wedding moment"
+                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  {p.face_count > 0 && (
+                    <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur text-xs rounded-full px-2 py-0.5 flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      {p.face_count}
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
