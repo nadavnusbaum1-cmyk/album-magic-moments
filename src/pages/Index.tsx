@@ -1,17 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
+type GalleryPhoto = {
+  id: string;
+  url: string;
+  face_count: number;
+  processed: boolean;
+  created_at: string;
+};
+
 const Index = () => {
   const [name, setName] = useState("");
   const [selfie, setSelfie] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ token: string; photoCount: number } | null>(null);
+  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+
+  const loadGallery = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("list-photos", { body: {} });
+      if (error) throw error;
+      if (!data?.error) setGallery(data.photos || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadGallery();
+  }, []);
 
   const onFile = (file: File) => {
     const reader = new FileReader();
