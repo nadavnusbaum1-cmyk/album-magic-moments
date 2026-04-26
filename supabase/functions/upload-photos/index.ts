@@ -102,13 +102,8 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Clean up temporary indexed faces so the collection only holds guest selfies
-        if (tempFaceIds.length) {
-          await rekognition("DeleteFaces", {
-            CollectionId: COLLECTION_ID,
-            FaceIds: tempFaceIds,
-          }).catch((e) => console.error("DeleteFaces failed", e));
-        }
+        // Note: we keep indexed photo faces in the collection so future guest
+        // registrations can retroactively match against them via SearchFaces.
 
         await supabase
           .from("photos")
