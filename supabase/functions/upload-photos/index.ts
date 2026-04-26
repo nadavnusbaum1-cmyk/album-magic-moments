@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     );
 
     await ensureCollection();
-    const results: { name: string; matches: number; error?: string }[] = [];
+    const results: { name: string; matches: number; faces: number; error?: string }[] = [];
 
     for (const photo of photos) {
       try {
@@ -45,51 +45,81 @@ Deno.serve(async (req) => {
           .single();
         if (insErr) throw insErr;
 
-        // Search for matching guests
-        const search = await rekognition("SearchFacesByImage", {
+        // Index ALL faces in the photo (with a temporary ExternalImageId so we can clean them up)
+        // Then SearchFaces by FaceId to find matching guests for each face.
+        const tempExternalId = `photo-${photoRow.id}`;
+        const indexResult = await rekognition("IndexFaces", {
           CollectionId: COLLECTION_ID,
           Image: { Bytes: base64 },
-          FaceMatchThreshold: 85,
-          MaxFaces: 50,
-        }).catch(() => ({ FaceMatches: [] }));
+          ExternalImageId: tempExternalId,
+          DetectionAttributes: [],
+          MaxFaces: 20,
+          QualityFilter: "AUTO",
+        }).catch((e) => {
+          console.error("IndexFaces failed", e);
+          return { FaceRecords: [] };
+        });
 
-        const matches = search.FaceMatches || [];
-        const seen = new Set<string>();
-        let matchCount = 0;
+        const faceRecords = indexResult.FaceRecords || [];
+        const tempFaceIds: string[] = [];
+        const matchedGuests = new Set<string>();
 
-        for (const m of matches) {
-          const guestId = m.Face?.ExternalImageId;
-          if (!guestId || seen.has(guestId)) continue;
-          seen.add(guestId);
-          const { error: mErr } = await supabase
-            .from("photo_matches")
-            .insert({ guest_id: guestId, photo_id: photoRow.id, similarity: m.Similarity });
-          if (!mErr) {
-            matchCount++;
-            // bump count
-            const { data: g } = await supabase
-              .from("guests")
-              .select("photo_count")
-              .eq("id", guestId)
-              .single();
-            if (g) {
-              await supabase
+        for (const fr of faceRecords) {
+          const faceId = fr.Face?.FaceId;
+          if (!faceId) continue;
+          tempFaceIds.push(faceId);
+
+          const search = await rekognition("SearchFaces", {
+            CollectionId: COLLECTION_ID,
+            FaceId: faceId,
+            FaceMatchThreshold: 80,
+            MaxFaces: 10,
+          }).catch(() => ({ FaceMatches: [] }));
+
+          for (const m of search.FaceMatches || []) {
+            const guestId = m.Face?.ExternalImageId;
+            // Skip other temp photo faces — only real guest UUIDs (no "photo-" prefix)
+            if (!guestId || guestId.startsWith("photo-")) continue;
+            if (matchedGuests.has(guestId)) continue;
+            matchedGuests.add(guestId);
+
+            const { error: mErr } = await supabase
+              .from("photo_matches")
+              .insert({ guest_id: guestId, photo_id: photoRow.id, similarity: m.Similarity });
+            if (!mErr) {
+              const { data: g } = await supabase
                 .from("guests")
-                .update({ photo_count: (g.photo_count || 0) + 1 })
-                .eq("id", guestId);
+                .select("photo_count")
+                .eq("id", guestId)
+                .single();
+              if (g) {
+                await supabase
+                  .from("guests")
+                  .update({ photo_count: (g.photo_count || 0) + 1 })
+                  .eq("id", guestId);
+              }
             }
           }
         }
 
+        // Clean up temporary indexed faces so the collection only holds guest selfies
+        if (tempFaceIds.length) {
+          await rekognition("DeleteFaces", {
+            CollectionId: COLLECTION_ID,
+            FaceIds: tempFaceIds,
+          }).catch((e) => console.error("DeleteFaces failed", e));
+        }
+
         await supabase
           .from("photos")
-          .update({ processed: true, face_count: matchCount })
+          .update({ processed: true, face_count: faceRecords.length })
           .eq("id", photoRow.id);
 
-        results.push({ name: photo.name, matches: matchCount });
+        results.push({ name: photo.name, matches: matchedGuests.size, faces: faceRecords.length });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown";
-        results.push({ name: photo.name, matches: 0, error: msg });
+        console.error("photo error", msg);
+        results.push({ name: photo.name, matches: 0, faces: 0, error: msg });
       }
     }
 
