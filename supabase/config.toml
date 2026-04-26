@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.get-album]
 verify_jwt = false
+
+[functions.list-photos]
+verify_jwt = false
