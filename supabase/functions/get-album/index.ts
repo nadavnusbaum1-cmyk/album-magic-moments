@@ -42,9 +42,11 @@ Deno.serve(async (req) => {
       .order("created_at", { foreignTable: "photos", ascending: false });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const photos = (matches || []).map((m: { photos: { storage_path: string } | null }) => ({
-      url: `${supabaseUrl}/storage/v1/object/public/event-photos/${m.photos?.storage_path}`,
-    }));
+    const photos = (matches || []).flatMap((m: { photos: unknown }) => {
+      const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
+      const path = (p as { storage_path?: string } | null)?.storage_path;
+      return path ? [{ url: `${supabaseUrl}/storage/v1/object/public/event-photos/${path}` }] : [];
+    });
 
     return new Response(
       JSON.stringify({ guest: { name: guest.name }, photos, count: photos.length }),
