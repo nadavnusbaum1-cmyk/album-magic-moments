@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      guests: {
+        Row: {
+          created_at: string
+          id: string
+          magic_token: string
+          name: string
+          photo_count: number
+          rekognition_face_id: string | null
+          selfie_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          magic_token?: string
+          name: string
+          photo_count?: number
+          rekognition_face_id?: string | null
+          selfie_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          magic_token?: string
+          name?: string
+          photo_count?: number
+          rekognition_face_id?: string | null
+          selfie_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      photo_matches: {
+        Row: {
+          created_at: string
+          guest_id: string
+          id: string
+          photo_id: string
+          similarity: number
+        }
+        Insert: {
+          created_at?: string
+          guest_id: string
+          id?: string
+          photo_id: string
+          similarity: number
+        }
+        Update: {
+          created_at?: string
+          guest_id?: string
+          id?: string
+          photo_id?: string
+          similarity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_matches_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_matches_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      photos: {
+        Row: {
+          created_at: string
+          face_count: number
+          id: string
+          processed: boolean
+          source: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          face_count?: number
+          id?: string
+          processed?: boolean
+          source?: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          face_count?: number
+          id?: string
+          processed?: boolean
+          source?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
