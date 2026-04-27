@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.delete-photos]
 verify_jwt = false
+
+[functions.test-rekognition]
+verify_jwt = false
