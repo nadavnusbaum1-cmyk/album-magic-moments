@@ -14,8 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      cluster_photo_matches: {
+        Row: {
+          cluster_id: string
+          created_at: string
+          id: string
+          photo_id: string
+          similarity: number
+        }
+        Insert: {
+          cluster_id: string
+          created_at?: string
+          id?: string
+          photo_id: string
+          similarity?: number
+        }
+        Update: {
+          cluster_id?: string
+          created_at?: string
+          id?: string
+          photo_id?: string
+          similarity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cluster_photo_matches_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "face_clusters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cluster_photo_matches_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      face_clusters: {
+        Row: {
+          created_at: string
+          id: string
+          photo_count: number
+          representative_face_id: string
+          representative_photo_id: string | null
+          representative_storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          photo_count?: number
+          representative_face_id: string
+          representative_photo_id?: string | null
+          representative_storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          photo_count?: number
+          representative_face_id?: string
+          representative_photo_id?: string | null
+          representative_storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guests: {
         Row: {
+          cluster_id: string | null
           created_at: string
           id: string
           magic_token: string
@@ -26,6 +96,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cluster_id?: string | null
           created_at?: string
           id?: string
           magic_token?: string
@@ -36,6 +107,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cluster_id?: string | null
           created_at?: string
           id?: string
           magic_token?: string
@@ -45,7 +117,15 @@ export type Database = {
           selfie_path?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guests_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "face_clusters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       photo_matches: {
         Row: {
