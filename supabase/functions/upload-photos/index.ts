@@ -107,18 +107,13 @@ Deno.serve(async (req) => {
           let clusterId: string | null = null;
           let bestClusterMatch: { ext: string; sim: number } | null = null;
           for (const m of matches) {
-            const ext = m.Face?.ExternalImageId;
-            if (!ext) continue;
+            const matchedFaceId = m.Face?.FaceId;
+            if (!matchedFaceId) continue;
             if (m.Similarity < CLUSTER_THRESHOLD) continue;
-            if (ext.startsWith("cluster-") || ext.startsWith("photo-") || !ext.startsWith("photo-")) {
-              // accept anything indexed previously: cluster-X, photo-X (treat as same person)
-            }
-            // We treat the FaceId from previous indexes as a member of an existing cluster.
-            // Look up if this face_id is already in some cluster.
             const { data: existing } = await supabase
               .from("face_clusters")
               .select("id")
-              .eq("representative_face_id", m.Face!.FaceId!)
+              .eq("representative_face_id", matchedFaceId)
               .maybeSingle();
             if (existing) {
               if (!bestClusterMatch || m.Similarity > bestClusterMatch.sim) {
