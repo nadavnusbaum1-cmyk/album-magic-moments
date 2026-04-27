@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.list-photos]
 verify_jwt = false
+
+[functions.list-clusters]
+verify_jwt = false
+
+[functions.cluster-photos]
+verify_jwt = false
+
+[functions.delete-photos]
+verify_jwt = false
