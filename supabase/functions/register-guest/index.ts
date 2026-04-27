@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MATCH_THRESHOLD = 75;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -25,11 +27,9 @@ Deno.serve(async (req) => {
 
     await ensureCollection();
 
-    // Decode base64 -> bytes for storage upload
     const base64 = selfieBase64.replace(/^data:image\/\w+;base64,/, "");
     const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 
-    // Insert guest row to get id
     const { data: guest, error: insertErr } = await supabase
       .from("guests")
       .insert({ name })
@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
       .upload(path, binary, { contentType: "image/jpeg", upsert: true });
     if (upErr) throw upErr;
 
-    // Index face in Rekognition collection
     const indexResult = await rekognition("IndexFaces", {
       CollectionId: COLLECTION_ID,
       Image: { Bytes: base64 },
@@ -62,43 +61,70 @@ Deno.serve(async (req) => {
       );
     }
 
-    await supabase
-      .from("guests")
-      .update({
-        selfie_path: path,
-        rekognition_face_id: faceRecord.Face.FaceId,
-      })
-      .eq("id", guest.id);
-
-    // Retroactive match: search the collection by the new guest's face id.
-    // This finds any previously-uploaded event-photo faces that match this guest.
-    let matchCount = 0;
     const guestFaceId = faceRecord.Face.FaceId;
+
+    // Search collection by guest face id
     const search = await rekognition("SearchFaces", {
       CollectionId: COLLECTION_ID,
       FaceId: guestFaceId,
-      FaceMatchThreshold: 80,
+      FaceMatchThreshold: MATCH_THRESHOLD,
       MaxFaces: 500,
     }).catch(() => ({ FaceMatches: [] }));
 
     const matchedPhotoIds = new Set<string>();
+    let bestClusterId: string | null = null;
+    let bestClusterSim = 0;
+
     for (const m of search.FaceMatches || []) {
       const ext = m.Face?.ExternalImageId as string | undefined;
-      if (!ext || !ext.startsWith("photo-")) continue;
-      const photoId = ext.slice("photo-".length);
-      if (matchedPhotoIds.has(photoId)) continue;
-      matchedPhotoIds.add(photoId);
-      const { error: mErr } = await supabase
-        .from("photo_matches")
-        .insert({ guest_id: guest.id, photo_id: photoId, similarity: m.Similarity });
-      if (!mErr) matchCount++;
-    }
-    if (matchCount > 0) {
-      await supabase.from("guests").update({ photo_count: matchCount }).eq("id", guest.id);
+      if (!ext) continue;
+      if (ext.startsWith("photo-")) {
+        const photoId = ext.slice("photo-".length);
+        if (!matchedPhotoIds.has(photoId)) {
+          matchedPhotoIds.add(photoId);
+          await supabase
+            .from("photo_matches")
+            .insert({ guest_id: guest.id, photo_id: photoId, similarity: m.Similarity });
+        }
+      }
+      // Find cluster this face belongs to
+      const { data: cluster } = await supabase
+        .from("face_clusters")
+        .select("id")
+        .eq("representative_face_id", m.Face!.FaceId!)
+        .maybeSingle();
+      if (cluster && m.Similarity > bestClusterSim) {
+        bestClusterSim = m.Similarity;
+        bestClusterId = cluster.id;
+      }
     }
 
+    // If no cluster found, create one for this guest
+    if (!bestClusterId) {
+      const { data: newCluster } = await supabase
+        .from("face_clusters")
+        .insert({
+          representative_face_id: guestFaceId,
+          representative_storage_path: null,
+          photo_count: 0,
+        })
+        .select()
+        .single();
+      if (newCluster) bestClusterId = newCluster.id;
+    }
+
+    await supabase
+      .from("guests")
+      .update({
+        selfie_path: path,
+        rekognition_face_id: guestFaceId,
+        photo_count: matchedPhotoIds.size,
+        cluster_id: bestClusterId,
+      })
+      .eq("id", guest.id);
+
     return new Response(
-      JSON.stringify({ token: guest.magic_token, photoCount: matchCount }),
+      JSON.stringify({ token: guest.magic_token, photoCount: matchedPhotoIds.size }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

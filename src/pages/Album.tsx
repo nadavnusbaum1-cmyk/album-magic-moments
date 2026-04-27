@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
+import { HomeButton } from "@/components/HomeButton";
 
 interface AlbumData {
   guest: { name: string };
@@ -59,7 +59,8 @@ const Album = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
-      <header className="px-6 pt-10 pb-6 text-center">
+      <HomeButton />
+      <header className="px-6 pt-16 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 fill-current" />
           <span className="text-xs uppercase tracking-wider">Personal Album</span>

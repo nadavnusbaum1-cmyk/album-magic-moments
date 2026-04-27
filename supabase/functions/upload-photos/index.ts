@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MATCH_THRESHOLD = 80; // guest match
+const CLUSTER_THRESHOLD = 85; // group same person
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -40,18 +43,15 @@ Deno.serve(async (req) => {
 
         const { data: photoRow, error: insErr } = await supabase
           .from("photos")
-          .insert({ storage_path: path, source: "photographer", processed: false })
+          .insert({ storage_path: path, source: "upload", processed: false })
           .select()
           .single();
         if (insErr) throw insErr;
 
-        // Index ALL faces in the photo (with a temporary ExternalImageId so we can clean them up)
-        // Then SearchFaces by FaceId to find matching guests for each face.
-        const tempExternalId = `photo-${photoRow.id}`;
         const indexResult = await rekognition("IndexFaces", {
           CollectionId: COLLECTION_ID,
           Image: { Bytes: base64 },
-          ExternalImageId: tempExternalId,
+          ExternalImageId: `photo-${photoRow.id}`,
           DetectionAttributes: [],
           MaxFaces: 20,
           QualityFilter: "AUTO",
@@ -61,49 +61,104 @@ Deno.serve(async (req) => {
         });
 
         const faceRecords = indexResult.FaceRecords || [];
-        const tempFaceIds: string[] = [];
         const matchedGuests = new Set<string>();
+        const matchedClusters = new Set<string>();
 
         for (const fr of faceRecords) {
           const faceId = fr.Face?.FaceId;
           if (!faceId) continue;
-          tempFaceIds.push(faceId);
 
           const search = await rekognition("SearchFaces", {
             CollectionId: COLLECTION_ID,
             FaceId: faceId,
-            FaceMatchThreshold: 80,
-            MaxFaces: 10,
+            FaceMatchThreshold: 75,
+            MaxFaces: 50,
           }).catch(() => ({ FaceMatches: [] }));
 
-          for (const m of search.FaceMatches || []) {
-            const guestId = m.Face?.ExternalImageId;
-            // Skip other temp photo faces — only real guest UUIDs (no "photo-" prefix)
-            if (!guestId || guestId.startsWith("photo-")) continue;
-            if (matchedGuests.has(guestId)) continue;
-            matchedGuests.add(guestId);
+          const matches = search.FaceMatches || [];
+
+          // 1) Match registered guests
+          for (const m of matches) {
+            const ext = m.Face?.ExternalImageId;
+            if (!ext || ext.startsWith("photo-") || ext.startsWith("cluster-")) continue;
+            if (m.Similarity < MATCH_THRESHOLD) continue;
+            if (matchedGuests.has(ext)) continue;
+            matchedGuests.add(ext);
 
             const { error: mErr } = await supabase
               .from("photo_matches")
-              .insert({ guest_id: guestId, photo_id: photoRow.id, similarity: m.Similarity });
+              .insert({ guest_id: ext, photo_id: photoRow.id, similarity: m.Similarity });
             if (!mErr) {
               const { data: g } = await supabase
                 .from("guests")
                 .select("photo_count")
-                .eq("id", guestId)
+                .eq("id", ext)
                 .single();
               if (g) {
                 await supabase
                   .from("guests")
                   .update({ photo_count: (g.photo_count || 0) + 1 })
-                  .eq("id", guestId);
+                  .eq("id", ext);
+              }
+            }
+          }
+
+          // 2) Auto-cluster: find best existing cluster face match, else create new cluster
+          let clusterId: string | null = null;
+          let bestClusterMatch: { ext: string; sim: number } | null = null;
+          for (const m of matches) {
+            const matchedFaceId = m.Face?.FaceId;
+            if (!matchedFaceId) continue;
+            if (m.Similarity < CLUSTER_THRESHOLD) continue;
+            const { data: existing } = await supabase
+              .from("face_clusters")
+              .select("id")
+              .eq("representative_face_id", matchedFaceId)
+              .maybeSingle();
+            if (existing) {
+              if (!bestClusterMatch || m.Similarity > bestClusterMatch.sim) {
+                bestClusterMatch = { ext: existing.id, sim: m.Similarity };
+              }
+            }
+          }
+
+          if (bestClusterMatch) {
+            clusterId = bestClusterMatch.ext;
+          } else {
+            // New cluster — use this face as representative
+            const { data: newCluster } = await supabase
+              .from("face_clusters")
+              .insert({
+                representative_face_id: faceId,
+                representative_photo_id: photoRow.id,
+                representative_storage_path: path,
+                photo_count: 0,
+              })
+              .select()
+              .single();
+            if (newCluster) clusterId = newCluster.id;
+          }
+
+          if (clusterId && !matchedClusters.has(clusterId)) {
+            matchedClusters.add(clusterId);
+            const { error: cmErr } = await supabase
+              .from("cluster_photo_matches")
+              .insert({ cluster_id: clusterId, photo_id: photoRow.id, similarity: 100 });
+            if (!cmErr) {
+              const { data: c } = await supabase
+                .from("face_clusters")
+                .select("photo_count")
+                .eq("id", clusterId)
+                .single();
+              if (c) {
+                await supabase
+                  .from("face_clusters")
+                  .update({ photo_count: (c.photo_count || 0) + 1 })
+                  .eq("id", clusterId);
               }
             }
           }
         }
-
-        // Note: we keep indexed photo faces in the collection so future guest
-        // registrations can retroactively match against them via SearchFaces.
 
         await supabase
           .from("photos")

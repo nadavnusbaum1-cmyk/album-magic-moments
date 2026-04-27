@@ -7,33 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
-type GalleryPhoto = {
-  id: string;
-  url: string;
-  face_count: number;
-  processed: boolean;
-  created_at: string;
-};
+type Cluster = { id: string; cover_url: string | null; photo_count: number };
 
 const Index = () => {
   const [name, setName] = useState("");
   const [selfie, setSelfie] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ token: string; photoCount: number } | null>(null);
-  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
 
-  const loadGallery = async () => {
+  const loadClusters = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("list-photos", { body: {} });
+      const { data, error } = await supabase.functions.invoke("list-clusters", { body: {} });
       if (error) throw error;
-      if (!data?.error) setGallery(data.photos || []);
+      if (!data?.error) setClusters(data.clusters || []);
     } catch (e) {
       console.error(e);
     }
   };
 
   useEffect(() => {
-    loadGallery();
+    loadClusters();
   }, []);
 
   const onFile = (file: File) => {
@@ -80,8 +74,11 @@ const Index = () => {
           <Link to={`/album/${result.token}`}>
             <Button size="lg" className="w-full">View My Album</Button>
           </Link>
+          <Button variant="outline" className="w-full" onClick={() => setResult(null)}>
+            Back to home
+          </Button>
           <p className="text-xs text-muted-foreground">
-            Bookmark this link — it's your private gallery.
+            Bookmark your album link — it's your private gallery.
           </p>
         </Card>
       </div>
@@ -149,40 +146,36 @@ const Index = () => {
 
         <div className="text-center mt-8">
           <Link to="/admin" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-            <Upload className="w-4 h-4" /> Photographer? Upload event photos
+            <Upload className="w-4 h-4" /> Upload photos
           </Link>
         </div>
 
-        {gallery.length > 0 && (
+        {clusters.length > 0 && (
           <section className="max-w-5xl mx-auto mt-16">
             <div className="text-center mb-6">
-              <h2 className="text-2xl md:text-3xl font-serif text-foreground">All wedding photos</h2>
+              <h2 className="text-2xl md:text-3xl font-serif text-foreground">Browse by person</h2>
               <p className="text-muted-foreground text-sm mt-2">
-                {gallery.length} {gallery.length === 1 ? "photo" : "photos"} from the celebration
+                {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized in the photos
               </p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {gallery.map((p) => (
-                <a
-                  key={p.id}
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative group rounded-xl overflow-hidden bg-muted aspect-square block"
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {clusters.map((c) => (
+                <Link
+                  key={c.id}
+                  to={`/person/${c.id}`}
+                  className="group flex flex-col items-center gap-2"
                 >
-                  <img
-                    src={p.url}
-                    alt="Wedding moment"
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  {p.face_count > 0 && (
-                    <div className="absolute bottom-1 right-1 bg-background/80 backdrop-blur text-xs rounded-full px-2 py-0.5 flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {p.face_count}
-                    </div>
-                  )}
-                </a>
+                  <div className="aspect-square w-full rounded-full overflow-hidden bg-muted border-2 border-transparent group-hover:border-primary transition-colors">
+                    {c.cover_url ? (
+                      <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Users className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{c.photo_count} photos</span>
+                </Link>
               ))}
             </div>
           </section>
