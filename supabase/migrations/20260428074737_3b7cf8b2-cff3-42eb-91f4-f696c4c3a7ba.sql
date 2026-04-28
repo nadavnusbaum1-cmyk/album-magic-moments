@@ -1,0 +1,1 @@
+ALTER TABLE public.face_clusters ADD COLUMN IF NOT EXISTS representative_s3_key TEXT;

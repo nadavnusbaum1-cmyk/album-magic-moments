@@ -61,6 +61,7 @@ export type Database = {
           photo_count: number
           representative_face_id: string
           representative_photo_id: string | null
+          representative_s3_key: string | null
           representative_storage_path: string | null
           updated_at: string
         }
@@ -71,6 +72,7 @@ export type Database = {
           photo_count?: number
           representative_face_id: string
           representative_photo_id?: string | null
+          representative_s3_key?: string | null
           representative_storage_path?: string | null
           updated_at?: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           photo_count?: number
           representative_face_id?: string
           representative_photo_id?: string | null
+          representative_s3_key?: string | null
           representative_storage_path?: string | null
           updated_at?: string
         }
@@ -175,24 +178,33 @@ export type Database = {
           face_count: number
           id: string
           processed: boolean
+          processing_error: string | null
+          s3_key: string | null
           source: string
           storage_path: string
+          storage_provider: string
         }
         Insert: {
           created_at?: string
           face_count?: number
           id?: string
           processed?: boolean
+          processing_error?: string | null
+          s3_key?: string | null
           source?: string
           storage_path: string
+          storage_provider?: string
         }
         Update: {
           created_at?: string
           face_count?: number
           id?: string
           processed?: boolean
+          processing_error?: string | null
+          s3_key?: string | null
           source?: string
           storage_path?: string
+          storage_provider?: string
         }
         Relationships: []
       }

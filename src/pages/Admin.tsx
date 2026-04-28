@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, CheckCircle2, Image as ImageIcon, Users, Trash2, Lock, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
-import { convertHeicIfNeeded, fileToBase64 } from "@/lib/imageUtils";
+import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -57,24 +57,35 @@ const Admin = () => {
     setUploading(true);
     setResults([]);
     try {
+      const BATCH = 8;
       const allResults: typeof results = [];
-      for (let i = 0; i < files.length; i += 3) {
-        const batch = files.slice(i, i + 3);
-        const photos = await Promise.all(
-          batch.map(async (f) => {
-            const converted = await convertHeicIfNeeded(f);
-            return { name: f.name, base64: await fileToBase64(converted) };
-          }),
-        );
-        const { data, error } = await supabase.functions.invoke("upload-photos", {
-          body: { photos },
-        });
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
-        allResults.push(...data.results);
-        setResults([...allResults]);
+      for (let i = 0; i < files.length; i += BATCH) {
+        const batch = files.slice(i, i + BATCH);
+        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
+        try {
+          const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
+            body: { files: converted.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })) },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+          const uploads = data.uploads as { photoId: string; uploadUrl: string }[];
+          await Promise.all(uploads.map(async (u, idx) => {
+            const file = converted[idx];
+            const r = await fetch(u.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": file.type || "image/jpeg" },
+              body: file,
+            });
+            if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
+            allResults.push({ name: file.name, matches: 0 });
+          }));
+          setResults([...allResults]);
+        } catch (e) {
+          batch.forEach((f) => allResults.push({ name: f.name, matches: 0, error: e instanceof Error ? e.message : "Failed" }));
+          setResults([...allResults]);
+        }
       }
-      toast.success(`Processed ${allResults.length} photos`);
+      toast.success(`Uploaded ${allResults.length} photos. Face recognition runs in the background.`);
       setFiles([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");

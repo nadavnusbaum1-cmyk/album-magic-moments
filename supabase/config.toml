@@ -24,3 +24,9 @@ verify_jwt = false
 [functions.rename-cluster]
 verify_jwt = false
 
+[functions.sign-s3-upload]
+verify_jwt = false
+
+[functions.process-photos]
+verify_jwt = false
+

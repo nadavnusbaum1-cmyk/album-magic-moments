@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { resolvePhotoUrl } from "../_shared/storage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,25 +32,25 @@ Deno.serve(async (req) => {
 
     const { data: matches } = await supabase
       .from("cluster_photo_matches")
-      .select("photo_id, photos(storage_path, created_at)")
+      .select("photo_id, photos(storage_path, storage_provider, s3_key, created_at)")
       .eq("cluster_id", clusterId)
       .order("created_at", { foreignTable: "photos", ascending: false });
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const photos = (matches || []).flatMap((m: { photo_id: string; photos: unknown }) => {
-      const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
-      const path = (p as { storage_path?: string } | null)?.storage_path;
-      return path
-        ? [{
-          id: m.photo_id,
-          url: `${supabaseUrl}/storage/v1/object/public/event-photos/${path}`,
-        }]
-        : [];
-    });
+    const photos = await Promise.all(
+      (matches || []).flatMap((m: { photo_id: string; photos: unknown }) => {
+        const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
+        if (!p) return [];
+        return [{ id: m.photo_id, photo: p as { storage_path: string; storage_provider?: string; s3_key?: string } }];
+      }).map(async ({ id, photo }) => ({
+        id,
+        url: await resolvePhotoUrl(photo),
+      })),
+    );
 
-    return new Response(JSON.stringify({ photos, count: photos.length, display_name: cluster?.display_name || null }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ photos, count: photos.length, display_name: cluster?.display_name || null }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {

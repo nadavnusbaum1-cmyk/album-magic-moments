@@ -33,12 +33,35 @@ Deno.serve(async (req) => {
 
     const { data: photos } = await supabase
       .from("photos")
-      .select("id, storage_path")
+      .select("id, storage_path, storage_provider, s3_key")
       .in("id", photoIds);
 
-    const paths = (photos || []).map((p) => p.storage_path);
-    if (paths.length) {
-      await supabase.storage.from("event-photos").remove(paths);
+    const supabasePaths = (photos || []).filter((p) => p.storage_provider !== "s3").map((p) => p.storage_path);
+    const s3Keys = (photos || []).filter((p) => p.storage_provider === "s3" && p.s3_key).map((p) => p.s3_key as string);
+
+    if (supabasePaths.length) {
+      await supabase.storage.from("event-photos").remove(supabasePaths);
+    }
+
+    // Delete S3 objects via gateway proxy
+    if (s3Keys.length) {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY");
+      if (LOVABLE_API_KEY && AWS_S3_API_KEY) {
+        await Promise.all(s3Keys.map(async (key) => {
+          try {
+            await fetch(`https://connector-gateway.lovable.dev/aws_s3/${key}`, {
+              method: "DELETE",
+              headers: {
+                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+                "X-Connection-Api-Key": AWS_S3_API_KEY,
+              },
+            });
+          } catch (e) {
+            console.error("S3 delete failed for", key, e);
+          }
+        }));
+      }
     }
 
     // Find affected clusters BEFORE deleting matches
