@@ -175,24 +175,33 @@ export type Database = {
           face_count: number
           id: string
           processed: boolean
+          processing_error: string | null
+          s3_key: string | null
           source: string
           storage_path: string
+          storage_provider: string
         }
         Insert: {
           created_at?: string
           face_count?: number
           id?: string
           processed?: boolean
+          processing_error?: string | null
+          s3_key?: string | null
           source?: string
           storage_path: string
+          storage_provider?: string
         }
         Update: {
           created_at?: string
           face_count?: number
           id?: string
           processed?: boolean
+          processing_error?: string | null
+          s3_key?: string | null
           source?: string
           storage_path?: string
+          storage_provider?: string
         }
         Relationships: []
       }
