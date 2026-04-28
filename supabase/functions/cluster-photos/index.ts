@@ -23,6 +23,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const { data: cluster } = await supabase
+      .from("face_clusters")
+      .select("display_name")
+      .eq("id", clusterId)
+      .maybeSingle();
+
     const { data: matches } = await supabase
       .from("cluster_photo_matches")
       .select("photo_id, photos(storage_path, created_at)")
@@ -41,7 +47,7 @@ Deno.serve(async (req) => {
         : [];
     });
 
-    return new Response(JSON.stringify({ photos, count: photos.length }), {
+    return new Response(JSON.stringify({ photos, count: photos.length, display_name: cluster?.display_name || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
