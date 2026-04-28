@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anyone can rename clusters" ON public.face_clusters;
