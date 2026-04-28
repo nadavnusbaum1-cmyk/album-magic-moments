@@ -41,11 +41,34 @@ Deno.serve(async (req) => {
       await supabase.storage.from("event-photos").remove(paths);
     }
 
-    // Delete matches first (photo_matches has no FK cascade)
+    // Find affected clusters BEFORE deleting matches
+    const { data: affectedMatches } = await supabase
+      .from("cluster_photo_matches")
+      .select("cluster_id")
+      .in("photo_id", photoIds);
+    const affectedClusterIds = [...new Set((affectedMatches || []).map((m) => m.cluster_id))];
+
+    // Delete matches
     await supabase.from("photo_matches").delete().in("photo_id", photoIds);
+    await supabase.from("cluster_photo_matches").delete().in("photo_id", photoIds);
     await supabase.from("photos").delete().in("id", photoIds);
 
-    return new Response(JSON.stringify({ deleted: photoIds.length }), {
+    // Recompute counts and delete empty clusters
+    let removedClusters = 0;
+    for (const cid of affectedClusterIds) {
+      const { count } = await supabase
+        .from("cluster_photo_matches")
+        .select("*", { count: "exact", head: true })
+        .eq("cluster_id", cid);
+      if (!count || count === 0) {
+        await supabase.from("face_clusters").delete().eq("id", cid);
+        removedClusters++;
+      } else {
+        await supabase.from("face_clusters").update({ photo_count: count }).eq("id", cid);
+      }
+    }
+
+    return new Response(JSON.stringify({ deleted: photoIds.length, removedClusters }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
