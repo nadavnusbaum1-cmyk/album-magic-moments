@@ -1,20 +1,31 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart, Users } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users, Pencil, Check, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { convertHeicIfNeeded, fileToBase64 } from "@/lib/imageUtils";
 
-type Cluster = { id: string; cover_url: string | null; photo_count: number };
+const ADMIN_KEY = "wedding-admin-password";
+
+type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 
 const Index = () => {
-  const [name, setName] = useState("");
   const [selfie, setSelfie] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ token: string; photoCount: number } | null>(null);
   const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [editingCluster, setEditingCluster] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  // Public uploads
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
+
+  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem(ADMIN_KEY);
 
   const loadClusters = async () => {
     try {
@@ -30,21 +41,26 @@ const Index = () => {
     loadClusters();
   }, []);
 
-  const onFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => setSelfie(reader.result as string);
-    reader.readAsDataURL(file);
+  const onSelfieFile = async (file: File) => {
+    try {
+      const converted = await convertHeicIfNeeded(file);
+      const reader = new FileReader();
+      reader.onload = () => setSelfie(reader.result as string);
+      reader.readAsDataURL(converted);
+    } catch {
+      toast.error("Could not read that image");
+    }
   };
 
   const submit = async () => {
-    if (!name.trim() || !selfie) {
-      toast.error("Add your name and a selfie ✨");
+    if (!selfie) {
+      toast.error("Please add a selfie ✨");
       return;
     }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("register-guest", {
-        body: { name: name.trim(), selfieBase64: selfie },
+        body: { name: `Guest-${Date.now().toString(36)}`, selfieBase64: selfie },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -54,6 +70,60 @@ const Index = () => {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onUploadFiles = async (files: File[]) => {
+    setUploadFiles(files);
+  };
+
+  const startUpload = async () => {
+    if (!uploadFiles.length) return;
+    setUploading(true);
+    setUploadProgress({ done: 0, total: uploadFiles.length });
+    let done = 0;
+    let errors = 0;
+    try {
+      const BATCH = 3;
+      for (let i = 0; i < uploadFiles.length; i += BATCH) {
+        const batch = uploadFiles.slice(i, i + BATCH);
+        const photos = await Promise.all(
+          batch.map(async (f) => {
+            const converted = await convertHeicIfNeeded(f);
+            return { name: f.name, base64: await fileToBase64(converted) };
+          }),
+        );
+        try {
+          const { data, error } = await supabase.functions.invoke("upload-photos", { body: { photos } });
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+        } catch (e) {
+          errors += batch.length;
+          console.error(e);
+        }
+        done += batch.length;
+        setUploadProgress({ done, total: uploadFiles.length });
+      }
+      if (errors) toast.error(`${errors} photos failed to upload`);
+      else toast.success(`Uploaded ${done} photos!`);
+      setUploadFiles([]);
+      loadClusters();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveClusterName = async (id: string) => {
+    const newName = editName.trim();
+    setEditingCluster(null);
+    setClusters((cs) => cs.map((c) => (c.id === id ? { ...c, display_name: newName || null } : c)));
+    try {
+      const { error } = await supabase.functions.invoke("rename-cluster", { body: { id, name: newName } });
+      if (error) throw error;
+      toast.success("Renamed");
+    } catch {
+      toast.error("Failed to rename");
+      loadClusters();
     }
   };
 
@@ -104,16 +174,6 @@ const Index = () => {
       <main className="px-6 pb-12">
         <Card className="max-w-md mx-auto p-6 space-y-5" style={{ boxShadow: "var(--shadow-card)" }}>
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Your name</label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Maya Cohen"
-              disabled={loading}
-            />
-          </div>
-
-          <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Your selfie 📸</label>
             <label
               htmlFor="selfie-input"
@@ -130,10 +190,10 @@ const Index = () => {
               <input
                 id="selfie-input"
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif"
                 capture="user"
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+                onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])}
                 disabled={loading}
               />
             </label>
@@ -144,9 +204,44 @@ const Index = () => {
           </Button>
         </Card>
 
-        <div className="text-center mt-8">
-          <Link to="/admin" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-            <Upload className="w-4 h-4" /> Upload photos
+        {/* Public upload section */}
+        <Card className="max-w-md mx-auto mt-6 p-6 space-y-4" style={{ boxShadow: "var(--shadow-card)" }}>
+          <div className="text-center">
+            <h2 className="text-lg font-serif text-foreground">Share your photos</h2>
+            <p className="text-xs text-muted-foreground mt-1">Upload pics from the wedding so everyone can find themselves</p>
+          </div>
+          <label
+            htmlFor="photos-upload-input"
+            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-6 cursor-pointer hover:border-primary transition-colors bg-secondary/40"
+          >
+            <Upload className="w-8 h-8 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {uploadFiles.length ? `${uploadFiles.length} files selected` : "Tap to choose photos from your device"}
+            </span>
+            <input
+              id="photos-upload-input"
+              type="file"
+              accept="image/*,.heic,.heif"
+              multiple
+              className="hidden"
+              onChange={(e) => onUploadFiles(Array.from(e.target.files || []))}
+              disabled={uploading}
+            />
+          </label>
+          {uploading && (
+            <div className="text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Uploading {uploadProgress.done} / {uploadProgress.total}…
+            </div>
+          )}
+          <Button onClick={startUpload} disabled={!uploadFiles.length || uploading} className="w-full">
+            {uploading ? "Uploading…" : `Upload ${uploadFiles.length || ""} photos`}
+          </Button>
+        </Card>
+
+        <div className="text-center mt-6">
+          <Link to="/admin" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary">
+            Admin
           </Link>
         </div>
 
@@ -155,17 +250,16 @@ const Index = () => {
             <div className="text-center mb-6">
               <h2 className="text-2xl md:text-3xl font-serif text-foreground">Browse by person</h2>
               <p className="text-muted-foreground text-sm mt-2">
-                {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized in the photos
+                {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized — tap a name to label
               </p>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               {clusters.map((c) => (
-                <Link
-                  key={c.id}
-                  to={`/person/${c.id}`}
-                  className="group flex flex-col items-center gap-2"
-                >
-                  <div className="aspect-square w-full rounded-full overflow-hidden bg-muted border-2 border-transparent group-hover:border-primary transition-colors">
+                <div key={c.id} className="flex flex-col items-center gap-2">
+                  <Link
+                    to={`/person/${c.id}`}
+                    className="aspect-square w-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
+                  >
                     {c.cover_url ? (
                       <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                     ) : (
@@ -173,9 +267,45 @@ const Index = () => {
                         <Users className="w-6 h-6 text-muted-foreground" />
                       </div>
                     )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{c.photo_count} photos</span>
-                </Link>
+                  </Link>
+
+                  {editingCluster === c.id ? (
+                    <div className="flex items-center gap-1 w-full">
+                      <Input
+                        autoFocus
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveClusterName(c.id);
+                          if (e.key === "Escape") setEditingCluster(null);
+                        }}
+                        className="h-7 text-xs px-2"
+                        placeholder="Name"
+                        maxLength={60}
+                      />
+                      <button onClick={() => saveClusterName(c.id)} className="text-primary p-1">
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => setEditingCluster(null)} className="text-muted-foreground p-1">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingCluster(c.id);
+                        setEditName(c.display_name || "");
+                      }}
+                      className="text-xs text-foreground hover:text-primary inline-flex items-center gap-1 group"
+                    >
+                      <span className="truncate max-w-[80px]">
+                        {c.display_name || "Add name"}
+                      </span>
+                      <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100" />
+                    </button>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">{c.photo_count} photos</span>
+                </div>
               ))}
             </div>
           </section>

@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
     const { data: clusters, error } = await supabase
       .from("face_clusters")
-      .select("id, representative_storage_path, photo_count, created_at")
+      .select("id, representative_storage_path, photo_count, display_name, created_at")
       .gt("photo_count", 0)
       .order("photo_count", { ascending: false })
       .limit(200);
@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
     const items = (clusters || []).map((c) => ({
       id: c.id,
       photo_count: c.photo_count,
+      display_name: c.display_name,
       cover_url: c.representative_storage_path
         ? `${supabaseUrl}/storage/v1/object/public/event-photos/${c.representative_storage_path}`
         : null,

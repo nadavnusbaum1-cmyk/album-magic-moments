@@ -7,6 +7,7 @@ import { Heart } from "lucide-react";
 const Person = () => {
   const { id } = useParams();
   const [photos, setPhotos] = useState<{ id: string; url: string }[]>([]);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +21,7 @@ const Person = () => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "Failed");
         setPhotos(j.photos || []);
+        setDisplayName(j.display_name || null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed");
       } finally {
@@ -37,7 +39,9 @@ const Person = () => {
           <Heart className="w-4 h-4 fill-current" />
           <span className="text-xs uppercase tracking-wider">Person folder</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-serif text-foreground">Photos of this person</h1>
+        <h1 className="text-3xl md:text-4xl font-serif text-foreground">
+          {displayName || "Photos of this person"}
+        </h1>
         <p className="text-muted-foreground mt-2">
           {loading ? "Loading…" : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
         </p>
