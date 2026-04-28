@@ -84,19 +84,33 @@ const Index = () => {
     let done = 0;
     let errors = 0;
     try {
-      const BATCH = 3;
+      // Direct-to-S3 upload in batches: get pre-signed URLs, then PUT files in parallel.
+      // Face recognition runs in the background by the cron-driven process-photos function.
+      const BATCH = 8;
       for (let i = 0; i < uploadFiles.length; i += BATCH) {
         const batch = uploadFiles.slice(i, i + BATCH);
-        const photos = await Promise.all(
-          batch.map(async (f) => {
-            const converted = await convertHeicIfNeeded(f);
-            return { name: f.name, base64: await fileToBase64(converted) };
-          }),
-        );
+        // Convert HEIC if needed
+        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
         try {
-          const { data, error } = await supabase.functions.invoke("upload-photos", { body: { photos } });
+          const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
+            body: {
+              files: converted.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })),
+            },
+          });
           if (error) throw error;
           if (data?.error) throw new Error(data.error);
+          const uploads = data.uploads as { photoId: string; uploadUrl: string }[];
+
+          // Upload files directly to S3 in parallel
+          await Promise.all(uploads.map(async (u, idx) => {
+            const file = converted[idx];
+            const r = await fetch(u.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": file.type || "image/jpeg" },
+              body: file,
+            });
+            if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
+          }));
         } catch (e) {
           errors += batch.length;
           console.error(e);
@@ -105,9 +119,10 @@ const Index = () => {
         setUploadProgress({ done, total: uploadFiles.length });
       }
       if (errors) toast.error(`${errors} photos failed to upload`);
-      else toast.success(`Uploaded ${done} photos!`);
+      else toast.success(`Uploaded ${done} photos! Face matching runs in the background.`);
       setUploadFiles([]);
-      loadClusters();
+      // Wait a moment for first batch to be processed, then refresh clusters
+      setTimeout(loadClusters, 5000);
     } finally {
       setUploading(false);
     }
