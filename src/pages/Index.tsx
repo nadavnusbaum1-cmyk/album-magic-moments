@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { convertHeicIfNeeded, fileToBase64 } from "@/lib/imageUtils";
+import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 

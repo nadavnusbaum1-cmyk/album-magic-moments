@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, CheckCircle2, Image as ImageIcon, Users, Trash2, Lock, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
-import { convertHeicIfNeeded, fileToBase64 } from "@/lib/imageUtils";
+import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 
