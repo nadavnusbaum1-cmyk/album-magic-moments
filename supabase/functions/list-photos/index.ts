@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { resolvePhotoUrl } from "../_shared/storage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,21 +17,20 @@ Deno.serve(async (req) => {
 
     const { data: photos, error } = await supabase
       .from("photos")
-      .select("id, storage_path, face_count, processed, created_at")
+      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw error;
 
-    const items = (photos || []).map((p) => {
-      const { data } = supabase.storage.from("event-photos").getPublicUrl(p.storage_path);
-      return {
+    const items = await Promise.all(
+      (photos || []).map(async (p) => ({
         id: p.id,
-        url: data.publicUrl,
+        url: await resolvePhotoUrl(p),
         face_count: p.face_count,
         processed: p.processed,
         created_at: p.created_at,
-      };
-    });
+      })),
+    );
 
     return new Response(JSON.stringify({ photos: items }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
