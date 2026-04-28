@@ -18,15 +18,6 @@ type GalleryPhoto = {
   processed: boolean;
   created_at: string;
 };
-
-type GalleryPhoto = {
-  id: string;
-  url: string;
-  face_count: number;
-  processed: boolean;
-  created_at: string;
-};
-
 const Admin = () => {
   const [adminPassword, setAdminPassword] = useState<string | null>(
     () => sessionStorage.getItem(ADMIN_KEY),
