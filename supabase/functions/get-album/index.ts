@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { resolvePhotoUrl } from "../_shared/storage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,16 +38,17 @@ Deno.serve(async (req) => {
 
     const { data: matches } = await supabase
       .from("photo_matches")
-      .select("photo_id, photos(storage_path, created_at)")
+      .select("photo_id, photos(storage_path, storage_provider, s3_key, created_at)")
       .eq("guest_id", guest.id)
       .order("created_at", { foreignTable: "photos", ascending: false });
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const photos = (matches || []).flatMap((m: { photos: unknown }) => {
-      const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
-      const path = (p as { storage_path?: string } | null)?.storage_path;
-      return path ? [{ url: `${supabaseUrl}/storage/v1/object/public/event-photos/${path}` }] : [];
-    });
+    const photos = await Promise.all(
+      (matches || []).flatMap((m: { photos: unknown }) => {
+        const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
+        if (!p) return [];
+        return [p as { storage_path: string; storage_provider?: string; s3_key?: string }];
+      }).map(async (p) => ({ url: await resolvePhotoUrl(p) })),
+    );
 
     return new Response(
       JSON.stringify({ guest: { name: guest.name }, photos, count: photos.length }),
