@@ -4,19 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, CheckCircle2, Image as ImageIcon, Users, Trash2, Lock } from "lucide-react";
+import { Upload, CheckCircle2, Image as ImageIcon, Users, Trash2, Lock, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
+import { convertHeicIfNeeded, fileToBase64 } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+type GalleryPhoto = {
+  id: string;
+  url: string;
+  face_count: number;
+  processed: boolean;
+  created_at: string;
+};
 
 type GalleryPhoto = {
   id: string;
@@ -69,7 +70,10 @@ const Admin = () => {
       for (let i = 0; i < files.length; i += 3) {
         const batch = files.slice(i, i + 3);
         const photos = await Promise.all(
-          batch.map(async (f) => ({ name: f.name, base64: await fileToBase64(f) })),
+          batch.map(async (f) => {
+            const converted = await convertHeicIfNeeded(f);
+            return { name: f.name, base64: await fileToBase64(converted) };
+          }),
         );
         const { data, error } = await supabase.functions.invoke("upload-photos", {
           body: { photos },
@@ -209,7 +213,7 @@ const Admin = () => {
                 <input
                   id="photos-input"
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   multiple
                   className="hidden"
                   onChange={(e) => setFiles(Array.from(e.target.files || []))}
@@ -246,7 +250,21 @@ const Admin = () => {
             <Card className="p-6" style={{ boxShadow: "var(--shadow-card)" }}>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h2 className="font-medium">{gallery.length} photos</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {gallery.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selected.size === gallery.length) setSelected(new Set());
+                        else setSelected(new Set(gallery.map((p) => p.id)));
+                      }}
+                      className="gap-2"
+                    >
+                      {selected.size === gallery.length ? <Square className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
+                      {selected.size === gallery.length ? "Clear" : "Select all"}
+                    </Button>
+                  )}
                   {selected.size > 0 && (
                     <Button
                       variant="destructive"
