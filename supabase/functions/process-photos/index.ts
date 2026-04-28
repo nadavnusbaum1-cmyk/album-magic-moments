@@ -150,7 +150,8 @@ Deno.serve(async (req) => {
               .insert({
                 representative_face_id: faceId,
                 representative_photo_id: photo.id,
-                representative_storage_path: photo.s3_key || photo.storage_path,
+                representative_storage_path: photo.storage_path,
+                representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
                 photo_count: 0,
               })
               .select()
