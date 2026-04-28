@@ -61,6 +61,7 @@ export type Database = {
           photo_count: number
           representative_face_id: string
           representative_photo_id: string | null
+          representative_s3_key: string | null
           representative_storage_path: string | null
           updated_at: string
         }
@@ -71,6 +72,7 @@ export type Database = {
           photo_count?: number
           representative_face_id: string
           representative_photo_id?: string | null
+          representative_s3_key?: string | null
           representative_storage_path?: string | null
           updated_at?: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           photo_count?: number
           representative_face_id?: string
           representative_photo_id?: string | null
+          representative_s3_key?: string | null
           representative_storage_path?: string | null
           updated_at?: string
         }
