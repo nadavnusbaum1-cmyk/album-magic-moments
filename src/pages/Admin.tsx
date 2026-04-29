@@ -94,7 +94,7 @@ const Admin = () => {
           setResults([...allResults]);
         }
       }
-      toast.success(`Uploaded ${allResults.length} photos. Face recognition runs in the background.`);
+      toast.success(`Uploaded ${allResults.length} photos with face matching done.`);
       setFiles([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
