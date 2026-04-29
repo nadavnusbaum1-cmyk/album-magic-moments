@@ -78,7 +78,15 @@ const Admin = () => {
               body: file,
             });
             if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
-            allResults.push({ name: file.name, matches: 0 });
+            // Run face recognition synchronously
+            let matches = 0;
+            try {
+              const { data: pr } = await supabase.functions.invoke("process-photo-now", { body: { photoId: u.photoId } });
+              matches = pr?.matches ?? 0;
+            } catch (err) {
+              console.error("Face processing failed:", err);
+            }
+            allResults.push({ name: file.name, matches });
           }));
           setResults([...allResults]);
         } catch (e) {
