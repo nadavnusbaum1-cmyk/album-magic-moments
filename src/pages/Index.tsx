@@ -26,12 +26,22 @@ const Index = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
-  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem(ADMIN_KEY);
+  const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
+  const isAdmin = !!adminPassword;
 
   const loadClusters = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("list-clusters", { body: {} });
-      if (error) throw error;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-clusters`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          ...(adminPassword ? { "x-admin-password": adminPassword } : {}),
+        },
+        body: "{}",
+      });
+      const data = await r.json();
       if (!data?.error) setClusters(data.clusters || []);
     } catch (e) {
       console.error(e);
