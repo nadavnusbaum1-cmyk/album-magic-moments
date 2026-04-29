@@ -57,6 +57,7 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string | null
+          hidden: boolean
           id: string
           photo_count: number
           representative_face_id: string
@@ -68,6 +69,7 @@ export type Database = {
         Insert: {
           created_at?: string
           display_name?: string | null
+          hidden?: boolean
           id?: string
           photo_count?: number
           representative_face_id: string
@@ -79,6 +81,7 @@ export type Database = {
         Update: {
           created_at?: string
           display_name?: string | null
+          hidden?: boolean
           id?: string
           photo_count?: number
           representative_face_id?: string

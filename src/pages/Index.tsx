@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart, Users, Pencil, Check, X, Loader2 } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users, Pencil, Check, X, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
+type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
@@ -26,12 +26,22 @@ const Index = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
-  const isAdmin = typeof window !== "undefined" && !!sessionStorage.getItem(ADMIN_KEY);
+  const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
+  const isAdmin = !!adminPassword;
 
   const loadClusters = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("list-clusters", { body: {} });
-      if (error) throw error;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-clusters`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          ...(adminPassword ? { "x-admin-password": adminPassword } : {}),
+        },
+        body: "{}",
+      });
+      const data = await r.json();
       if (!data?.error) setClusters(data.clusters || []);
     } catch (e) {
       console.error(e);
@@ -86,11 +96,10 @@ const Index = () => {
     let errors = 0;
     try {
       // Direct-to-S3 upload in batches: get pre-signed URLs, then PUT files in parallel.
-      // Face recognition runs in the background by the cron-driven process-photos function.
+      // After each successful upload, immediately trigger face recognition synchronously.
       const BATCH = 8;
       for (let i = 0; i < uploadFiles.length; i += BATCH) {
         const batch = uploadFiles.slice(i, i + BATCH);
-        // Convert HEIC if needed
         const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
         try {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
@@ -103,7 +112,7 @@ const Index = () => {
           if (data?.error) throw new Error(data.error);
           const uploads = data.uploads as { photoId: string; uploadUrl: string }[];
 
-          // Upload files directly to S3 in parallel
+          // Upload files directly to S3, then process each one for faces
           await Promise.all(uploads.map(async (u, idx) => {
             const file = converted[idx];
             const r = await fetch(u.uploadUrl, {
@@ -112,6 +121,12 @@ const Index = () => {
               body: file,
             });
             if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
+            // Run face recognition synchronously (slower but immediate results)
+            try {
+              await supabase.functions.invoke("process-photo-now", { body: { photoId: u.photoId } });
+            } catch (err) {
+              console.error("Face processing failed (will retry via cron):", err);
+            }
           }));
         } catch (e) {
           errors += batch.length;
@@ -119,12 +134,12 @@ const Index = () => {
         }
         done += batch.length;
         setUploadProgress({ done, total: uploadFiles.length });
+        // Refresh clusters as we go so users see new persons appear
+        loadClusters();
       }
       if (errors) toast.error(`${errors} photos failed to upload`);
-      else toast.success(`Uploaded ${done} photos! Face matching runs in the background.`);
+      else toast.success(`Uploaded ${done} photos and matched faces! 🎉`);
       setUploadFiles([]);
-      // Wait a moment for first batch to be processed, then refresh clusters
-      setTimeout(loadClusters, 5000);
     } finally {
       setUploading(false);
     }
@@ -140,6 +155,29 @@ const Index = () => {
       toast.success("Renamed");
     } catch {
       toast.error("Failed to rename");
+      loadClusters();
+    }
+  };
+
+  const toggleHidden = async (c: Cluster) => {
+    if (!adminPassword) return;
+    const newHidden = !c.hidden;
+    setClusters((cs) => cs.map((x) => (x.id === c.id ? { ...x, hidden: newHidden } : x)));
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-cluster`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ clusterId: c.id, hidden: newHidden }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed");
+      toast.success(newHidden ? "Hidden from home" : "Visible again");
+    } catch {
+      toast.error("Failed to update");
       loadClusters();
     }
   };
@@ -279,19 +317,30 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               {clusters.map((c) => (
-                <div key={c.id} className="flex flex-col items-center gap-2">
-                  <Link
-                    to={`/person/${c.id}`}
-                    className="aspect-square w-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
-                  >
-                    {c.cover_url ? (
-                      <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Users className="w-6 h-6 text-muted-foreground" />
-                      </div>
+                <div key={c.id} className={`flex flex-col items-center gap-2 ${c.hidden ? "opacity-50" : ""}`}>
+                  <div className="relative w-full aspect-square">
+                    <Link
+                      to={`/person/${c.id}`}
+                      className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
+                    >
+                      {c.cover_url ? (
+                        <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Users className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </Link>
+                    {isAdmin && (
+                      <button
+                        onClick={() => toggleHidden(c)}
+                        className="absolute top-0 right-0 bg-background/90 hover:bg-background rounded-full p-1.5 shadow"
+                        title={c.hidden ? "Show on home" : "Hide from home"}
+                      >
+                        {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     )}
-                  </Link>
+                  </div>
 
                   {editingCluster === c.id ? (
                     <div className="flex items-center gap-1 w-full">

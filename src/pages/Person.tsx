@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2 } from "lucide-react";
+import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
+
+const ADMIN_KEY = "wedding-admin-password";
 
 const Person = () => {
   const { id } = useParams();
@@ -51,6 +53,28 @@ const Person = () => {
     }
   };
 
+  const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
+  const isAdmin = !!adminPassword;
+
+  const setCover = async (photoId: string) => {
+    if (!adminPassword || !id) return;
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-cluster`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ clusterId: id, coverPhotoId: photoId }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed");
+      toast.success("Cover photo updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <HomeButton />
@@ -100,6 +124,16 @@ const Person = () => {
               >
                 <Download className="w-4 h-4" />
               </button>
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.preventDefault(); setCover(p.id); }}
+                  className="absolute top-2 left-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
+                  aria-label="Set as cover"
+                  title="Set as cover photo"
+                >
+                  <Star className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>

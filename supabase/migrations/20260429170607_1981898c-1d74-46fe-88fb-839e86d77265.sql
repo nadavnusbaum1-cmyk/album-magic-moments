@@ -1,0 +1,1 @@
+ALTER TABLE public.face_clusters ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false;
