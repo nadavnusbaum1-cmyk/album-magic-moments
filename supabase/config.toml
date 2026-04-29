@@ -30,3 +30,9 @@ verify_jwt = false
 [functions.process-photos]
 verify_jwt = false
 
+[functions.process-photo-now]
+verify_jwt = false
+
+[functions.update-cluster]
+verify_jwt = false
+
