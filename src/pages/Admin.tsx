@@ -17,6 +17,7 @@ type GalleryPhoto = {
   face_count: number;
   processed: boolean;
   created_at: string;
+  uploaded_by: string | null;
 };
 const Admin = () => {
   const [adminPassword, setAdminPassword] = useState<string | null>(
@@ -309,12 +310,16 @@ const Admin = () => {
                             className="w-5 h-5 accent-primary"
                           />
                         </div>
-                        <div className="absolute bottom-1 right-1 flex gap-1">
-                          <div className="bg-background/80 backdrop-blur text-xs rounded-full px-2 py-0.5 flex items-center gap-1">
+                        <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
+                          <div className="bg-background/85 backdrop-blur text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[70%]">
+                            {p.uploaded_by || "Anonymous"}
+                          </div>
+                          <div className="bg-background/85 backdrop-blur text-xs rounded-full px-2 py-0.5 flex items-center gap-1 pointer-events-auto">
                             <Users className="w-3 h-3" />
                             {p.face_count}
                           </div>
-                          <button
+                        </div>
+                        <div className="absolute top-1 right-1 flex gap-1">
                             onClick={(e) => {
                               e.stopPropagation();
                               deletePhotos([p.id]);
