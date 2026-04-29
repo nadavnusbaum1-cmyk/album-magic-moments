@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
     const { data: photos, error } = await supabase
       .from("photos")
-      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at")
+      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, uploaded_by")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw error;
@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
         face_count: p.face_count,
         processed: p.processed,
         created_at: p.created_at,
+        uploaded_by: p.uploaded_by,
       })),
     );
 

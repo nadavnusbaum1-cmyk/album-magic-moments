@@ -20,7 +20,10 @@ Deno.serve(async (req) => {
       throw new Error("S3 connector not configured");
     }
 
-    const { files } = await req.json() as { files: { name: string; contentType: string }[] };
+    const { files, uploadedBy } = await req.json() as {
+      files: { name: string; contentType: string }[];
+      uploadedBy?: string;
+    };
     if (!files?.length) {
       return new Response(JSON.stringify({ error: "files required" }), {
         status: 400,
@@ -32,6 +35,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
 
     const results: { photoId: string; uploadUrl: string; key: string }[] = [];
 
@@ -64,6 +69,7 @@ Deno.serve(async (req) => {
           storage_provider: "s3",
           source: "upload",
           processed: false,
+          uploaded_by: uploader,
         })
         .select()
         .single();
