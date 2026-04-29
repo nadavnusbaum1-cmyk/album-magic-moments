@@ -159,6 +159,29 @@ const Index = () => {
     }
   };
 
+  const toggleHidden = async (c: Cluster) => {
+    if (!adminPassword) return;
+    const newHidden = !c.hidden;
+    setClusters((cs) => cs.map((x) => (x.id === c.id ? { ...x, hidden: newHidden } : x)));
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-cluster`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ clusterId: c.id, hidden: newHidden }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed");
+      toast.success(newHidden ? "Hidden from home" : "Visible again");
+    } catch {
+      toast.error("Failed to update");
+      loadClusters();
+    }
+  };
+
   if (result) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
