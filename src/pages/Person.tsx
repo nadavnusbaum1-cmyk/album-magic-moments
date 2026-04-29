@@ -124,6 +124,16 @@ const Person = () => {
               >
                 <Download className="w-4 h-4" />
               </button>
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.preventDefault(); setCover(p.id); }}
+                  className="absolute top-2 left-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
+                  aria-label="Set as cover"
+                  title="Set as cover photo"
+                >
+                  <Star className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>
