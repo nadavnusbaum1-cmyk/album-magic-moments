@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart, Users, Pencil, Check, X, Loader2 } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users, Pencil, Check, X, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
+type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
