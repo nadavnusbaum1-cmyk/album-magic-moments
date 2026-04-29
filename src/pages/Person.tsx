@@ -75,8 +75,7 @@ const Person = () => {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
   };
-
-
+  return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <HomeButton />
       <header className="px-6 pt-16 pb-6 text-center">
