@@ -53,7 +53,30 @@ const Person = () => {
     }
   };
 
-  return (
+  const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
+  const isAdmin = !!adminPassword;
+
+  const setCover = async (photoId: string) => {
+    if (!adminPassword || !id) return;
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-cluster`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ clusterId: id, coverPhotoId: photoId }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed");
+      toast.success("Cover photo updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <HomeButton />
       <header className="px-6 pt-16 pb-6 text-center">
