@@ -325,9 +325,6 @@ const Admin = () => {
                               e.stopPropagation();
                               deletePhotos([p.id]);
                             }}
-                              e.stopPropagation();
-                              deletePhotos([p.id]);
-                            }}
                             className="bg-destructive/90 text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                             aria-label="Delete photo"
                           >
