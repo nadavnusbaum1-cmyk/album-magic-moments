@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2 } from "lucide-react";
+import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
+
+const ADMIN_KEY = "wedding-admin-password";
 
 const Person = () => {
   const { id } = useParams();
