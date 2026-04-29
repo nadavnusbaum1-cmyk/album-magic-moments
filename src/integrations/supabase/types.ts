@@ -183,6 +183,7 @@ export type Database = {
           source: string
           storage_path: string
           storage_provider: string
+          uploaded_by: string | null
         }
         Insert: {
           created_at?: string
@@ -194,6 +195,7 @@ export type Database = {
           source?: string
           storage_path: string
           storage_provider?: string
+          uploaded_by?: string | null
         }
         Update: {
           created_at?: string
@@ -205,6 +207,7 @@ export type Database = {
           source?: string
           storage_path?: string
           storage_provider?: string
+          uploaded_by?: string | null
         }
         Relationships: []
       }
