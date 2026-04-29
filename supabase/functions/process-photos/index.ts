@@ -11,7 +11,7 @@ const corsHeaders = {
 };
 
 const API_URL = "https://connector-gateway.lovable.dev";
-const MATCH_THRESHOLD = 80;
+const MATCH_THRESHOLD = 85;
 const CLUSTER_THRESHOLD = 85;
 const BATCH_SIZE = 10;
 
