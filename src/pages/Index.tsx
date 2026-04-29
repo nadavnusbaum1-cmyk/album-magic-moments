@@ -22,6 +22,7 @@ const Index = () => {
 
   // Public uploads
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploaderName, setUploaderName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
@@ -95,6 +96,7 @@ const Index = () => {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
             body: {
               files: converted.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })),
+              uploadedBy: uploaderName.trim() || null,
             },
           });
           if (error) throw error;
@@ -225,6 +227,13 @@ const Index = () => {
             <h2 className="text-lg font-serif text-foreground">Share your photos</h2>
             <p className="text-xs text-muted-foreground mt-1">Upload pics from the wedding so everyone can find themselves</p>
           </div>
+          <Input
+            value={uploaderName}
+            onChange={(e) => setUploaderName(e.target.value)}
+            placeholder="Your name (optional)"
+            maxLength={60}
+            disabled={uploading}
+          />
           <label
             htmlFor="photos-upload-input"
             className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-6 cursor-pointer hover:border-primary transition-colors bg-secondary/40"
