@@ -317,19 +317,30 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               {clusters.map((c) => (
-                <div key={c.id} className="flex flex-col items-center gap-2">
-                  <Link
-                    to={`/person/${c.id}`}
-                    className="aspect-square w-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
-                  >
-                    {c.cover_url ? (
-                      <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Users className="w-6 h-6 text-muted-foreground" />
-                      </div>
+                <div key={c.id} className={`flex flex-col items-center gap-2 ${c.hidden ? "opacity-50" : ""}`}>
+                  <div className="relative w-full aspect-square">
+                    <Link
+                      to={`/person/${c.id}`}
+                      className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
+                    >
+                      {c.cover_url ? (
+                        <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Users className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </Link>
+                    {isAdmin && (
+                      <button
+                        onClick={() => toggleHidden(c)}
+                        className="absolute top-0 right-0 bg-background/90 hover:bg-background rounded-full p-1.5 shadow"
+                        title={c.hidden ? "Show on home" : "Hide from home"}
+                      >
+                        {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     )}
-                  </Link>
+                  </div>
 
                   {editingCluster === c.id ? (
                     <div className="flex items-center gap-1 w-full">
