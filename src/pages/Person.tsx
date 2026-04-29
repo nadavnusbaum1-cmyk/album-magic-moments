@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { HomeButton } from "@/components/HomeButton";
-import { Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { downloadOne, downloadManyAsZip } from "@/lib/download";
 
 const Person = () => {
   const { id } = useParams();
@@ -10,6 +12,7 @@ const Person = () => {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -31,6 +34,23 @@ const Person = () => {
     if (id) load();
   }, [id]);
 
+  const downloadAll = async () => {
+    if (!photos.length) return;
+    setZipping({ done: 0, total: photos.length });
+    try {
+      await downloadManyAsZip(
+        photos.map((p, i) => ({ url: p.url, name: `${displayName || "person"}-${i + 1}.jpg` })),
+        `${displayName || "person"}-photos.zip`,
+        (done, total) => setZipping({ done, total }),
+      );
+      toast.success("Download ready");
+    } catch {
+      toast.error("Some photos failed to download");
+    } finally {
+      setZipping(null);
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <HomeButton />
@@ -45,21 +65,42 @@ const Person = () => {
         <p className="text-muted-foreground mt-2">
           {loading ? "Loading…" : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
         </p>
+        {photos.length > 0 && (
+          <div className="mt-4">
+            <Button onClick={downloadAll} disabled={!!zipping} size="sm" className="gap-2">
+              {zipping ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Preparing {zipping.done}/{zipping.total}…</>
+              ) : (
+                <><Download className="w-4 h-4" /> Download all</>
+              )}
+            </Button>
+          </div>
+        )}
       </header>
       <main className="px-4 pb-16 max-w-5xl mx-auto">
         {error && <p className="text-destructive text-center">{error}</p>}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {photos.map((p) => (
-            <a
+          {photos.map((p, i) => (
+            <div
               key={p.id}
-              href={p.url}
-              target="_blank"
-              rel="noreferrer"
-              className="aspect-square overflow-hidden rounded-2xl bg-muted hover:opacity-90 transition-opacity"
+              className="relative group aspect-square overflow-hidden rounded-2xl bg-muted"
               style={{ boxShadow: "var(--shadow-card)" }}
             >
-              <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-            </a>
+              <a href={p.url} target="_blank" rel="noreferrer" className="block w-full h-full">
+                <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              </a>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  downloadOne(p.url, `${displayName || "person"}-${i + 1}.jpg`)
+                    .catch(() => toast.error("Download failed"));
+                }}
+                className="absolute top-2 right-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
+                aria-label="Download photo"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
           ))}
         </div>
       </main>
