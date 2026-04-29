@@ -11,9 +11,16 @@ const corsHeaders = {
 };
 
 const API_URL = "https://connector-gateway.lovable.dev";
-const MATCH_THRESHOLD = 85;
-const CLUSTER_THRESHOLD = 85;
+const MATCH_THRESHOLD = 80;
+const CLUSTER_THRESHOLD = 80;
 const BATCH_SIZE = 10;
+
+// Rekognition only accepts JPEG/PNG. If the file appears to be HEIC/WEBP/etc.
+// reject it gracefully — the upload flow already converts HEIC client-side.
+function looksProcessable(key: string): boolean {
+  const lower = key.toLowerCase();
+  return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+}
 
 async function downloadFromS3(key: string): Promise<Uint8Array> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
