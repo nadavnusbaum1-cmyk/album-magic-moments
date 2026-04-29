@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
       await supabase.storage.from("event-photos").remove(supabasePaths);
     }
 
-    // Delete S3 objects via gateway proxy
     if (s3Keys.length) {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY");
@@ -64,19 +63,47 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Find affected clusters BEFORE deleting matches
-    const { data: affectedMatches } = await supabase
+    // Find affected guests + clusters BEFORE deleting matches
+    const { data: affectedGuestMatches } = await supabase
+      .from("photo_matches")
+      .select("guest_id")
+      .in("photo_id", photoIds);
+    const affectedGuestIds = [...new Set((affectedGuestMatches || []).map((m) => m.guest_id))];
+
+    const { data: affectedClusterMatches } = await supabase
       .from("cluster_photo_matches")
       .select("cluster_id")
       .in("photo_id", photoIds);
-    const affectedClusterIds = [...new Set((affectedMatches || []).map((m) => m.cluster_id))];
+    const affectedClusterIds = [...new Set((affectedClusterMatches || []).map((m) => m.cluster_id))];
 
-    // Delete matches
+    // Find clusters whose representative photo is being deleted
+    const { data: clustersWithStaleRep } = await supabase
+      .from("face_clusters")
+      .select("id")
+      .in("representative_photo_id", photoIds);
+    const staleRepClusterIds = new Set((clustersWithStaleRep || []).map((c) => c.id));
+
+    // Delete matches + photos
     await supabase.from("photo_matches").delete().in("photo_id", photoIds);
     await supabase.from("cluster_photo_matches").delete().in("photo_id", photoIds);
     await supabase.from("photos").delete().in("id", photoIds);
 
-    // Recompute counts and delete empty clusters
+    // Recompute guest photo_counts; delete guests with 0 photos
+    let removedGuests = 0;
+    for (const gid of affectedGuestIds) {
+      const { count } = await supabase
+        .from("photo_matches")
+        .select("*", { count: "exact", head: true })
+        .eq("guest_id", gid);
+      if (!count || count === 0) {
+        await supabase.from("guests").delete().eq("id", gid);
+        removedGuests++;
+      } else {
+        await supabase.from("guests").update({ photo_count: count }).eq("id", gid);
+      }
+    }
+
+    // Recompute cluster counts; refresh rep if stale; delete empty clusters
     let removedClusters = 0;
     for (const cid of affectedClusterIds) {
       const { count } = await supabase
@@ -87,13 +114,30 @@ Deno.serve(async (req) => {
         await supabase.from("face_clusters").delete().eq("id", cid);
         removedClusters++;
       } else {
-        await supabase.from("face_clusters").update({ photo_count: count }).eq("id", cid);
+        const update: Record<string, unknown> = { photo_count: count };
+        if (staleRepClusterIds.has(cid)) {
+          // Pick a new representative photo from remaining matches
+          const { data: anyMatch } = await supabase
+            .from("cluster_photo_matches")
+            .select("photo_id, photos(storage_path, storage_provider, s3_key)")
+            .eq("cluster_id", cid)
+            .limit(1)
+            .maybeSingle();
+          const p = (anyMatch?.photos as { storage_path: string; storage_provider?: string; s3_key?: string } | null) || null;
+          if (p && anyMatch?.photo_id) {
+            update.representative_photo_id = anyMatch.photo_id;
+            update.representative_storage_path = p.storage_path;
+            update.representative_s3_key = p.storage_provider === "s3" ? p.s3_key : null;
+          }
+        }
+        await supabase.from("face_clusters").update(update).eq("id", cid);
       }
     }
 
-    return new Response(JSON.stringify({ deleted: photoIds.length, removedClusters }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ deleted: photoIds.length, removedClusters, removedGuests }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {
