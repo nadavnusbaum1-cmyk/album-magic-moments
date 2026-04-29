@@ -320,7 +320,11 @@ const Admin = () => {
                           </div>
                         </div>
                         <div className="absolute top-1 right-1 flex gap-1">
+                          <button
                             onClick={(e) => {
+                              e.stopPropagation();
+                              deletePhotos([p.id]);
+                            }}
                               e.stopPropagation();
                               deletePhotos([p.id]);
                             }}
