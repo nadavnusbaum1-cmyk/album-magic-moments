@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
 
 const ADMIN_KEY = "wedding-admin-password";
 
+type PhotoItem = { id: string; url: string; bbox?: FaceBBox | null; media_type?: string };
+
 const Person = () => {
   const { id } = useParams();
-  const [photos, setPhotos] = useState<{ id: string; url: string }[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
