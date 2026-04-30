@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     let q = supabase
       .from("face_clusters")
-      .select("id, representative_storage_path, representative_s3_key, representative_bbox, photo_count, display_name, hidden, created_at")
+      .select("id, representative_storage_path, representative_s3_key, photo_count, display_name, hidden, created_at")
       .gt("photo_count", 0)
       .order("photo_count", { ascending: false })
       .limit(200);
@@ -32,7 +32,6 @@ Deno.serve(async (req) => {
     const items = await Promise.all(
       (clusters || []).map(async (c) => {
         let cover_url: string | null = null;
-        let bbox = c.representative_bbox as { Width: number; Height: number; Left: number; Top: number } | null;
         try {
           if (c.representative_s3_key || c.representative_storage_path) {
             cover_url = await resolvePhotoUrl({
@@ -44,10 +43,10 @@ Deno.serve(async (req) => {
         } catch { /* ignore */ }
 
         if (!cover_url) {
-          // Fallback: pick any cluster_photo_matches entry, prefer one with bbox
+          // Fallback: pick any cluster_photo_matches entry with a usable photo
           const { data: cmRows } = await supabase
             .from("cluster_photo_matches")
-            .select("bounding_box, photos(storage_path, storage_provider, s3_key)")
+            .select("photos(storage_path, storage_provider, s3_key)")
             .eq("cluster_id", c.id)
             .limit(5);
           const candidate = (cmRows || []).find((r) => r.photos);
@@ -55,7 +54,6 @@ Deno.serve(async (req) => {
           if (p) {
             try {
               cover_url = await resolvePhotoUrl(p);
-              bbox = (candidate?.bounding_box as typeof bbox) || bbox;
             } catch { /* ignore */ }
           }
         }
@@ -66,7 +64,6 @@ Deno.serve(async (req) => {
           display_name: c.display_name,
           hidden: c.hidden,
           cover_url,
-          bbox,
         };
       }),
     );
