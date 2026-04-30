@@ -19,6 +19,7 @@ export type Database = {
           bounding_box: Json | null
           cluster_id: string
           created_at: string
+          face_id: string | null
           id: string
           photo_id: string
           similarity: number
@@ -27,6 +28,7 @@ export type Database = {
           bounding_box?: Json | null
           cluster_id: string
           created_at?: string
+          face_id?: string | null
           id?: string
           photo_id: string
           similarity?: number
@@ -35,6 +37,7 @@ export type Database = {
           bounding_box?: Json | null
           cluster_id?: string
           created_at?: string
+          face_id?: string | null
           id?: string
           photo_id?: string
           similarity?: number
