@@ -291,7 +291,7 @@ const Index = () => {
             <input
               id="photos-upload-input"
               type="file"
-              accept="image/*,.heic,.heif"
+              accept="image/*,video/*,.heic,.heif"
               multiple
               className="hidden"
               onChange={(e) => onUploadFiles(Array.from(e.target.files || []))}
