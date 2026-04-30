@@ -170,14 +170,15 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
 
     for (const m of matches) {
       const ext = m.Face?.ExternalImageId;
+      const similarity = Number(m.Similarity || 0);
       if (!ext || ext.startsWith("photo-") || ext.startsWith("cluster-")) continue;
-      if (m.Similarity < MATCH_THRESHOLD) continue;
+      if (similarity < MATCH_THRESHOLD) continue;
       if (matchedGuests.has(ext)) continue;
       matchedGuests.add(ext);
       await supabase.from("photo_matches").insert({
         guest_id: ext,
         photo_id: photo.id,
-        similarity: m.Similarity,
+        similarity,
       });
       const { data: g } = await supabase.from("guests").select("photo_count").eq("id", ext).single();
       if (g) await supabase.from("guests").update({ photo_count: (g.photo_count || 0) + 1 }).eq("id", ext);
