@@ -110,7 +110,7 @@ const Index = () => {
       const BATCH = 8;
       for (let i = 0; i < uploadFiles.length; i += BATCH) {
         const batch = uploadFiles.slice(i, i + BATCH);
-        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
+        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f)));
         try {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
             body: {
