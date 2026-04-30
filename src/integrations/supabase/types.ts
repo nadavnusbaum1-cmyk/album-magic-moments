@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       cluster_photo_matches: {
         Row: {
+          bounding_box: Json | null
           cluster_id: string
           created_at: string
           id: string
@@ -23,6 +24,7 @@ export type Database = {
           similarity: number
         }
         Insert: {
+          bounding_box?: Json | null
           cluster_id: string
           created_at?: string
           id?: string
@@ -30,6 +32,7 @@ export type Database = {
           similarity?: number
         }
         Update: {
+          bounding_box?: Json | null
           cluster_id?: string
           created_at?: string
           id?: string
@@ -60,6 +63,7 @@ export type Database = {
           hidden: boolean
           id: string
           photo_count: number
+          representative_bbox: Json | null
           representative_face_id: string
           representative_photo_id: string | null
           representative_s3_key: string | null
@@ -72,6 +76,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           photo_count?: number
+          representative_bbox?: Json | null
           representative_face_id: string
           representative_photo_id?: string | null
           representative_s3_key?: string | null
@@ -84,6 +89,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           photo_count?: number
+          representative_bbox?: Json | null
           representative_face_id?: string
           representative_photo_id?: string | null
           representative_s3_key?: string | null
@@ -177,9 +183,11 @@ export type Database = {
       }
       photos: {
         Row: {
+          content_type: string | null
           created_at: string
           face_count: number
           id: string
+          media_type: string
           processed: boolean
           processing_error: string | null
           s3_key: string | null
@@ -189,9 +197,11 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          content_type?: string | null
           created_at?: string
           face_count?: number
           id?: string
+          media_type?: string
           processed?: boolean
           processing_error?: string | null
           s3_key?: string | null
@@ -201,9 +211,11 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          content_type?: string | null
           created_at?: string
           face_count?: number
           id?: string
+          media_type?: string
           processed?: boolean
           processing_error?: string | null
           s3_key?: string | null

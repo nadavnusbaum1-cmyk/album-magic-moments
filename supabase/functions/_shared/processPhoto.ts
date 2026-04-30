@@ -12,6 +12,12 @@ function looksProcessable(name: string): boolean {
   return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
 }
 
+function isVideo(name: string, contentType?: string | null): boolean {
+  if (contentType?.startsWith("video/")) return true;
+  const lower = name.toLowerCase();
+  return /\.(mp4|mov|m4v|webm|avi|mkv)$/.test(lower);
+}
+
 async function downloadFromS3(key: string): Promise<Uint8Array> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
   const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY")!;
@@ -48,10 +54,22 @@ export interface ProcessablePhoto {
   s3_key: string | null;
   storage_path: string;
   storage_provider: string | null;
+  content_type?: string | null;
+  media_type?: string | null;
 }
 
 export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Promise<{ matches: number; faces: number }> {
   const ref = photo.s3_key || photo.storage_path;
+
+  // Skip videos entirely (no face recognition on video for now)
+  if (photo.media_type === "video" || isVideo(ref, photo.content_type)) {
+    await supabase
+      .from("photos")
+      .update({ processed: true, face_count: 0, media_type: "video", processing_error: null })
+      .eq("id", photo.id);
+    return { matches: 0, faces: 0 };
+  }
+
   if (!looksProcessable(ref)) {
     await supabase
       .from("photos")
@@ -69,9 +87,6 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
     bytes = new Uint8Array(await data.arrayBuffer());
   }
 
-  // Rekognition Bytes mode is limited to 5MB. For larger files we'd need S3Object
-  // with the Rekognition-side bucket, which requires AWS-managed bucket access.
-  // For now, gracefully skip oversize files.
   if (bytes.byteLength > 5 * 1024 * 1024) {
     await supabase
       .from("photos")
@@ -98,6 +113,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   for (const fr of faceRecords) {
     const faceId = fr.Face?.FaceId;
     if (!faceId) continue;
+    const bbox = fr.Face?.BoundingBox || null; // {Width,Height,Left,Top} normalized 0-1
 
     const search = await rekognition("SearchFaces", {
       CollectionId: COLLECTION_ID,
@@ -145,6 +161,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
           representative_photo_id: photo.id,
           representative_storage_path: photo.storage_path,
           representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
+          representative_bbox: bbox,
           photo_count: 0,
         })
         .select()
@@ -157,6 +174,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
         cluster_id: clusterId,
         photo_id: photo.id,
         similarity: 100,
+        bounding_box: bbox,
       });
       const { data: c } = await supabase.from("face_clusters").select("photo_count").eq("id", clusterId).single();
       if (c) await supabase.from("face_clusters").update({ photo_count: (c.photo_count || 0) + 1 }).eq("id", clusterId);

@@ -7,10 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
+import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
+type Cluster = {
+  id: string;
+  cover_url: string | null;
+  photo_count: number;
+  display_name: string | null;
+  hidden?: boolean;
+  bbox?: FaceBBox | null;
+};
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
@@ -230,28 +238,46 @@ const Index = () => {
         <Card className="max-w-md mx-auto p-6 space-y-5" style={{ boxShadow: "var(--shadow-card)" }}>
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Your selfie 📸</label>
-            <label
-              htmlFor="selfie-input"
-              className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary transition-colors bg-secondary/40"
-            >
+            <div className="flex flex-col items-center gap-3 border-2 border-dashed border-border rounded-2xl p-6 bg-secondary/40">
               {selfie ? (
                 <img src={selfie} alt="Your selfie" className="w-32 h-32 rounded-full object-cover" />
               ) : (
-                <>
-                  <Camera className="w-10 h-10 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Tap to take or upload a selfie</span>
-                </>
+                <Camera className="w-10 h-10 text-muted-foreground" />
               )}
+              <div className="flex gap-2 w-full">
+                <label
+                  htmlFor="selfie-camera"
+                  className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
+                >
+                  <Camera className="w-4 h-4" />
+                  Take photo
+                </label>
+                <label
+                  htmlFor="selfie-gallery"
+                  className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
+                >
+                  <Upload className="w-4 h-4" />
+                  From gallery
+                </label>
+              </div>
               <input
-                id="selfie-input"
+                id="selfie-camera"
                 type="file"
-                accept="image/*,.heic,.heif"
+                accept="image/*"
                 capture="user"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])}
                 disabled={loading}
               />
-            </label>
+              <input
+                id="selfie-gallery"
+                type="file"
+                accept="image/*,.heic,.heif"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])}
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <Button onClick={submit} disabled={loading} size="lg" className="w-full">
@@ -283,7 +309,7 @@ const Index = () => {
             <input
               id="photos-upload-input"
               type="file"
-              accept="image/*,.heic,.heif"
+              accept="image/*,video/*,.heic,.heif"
               multiple
               className="hidden"
               onChange={(e) => onUploadFiles(Array.from(e.target.files || []))}
@@ -324,7 +350,7 @@ const Index = () => {
                       className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
                     >
                       {c.cover_url ? (
-                        <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <FaceCrop src={c.cover_url} bbox={c.bbox || null} alt="" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Users className="w-6 h-6 text-muted-foreground" />

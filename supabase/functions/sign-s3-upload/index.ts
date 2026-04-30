@@ -1,6 +1,5 @@
 // Returns pre-signed S3 PUT URLs so the browser can upload directly to S3,
-// then registers a row in `photos` with storage_provider='s3' so the
-// background processor can pick it up.
+// then registers a row in `photos` with storage_provider='s3'.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
@@ -9,6 +8,8 @@ const corsHeaders = {
 };
 
 const API_URL = "https://connector-gateway.lovable.dev";
+
+const ALLOWED = /^(image\/(jpeg|jpg|png|webp|heic|heif|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -38,14 +39,30 @@ Deno.serve(async (req) => {
 
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
 
-    const results: { photoId: string; uploadUrl: string; key: string }[] = [];
+    const results: { photoId: string; uploadUrl: string; key: string; contentType: string }[] = [];
 
     for (const f of files) {
       const id = crypto.randomUUID();
-      const ext = (f.name.split(".").pop() || "jpg").toLowerCase().slice(0, 5);
+      const lower = (f.name || "").toLowerCase();
+      const ext = (lower.split(".").pop() || "jpg").slice(0, 5);
+
+      // Normalize content type — iPhone often sends empty MIME for HEIC
+      let contentType = f.contentType || "";
+      if (!contentType || !ALLOWED.test(contentType)) {
+        if (lower.endsWith(".heic")) contentType = "image/heic";
+        else if (lower.endsWith(".heif")) contentType = "image/heif";
+        else if (lower.endsWith(".mp4")) contentType = "video/mp4";
+        else if (lower.endsWith(".mov")) contentType = "video/quicktime";
+        else if (lower.endsWith(".webm")) contentType = "video/webm";
+        else if (lower.endsWith(".png")) contentType = "image/png";
+        else if (lower.endsWith(".webp")) contentType = "image/webp";
+        else contentType = "image/jpeg";
+      }
+      const isVideo = contentType.startsWith("video/");
+      const mediaType = isVideo ? "video" : "image";
+
       const key = `event-photos/${id}.${ext}`;
 
-      // Get pre-signed PUT URL
       const signRes = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=write`, {
         method: "POST",
         headers: {
@@ -60,7 +77,6 @@ Deno.serve(async (req) => {
       }
       const { url: uploadUrl } = await signRes.json();
 
-      // Pre-create the photo row so we can show progress and pick it up later
       const { data: photoRow, error: insErr } = await supabase
         .from("photos")
         .insert({
@@ -70,12 +86,14 @@ Deno.serve(async (req) => {
           source: "upload",
           processed: false,
           uploaded_by: uploader,
+          media_type: mediaType,
+          content_type: contentType,
         })
         .select()
         .single();
       if (insErr) throw insErr;
 
-      results.push({ photoId: photoRow.id, uploadUrl, key });
+      results.push({ photoId: photoRow.id, uploadUrl, key, contentType });
     }
 
     return new Response(JSON.stringify({ uploads: results }), {
