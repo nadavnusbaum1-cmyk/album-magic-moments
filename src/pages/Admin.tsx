@@ -18,6 +18,7 @@ type GalleryPhoto = {
   processed: boolean;
   created_at: string;
   uploaded_by: string | null;
+  media_type?: string;
 };
 const Admin = () => {
   const [adminPassword, setAdminPassword] = useState<string | null>(
