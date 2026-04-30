@@ -65,21 +65,33 @@ type FaceMatch = {
 
 async function findBestCluster(supabase: Supa, matches: FaceMatch[]): Promise<string | null> {
   const ranked = matches
-    .map((m) => ({ faceId: m.Face?.FaceId, similarity: Number(m.Similarity || 0) }))
-    .filter((m): m is { faceId: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
+    .map((m) => ({ faceId: m.Face?.FaceId, externalId: m.Face?.ExternalImageId, similarity: Number(m.Similarity || 0) }))
+    .filter((m): m is { faceId: string; externalId?: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
     .sort((a, b) => b.similarity - a.similarity);
   if (!ranked.length) return null;
 
   const faceIds = [...new Set(ranked.map((m) => m.faceId))];
+  const photoIds = [...new Set(ranked.map((m) => m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null).filter(Boolean))];
   const { data: matchRows } = await supabase
     .from("cluster_photo_matches")
     .select("cluster_id, face_id")
     .in("face_id", faceIds);
   const byFace = new Map((matchRows || []).map((r: { face_id: string; cluster_id: string }) => [r.face_id, r.cluster_id]));
 
+  const byPhoto = new Map<string, string>();
+  if (photoIds.length) {
+    const { data: photoRows } = await supabase
+      .from("cluster_photo_matches")
+      .select("cluster_id, photo_id")
+      .in("photo_id", photoIds);
+    for (const row of photoRows || []) byPhoto.set(row.photo_id, row.cluster_id);
+  }
+
   for (const m of ranked) {
     const clusterId = byFace.get(m.faceId);
     if (clusterId) return clusterId;
+    const photoId = m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null;
+    if (photoId && byPhoto.has(photoId)) return byPhoto.get(photoId)!;
   }
 
   const { data: clusters } = await supabase
