@@ -225,7 +225,7 @@ const Admin = () => {
                 <input
                   id="photos-input"
                   type="file"
-                  accept="image/*,.heic,.heif"
+                  accept="image/*,video/*,.heic,.heif"
                   multiple
                   className="hidden"
                   onChange={(e) => setFiles(Array.from(e.target.files || []))}
