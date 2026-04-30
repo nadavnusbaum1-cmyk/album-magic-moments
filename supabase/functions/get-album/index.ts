@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     const { data: matches } = await supabase
       .from("photo_matches")
-      .select("photo_id, photos(storage_path, storage_provider, s3_key, created_at)")
+      .select("photo_id, photos(storage_path, storage_provider, s3_key, media_type, content_type, created_at)")
       .eq("guest_id", guest.id)
       .order("created_at", { foreignTable: "photos", ascending: false });
 
@@ -46,8 +46,12 @@ Deno.serve(async (req) => {
       (matches || []).flatMap((m: { photos: unknown }) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
         if (!p) return [];
-        return [p as { storage_path: string; storage_provider?: string; s3_key?: string }];
-      }).map(async (p) => ({ url: await resolvePhotoUrl(p) })),
+        return [p as { storage_path: string; storage_provider?: string; s3_key?: string; media_type?: string; content_type?: string }];
+      }).map(async (p) => ({
+        url: await resolvePhotoUrl(p),
+        media_type: p.media_type || "image",
+        content_type: p.content_type || null,
+      })),
     );
 
     return new Response(
