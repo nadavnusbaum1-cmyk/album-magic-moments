@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
-import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -17,7 +17,6 @@ type Cluster = {
   photo_count: number;
   display_name: string | null;
   hidden?: boolean;
-  bbox?: FaceBBox | null;
 };
 
 const Index = () => {
@@ -27,6 +26,9 @@ const Index = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [selectedClusters, setSelectedClusters] = useState<Set<string>>(new Set());
+  const [mergingClusters, setMergingClusters] = useState(false);
+  const isMobile = useIsMobile();
 
   // Public uploads
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -108,7 +110,7 @@ const Index = () => {
       const BATCH = 8;
       for (let i = 0; i < uploadFiles.length; i += BATCH) {
         const batch = uploadFiles.slice(i, i + BATCH);
-        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
+        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f)));
         try {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
             body: {
@@ -190,6 +192,44 @@ const Index = () => {
     }
   };
 
+  const toggleClusterSelected = (id: string) => {
+    setSelectedClusters((selected) => {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const unifySelectedClusters = async () => {
+    if (!adminPassword || selectedClusters.size < 2) return;
+    const [targetClusterId, ...sourceClusterIds] = [...selectedClusters];
+    const target = clusters.find((c) => c.id === targetClusterId);
+    if (!confirm(`Unify ${selectedClusters.size} person folders into “${target?.display_name || "the first selected folder"}”?`)) return;
+    setMergingClusters(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/merge-clusters`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ targetClusterId, sourceClusterIds }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      toast.success("Person folders unified");
+      setSelectedClusters(new Set());
+      loadClusters();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to unify");
+    } finally {
+      setMergingClusters(false);
+    }
+  };
+
   if (result) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
@@ -244,22 +284,32 @@ const Index = () => {
               ) : (
                 <Camera className="w-10 h-10 text-muted-foreground" />
               )}
-              <div className="flex gap-2 w-full">
-                <label
-                  htmlFor="selfie-camera"
-                  className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
-                >
-                  <Camera className="w-4 h-4" />
-                  Take photo
-                </label>
+              {isMobile ? (
+                <div className="flex gap-2 w-full">
+                  <label
+                    htmlFor="selfie-camera"
+                    className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Take photo
+                  </label>
+                  <label
+                    htmlFor="selfie-gallery"
+                    className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
+                  >
+                    <Upload className="w-4 h-4" />
+                    From gallery
+                  </label>
+                </div>
+              ) : (
                 <label
                   htmlFor="selfie-gallery"
-                  className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
+                  className="w-full flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"
                 >
                   <Upload className="w-4 h-4" />
-                  From gallery
+                  Choose photo
                 </label>
-              </div>
+              )}
               <input
                 id="selfie-camera"
                 type="file"
@@ -340,6 +390,24 @@ const Index = () => {
               <p className="text-muted-foreground text-sm mt-2">
                 {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized — tap a name to label
               </p>
+              {isAdmin && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={selectedClusters.size < 2 || mergingClusters}
+                    onClick={unifySelectedClusters}
+                  >
+                    {mergingClusters ? "Unifying…" : `Unify selected${selectedClusters.size ? ` (${selectedClusters.size})` : ""}`}
+                  </Button>
+                  {selectedClusters.size > 0 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedClusters(new Set())}>
+                      Clear selection
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               {clusters.map((c) => (
@@ -350,7 +418,7 @@ const Index = () => {
                       className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
                     >
                       {c.cover_url ? (
-                        <FaceCrop src={c.cover_url} bbox={c.bbox || null} alt="" />
+                        <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Users className="w-6 h-6 text-muted-foreground" />
@@ -358,13 +426,22 @@ const Index = () => {
                       )}
                     </Link>
                     {isAdmin && (
-                      <button
-                        onClick={() => toggleHidden(c)}
-                        className="absolute top-0 right-0 bg-background/90 hover:bg-background rounded-full p-1.5 shadow"
-                        title={c.hidden ? "Show on home" : "Hide from home"}
-                      >
-                        {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => toggleHidden(c)}
+                          className="absolute top-0 right-0 bg-background/90 hover:bg-background rounded-full p-1.5 shadow"
+                          title={c.hidden ? "Show on home" : "Hide from home"}
+                        >
+                          {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          onClick={() => toggleClusterSelected(c.id)}
+                          className={`absolute top-0 left-0 rounded-full px-2 py-1 text-[10px] shadow border ${selectedClusters.has(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background/90 text-foreground border-border"}`}
+                          title="Select for unifying"
+                        >
+                          {selectedClusters.has(c.id) ? "Selected" : "Select"}
+                        </button>
+                      </>
                     )}
                   </div>
 

@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     const { data: pending } = await supabase
       .from("photos")
-      .select("id, s3_key, storage_path, storage_provider")
+      .select("id, s3_key, storage_path, storage_provider, content_type, media_type")
       .eq("processed", false)
       .is("processing_error", null)
       .order("created_at", { ascending: true })

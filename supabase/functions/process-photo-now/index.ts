@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
 
     const { data: photo, error } = await supabase
       .from("photos")
-      .select("id, s3_key, storage_path, storage_provider, processed")
+      .select("id, s3_key, storage_path, storage_provider, processed, content_type, media_type")
       .eq("id", photoId)
       .single();
     if (error || !photo) throw new Error("Photo not found");

@@ -58,6 +58,63 @@ export interface ProcessablePhoto {
   media_type?: string | null;
 }
 
+type FaceMatch = {
+  Face?: { FaceId?: string; ExternalImageId?: string };
+  Similarity?: number;
+};
+
+async function findBestCluster(supabase: Supa, matches: FaceMatch[]): Promise<string | null> {
+  const ranked = matches
+    .map((m) => ({ faceId: m.Face?.FaceId, externalId: m.Face?.ExternalImageId, similarity: Number(m.Similarity || 0) }))
+    .filter((m): m is { faceId: string; externalId?: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
+    .sort((a, b) => b.similarity - a.similarity);
+  if (!ranked.length) return null;
+
+  const faceIds = [...new Set(ranked.map((m) => m.faceId))];
+  const photoIds = [...new Set(ranked.map((m) => m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null).filter(Boolean))];
+  const { data: matchRows } = await supabase
+    .from("cluster_photo_matches")
+    .select("cluster_id, face_id")
+    .in("face_id", faceIds);
+  const byFace = new Map((matchRows || []).map((r: { face_id: string; cluster_id: string }) => [r.face_id, r.cluster_id]));
+
+  const byPhoto = new Map<string, string>();
+  if (photoIds.length) {
+    const { data: photoRows } = await supabase
+      .from("cluster_photo_matches")
+      .select("cluster_id, photo_id")
+      .in("photo_id", photoIds);
+    for (const row of photoRows || []) byPhoto.set(row.photo_id, row.cluster_id);
+  }
+
+  for (const m of ranked) {
+    const clusterId = byFace.get(m.faceId);
+    if (clusterId) return clusterId;
+    const photoId = m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null;
+    if (photoId && byPhoto.has(photoId)) return byPhoto.get(photoId)!;
+  }
+
+  const { data: clusters } = await supabase
+    .from("face_clusters")
+    .select("id, representative_face_id")
+    .in("representative_face_id", faceIds);
+  const byRepresentative = new Map((clusters || []).map((c: { representative_face_id: string; id: string }) => [c.representative_face_id, c.id]));
+
+  for (const m of ranked) {
+    const clusterId = byRepresentative.get(m.faceId);
+    if (clusterId) return clusterId;
+  }
+  return null;
+}
+
+async function refreshClusterPhotoCount(supabase: Supa, clusterId: string) {
+  const { count } = await supabase
+    .from("cluster_photo_matches")
+    .select("id", { count: "exact", head: true })
+    .eq("cluster_id", clusterId);
+  await supabase.from("face_clusters").update({ photo_count: count || 0 }).eq("id", clusterId);
+}
+
 export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Promise<{ matches: number; faces: number }> {
   const ref = photo.s3_key || photo.storage_path;
 
@@ -121,39 +178,26 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
       FaceMatchThreshold: 70,
       MaxFaces: 50,
     }).catch(() => ({ FaceMatches: [] }));
-    const matches = search.FaceMatches || [];
+    const matches = (search.FaceMatches || []) as FaceMatch[];
 
     for (const m of matches) {
       const ext = m.Face?.ExternalImageId;
+      const similarity = Number(m.Similarity || 0);
       if (!ext || ext.startsWith("photo-") || ext.startsWith("cluster-")) continue;
-      if (m.Similarity < MATCH_THRESHOLD) continue;
+      if (similarity < MATCH_THRESHOLD) continue;
       if (matchedGuests.has(ext)) continue;
       matchedGuests.add(ext);
       await supabase.from("photo_matches").insert({
         guest_id: ext,
         photo_id: photo.id,
-        similarity: m.Similarity,
+        similarity,
       });
       const { data: g } = await supabase.from("guests").select("photo_count").eq("id", ext).single();
       if (g) await supabase.from("guests").update({ photo_count: (g.photo_count || 0) + 1 }).eq("id", ext);
     }
 
-    let clusterId: string | null = null;
-    let best: { id: string; sim: number } | null = null;
-    for (const m of matches) {
-      if (!m.Face?.FaceId || m.Similarity < CLUSTER_THRESHOLD) continue;
-      const { data: existing } = await supabase
-        .from("face_clusters")
-        .select("id")
-        .eq("representative_face_id", m.Face.FaceId)
-        .maybeSingle();
-      if (existing && (!best || m.Similarity > best.sim)) {
-        best = { id: existing.id, sim: m.Similarity };
-      }
-    }
-    if (best) {
-      clusterId = best.id;
-    } else {
+    let clusterId = await findBestCluster(supabase, matches);
+    if (!clusterId) {
       const { data: nc } = await supabase
         .from("face_clusters")
         .insert({
@@ -161,7 +205,6 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
           representative_photo_id: photo.id,
           representative_storage_path: photo.storage_path,
           representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
-          representative_bbox: bbox,
           photo_count: 0,
         })
         .select()
@@ -170,14 +213,14 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
     }
     if (clusterId && !matchedClusters.has(clusterId)) {
       matchedClusters.add(clusterId);
-      await supabase.from("cluster_photo_matches").insert({
+      await supabase.from("cluster_photo_matches").upsert({
         cluster_id: clusterId,
         photo_id: photo.id,
         similarity: 100,
         bounding_box: bbox,
-      });
-      const { data: c } = await supabase.from("face_clusters").select("photo_count").eq("id", clusterId).single();
-      if (c) await supabase.from("face_clusters").update({ photo_count: (c.photo_count || 0) + 1 }).eq("id", clusterId);
+        face_id: faceId,
+      }, { onConflict: "cluster_id,photo_id" });
+      await refreshClusterPhotoCount(supabase, clusterId);
     }
   }
 

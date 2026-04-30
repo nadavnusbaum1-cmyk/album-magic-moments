@@ -36,3 +36,6 @@ verify_jwt = false
 [functions.update-cluster]
 verify_jwt = false
 
+[functions.merge-clusters]
+verify_jwt = false
+

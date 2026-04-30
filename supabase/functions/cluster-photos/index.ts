@@ -32,19 +32,18 @@ Deno.serve(async (req) => {
 
     const { data: matches } = await supabase
       .from("cluster_photo_matches")
-      .select("photo_id, bounding_box, photos(storage_path, storage_provider, s3_key, content_type, media_type, created_at)")
+      .select("photo_id, photos(storage_path, storage_provider, s3_key, content_type, media_type, created_at)")
       .eq("cluster_id", clusterId)
       .order("created_at", { foreignTable: "photos", ascending: false });
 
     const photos = await Promise.all(
-      (matches || []).flatMap((m: { photo_id: string; bounding_box: unknown; photos: unknown }) => {
+      (matches || []).flatMap((m: { photo_id: string; photos: unknown }) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
         if (!p) return [];
-        return [{ id: m.photo_id, bbox: m.bounding_box, photo: p as { storage_path: string; storage_provider?: string; s3_key?: string; content_type?: string; media_type?: string } }];
-      }).map(async ({ id, bbox, photo }) => ({
+        return [{ id: m.photo_id, photo: p as { storage_path: string; storage_provider?: string; s3_key?: string; content_type?: string; media_type?: string } }];
+      }).map(async ({ id, photo }) => ({
         id,
         url: await resolvePhotoUrl(photo),
-        bbox,
         media_type: photo.media_type || "image",
         content_type: photo.content_type || null,
       })),
