@@ -310,7 +310,11 @@ const Admin = () => {
                         }`}
                         onClick={() => toggleSelect(p.id)}
                       >
-                        <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        {p.media_type === "video" ? (
+                          <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                        ) : (
+                          <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        )}
                         <div className="absolute top-1 left-1">
                           <input
                             type="checkbox"
