@@ -118,7 +118,11 @@ const Album = () => {
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
                 <a href={p.url} target="_blank" rel="noreferrer" className="block w-full h-full">
-                  <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                  {p.media_type === "video" ? (
+                    <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                  ) : (
+                    <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                  )}
                 </a>
                 <button
                   onClick={(e) => {
