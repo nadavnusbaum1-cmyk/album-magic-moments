@@ -9,7 +9,7 @@ import { downloadOne, downloadManyAsZip } from "@/lib/download";
 
 interface AlbumData {
   guest: { name: string };
-  photos: { url: string }[];
+  photos: { url: string; media_type?: string }[];
   count: number;
 }
 
