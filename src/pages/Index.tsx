@@ -7,10 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
+import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
+type Cluster = {
+  id: string;
+  cover_url: string | null;
+  photo_count: number;
+  display_name: string | null;
+  hidden?: boolean;
+  bbox?: FaceBBox | null;
+};
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
