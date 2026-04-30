@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
-import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -17,7 +17,6 @@ type Cluster = {
   photo_count: number;
   display_name: string | null;
   hidden?: boolean;
-  bbox?: FaceBBox | null;
 };
 
 const Index = () => {
@@ -27,6 +26,9 @@ const Index = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [editingCluster, setEditingCluster] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [selectedClusters, setSelectedClusters] = useState<Set<string>>(new Set());
+  const [mergingClusters, setMergingClusters] = useState(false);
+  const isMobile = useIsMobile();
 
   // Public uploads
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -187,6 +189,44 @@ const Index = () => {
     } catch {
       toast.error("Failed to update");
       loadClusters();
+    }
+  };
+
+  const toggleClusterSelected = (id: string) => {
+    setSelectedClusters((selected) => {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const unifySelectedClusters = async () => {
+    if (!adminPassword || selectedClusters.size < 2) return;
+    const [targetClusterId, ...sourceClusterIds] = [...selectedClusters];
+    const target = clusters.find((c) => c.id === targetClusterId);
+    if (!confirm(`Unify ${selectedClusters.size} person folders into “${target?.display_name || "the first selected folder"}”?`)) return;
+    setMergingClusters(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/merge-clusters`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-admin-password": adminPassword,
+        },
+        body: JSON.stringify({ targetClusterId, sourceClusterIds }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      toast.success("Person folders unified");
+      setSelectedClusters(new Set());
+      loadClusters();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to unify");
+    } finally {
+      setMergingClusters(false);
     }
   };
 
