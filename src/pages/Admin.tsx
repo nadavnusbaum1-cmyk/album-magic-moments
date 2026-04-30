@@ -63,7 +63,7 @@ const Admin = () => {
       const allResults: typeof results = [];
       for (let i = 0; i < files.length; i += BATCH) {
         const batch = files.slice(i, i + BATCH);
-        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f).catch(() => f)));
+        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f)));
         try {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
             body: { files: converted.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })) },
