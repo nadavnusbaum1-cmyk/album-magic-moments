@@ -114,7 +114,11 @@ const Person = () => {
               style={{ boxShadow: "var(--shadow-card)" }}
             >
               <a href={p.url} target="_blank" rel="noreferrer" className="block w-full h-full">
-                <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                {p.media_type === "video" ? (
+                  <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                ) : (
+                  <FaceCrop src={p.url} bbox={p.bbox} rounded={false} zoom={3} alt="" />
+                )}
               </a>
               <button
                 onClick={(e) => {
