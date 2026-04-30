@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
-import { FaceCrop, type FaceBBox } from "@/components/FaceCrop";
 
 const ADMIN_KEY = "wedding-admin-password";
 
-type PhotoItem = { id: string; url: string; bbox?: FaceBBox | null; media_type?: string };
+type PhotoItem = { id: string; url: string; media_type?: string };
 
 const Person = () => {
   const { id } = useParams();
@@ -117,7 +116,7 @@ const Person = () => {
                 {p.media_type === "video" ? (
                   <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                 ) : (
-                  <FaceCrop src={p.url} bbox={p.bbox} rounded={false} zoom={3} alt="" />
+                  <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 )}
               </a>
               <button
