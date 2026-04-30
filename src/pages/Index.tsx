@@ -350,7 +350,7 @@ const Index = () => {
                       className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
                     >
                       {c.cover_url ? (
-                        <img src={c.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <FaceCrop src={c.cover_url} bbox={c.bbox || null} alt="" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Users className="w-6 h-6 text-muted-foreground" />
