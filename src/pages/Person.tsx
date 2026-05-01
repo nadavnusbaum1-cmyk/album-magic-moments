@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { Lightbox } from "@/components/Lightbox";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -17,6 +18,7 @@ const Person = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -112,13 +114,18 @@ const Person = () => {
               className="relative group aspect-square overflow-hidden rounded-2xl bg-muted"
               style={{ boxShadow: "var(--shadow-card)" }}
             >
-              <a href={p.url} target="_blank" rel="noreferrer" className="block w-full h-full">
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(i)}
+                className="block w-full h-full"
+                aria-label="Open photo"
+              >
                 {p.media_type === "video" ? (
                   <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 )}
-              </a>
+              </button>
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -144,6 +151,13 @@ const Person = () => {
           ))}
         </div>
       </main>
+      <Lightbox
+        items={photos}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onIndexChange={setLightboxIndex}
+        fileNamePrefix={displayName || "person"}
+      />
     </div>
   );
 };
