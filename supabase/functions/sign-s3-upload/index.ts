@@ -9,7 +9,10 @@ const corsHeaders = {
 
 const API_URL = "https://connector-gateway.lovable.dev";
 
-const ALLOWED = /^(image\/(jpeg|jpg|png|webp|heic|heif|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
+// HEIC/HEIF intentionally excluded — browsers (and Rekognition) can't read them.
+// Client must convert HEIC to JPEG before requesting a signed URL.
+const ALLOWED = /^(image\/(jpeg|jpg|png|webp|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
+const HEIC_RE = /\.(heic|heif)$/i;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
