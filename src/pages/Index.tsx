@@ -8,6 +8,10 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Lightbox } from "@/components/Lightbox";
+
+const SHOW_PEOPLE_KEY = "wedding-show-people";
+const SHOW_ALL_PHOTOS_KEY = "wedding-show-all-photos";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -18,6 +22,8 @@ type Cluster = {
   display_name: string | null;
   hidden?: boolean;
 };
+
+type AllPhoto = { id: string; url: string; media_type?: string; uploaded_by?: string | null };
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
@@ -36,8 +42,35 @@ const Index = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
+  // All photos & lightbox
+  const [allPhotos, setAllPhotos] = useState<AllPhoto[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // Section visibility (admin toggle, persisted)
+  const [showPeople, setShowPeople] = useState<boolean>(() =>
+    typeof window === "undefined" ? true : localStorage.getItem(SHOW_PEOPLE_KEY) !== "0"
+  );
+  const [showAllPhotos, setShowAllPhotos] = useState<boolean>(() =>
+    typeof window === "undefined" ? true : localStorage.getItem(SHOW_ALL_PHOTOS_KEY) !== "0"
+  );
+
   const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
   const isAdmin = !!adminPassword;
+
+  const togglePeopleSection = () => {
+    setShowPeople((v) => {
+      const next = !v;
+      localStorage.setItem(SHOW_PEOPLE_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
+  const toggleAllPhotosSection = () => {
+    setShowAllPhotos((v) => {
+      const next = !v;
+      localStorage.setItem(SHOW_ALL_PHOTOS_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   const loadClusters = async () => {
     try {
@@ -58,8 +91,27 @@ const Index = () => {
     }
   };
 
+  const loadAllPhotos = async () => {
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-photos`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: "{}",
+      });
+      const data = await r.json();
+      if (!data?.error) setAllPhotos(data.photos || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     loadClusters();
+    loadAllPhotos();
   }, []);
 
   const onSelfieFile = async (file: File) => {
@@ -383,15 +435,31 @@ const Index = () => {
           </Link>
         </div>
 
-        {clusters.length > 0 && (
-          <section className="max-w-5xl mx-auto mt-16">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl md:text-3xl font-serif text-foreground">Browse by person</h2>
-              <p className="text-muted-foreground text-sm mt-2">
-                {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized — tap a name to label
-              </p>
-              {isAdmin && (
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {/* Section visibility controls (admin only) */}
+        {isAdmin && (
+          <div className="max-w-5xl mx-auto mt-10 flex flex-wrap justify-center gap-2 text-xs">
+            <Button type="button" size="sm" variant={showPeople ? "default" : "outline"} onClick={togglePeopleSection} className="gap-1">
+              {showPeople ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              Browse by person
+            </Button>
+            <Button type="button" size="sm" variant={showAllPhotos ? "default" : "outline"} onClick={toggleAllPhotosSection} className="gap-1">
+              {showAllPhotos ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              All photos
+            </Button>
+          </div>
+        )}
+
+        {showPeople && clusters.length > 0 && (
+          <section className="max-w-5xl mx-auto mt-12">
+            <div className="flex items-end justify-between mb-4 px-1">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-serif text-foreground">People &amp; Pets</h2>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {clusters.length} {clusters.length === 1 ? "person" : "people"} recognized — tap a tile to see all their photos
+                </p>
+              </div>
+              {isAdmin && selectedClusters.size > 0 && (
+                <div className="flex gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -399,54 +467,49 @@ const Index = () => {
                     disabled={selectedClusters.size < 2 || mergingClusters}
                     onClick={unifySelectedClusters}
                   >
-                    {mergingClusters ? "Unifying…" : `Unify selected${selectedClusters.size ? ` (${selectedClusters.size})` : ""}`}
+                    {mergingClusters ? "Unifying…" : `Unify (${selectedClusters.size})`}
                   </Button>
-                  {selectedClusters.size > 0 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedClusters(new Set())}>
-                      Clear selection
-                    </Button>
-                  )}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedClusters(new Set())}>
+                    Clear
+                  </Button>
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-              {clusters.map((c) => (
-                <div key={c.id} className={`flex flex-col items-center gap-2 ${c.hidden ? "opacity-50" : ""}`}>
-                  <div className="relative w-full aspect-square">
-                    <Link
-                      to={`/person/${c.id}`}
-                      className="block w-full h-full rounded-full overflow-hidden bg-muted border-2 border-transparent hover:border-primary transition-colors"
-                    >
-                      {c.cover_url ? (
-                        <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Users className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                    </Link>
-                    {isAdmin && (
-                      <>
-                        <button
-                          onClick={() => toggleHidden(c)}
-                          className="absolute top-0 right-0 bg-background/90 hover:bg-background rounded-full p-1.5 shadow"
-                          title={c.hidden ? "Show on home" : "Hide from home"}
-                        >
-                          {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => toggleClusterSelected(c.id)}
-                          className={`absolute top-0 left-0 rounded-full px-2 py-1 text-[10px] shadow border ${selectedClusters.has(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background/90 text-foreground border-border"}`}
-                          title="Select for unifying"
-                        >
-                          {selectedClusters.has(c.id) ? "Selected" : "Select"}
-                        </button>
-                      </>
-                    )}
-                  </div>
 
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {clusters.map((c) => (
+                <div key={c.id} className={`relative group ${c.hidden ? "opacity-50" : ""}`}>
+                  <Link
+                    to={`/person/${c.id}`}
+                    className="block relative aspect-square rounded-3xl overflow-hidden bg-muted shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    {c.cover_url ? (
+                      <img
+                        src={c.cover_url}
+                        alt={c.display_name || "Person"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-secondary">
+                        <Users className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    {/* Gradient + name overlay */}
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-end justify-between gap-1">
+                      {editingCluster === c.id ? null : (
+                        <span className="text-white font-semibold text-sm truncate drop-shadow">
+                          {c.display_name || "Add name"}
+                        </span>
+                      )}
+                      <span className="text-white/80 text-[10px] font-medium shrink-0">{c.photo_count}</span>
+                    </div>
+                  </Link>
+
+                  {/* Inline rename row (below tile) */}
                   {editingCluster === c.id ? (
-                    <div className="flex items-center gap-1 w-full">
+                    <div className="flex items-center gap-1 mt-1.5">
                       <Input
                         autoFocus
                         value={editName}
@@ -468,25 +531,80 @@ const Index = () => {
                     </div>
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
                         setEditingCluster(c.id);
                         setEditName(c.display_name || "");
                       }}
-                      className="text-xs text-foreground hover:text-primary inline-flex items-center gap-1 group"
+                      className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-full p-1.5 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Rename"
                     >
-                      <span className="truncate max-w-[80px]">
-                        {c.display_name || "Add name"}
-                      </span>
-                      <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100" />
+                      <Pencil className="w-3 h-3" />
                     </button>
                   )}
-                  <span className="text-[10px] text-muted-foreground">{c.photo_count} photos</span>
+
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={(e) => { e.preventDefault(); toggleHidden(c); }}
+                        className="absolute top-2 left-2 bg-background/80 hover:bg-background rounded-full p-1.5 shadow"
+                        title={c.hidden ? "Show on home" : "Hide from home"}
+                      >
+                        {c.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={(e) => { e.preventDefault(); toggleClusterSelected(c.id); }}
+                        className={`absolute bottom-12 right-2 rounded-full px-2 py-0.5 text-[10px] shadow border ${selectedClusters.has(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background/90 text-foreground border-border opacity-0 group-hover:opacity-100"}`}
+                        title="Select for unifying"
+                      >
+                        {selectedClusters.has(c.id) ? "✓" : "Select"}
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
           </section>
         )}
+
+        {showAllPhotos && allPhotos.length > 0 && (
+          <section className="max-w-5xl mx-auto mt-16">
+            <div className="mb-4 px-1">
+              <h2 className="text-2xl md:text-3xl font-serif text-foreground">All photos</h2>
+              <p className="text-muted-foreground text-xs mt-1">
+                {allPhotos.length} memories from the day
+              </p>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {allPhotos.map((p, i) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90 transition-opacity"
+                >
+                  {p.media_type === "video" ? (
+                    <>
+                      <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                      <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span>
+                    </>
+                  ) : (
+                    <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
+
+      <Lightbox
+        items={allPhotos}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onIndexChange={setLightboxIndex}
+        fileNamePrefix="wedding"
+      />
     </div>
   );
 };
