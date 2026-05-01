@@ -8,6 +8,10 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Lightbox } from "@/components/Lightbox";
+
+const SHOW_PEOPLE_KEY = "wedding-show-people";
+const SHOW_ALL_PHOTOS_KEY = "wedding-show-all-photos";
 
 const ADMIN_KEY = "wedding-admin-password";
 
@@ -18,6 +22,8 @@ type Cluster = {
   display_name: string | null;
   hidden?: boolean;
 };
+
+type AllPhoto = { id: string; url: string; media_type?: string; uploaded_by?: string | null };
 
 const Index = () => {
   const [selfie, setSelfie] = useState<string | null>(null);
