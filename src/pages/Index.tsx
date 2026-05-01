@@ -42,8 +42,35 @@ const Index = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
+  // All photos & lightbox
+  const [allPhotos, setAllPhotos] = useState<AllPhoto[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // Section visibility (admin toggle, persisted)
+  const [showPeople, setShowPeople] = useState<boolean>(() =>
+    typeof window === "undefined" ? true : localStorage.getItem(SHOW_PEOPLE_KEY) !== "0"
+  );
+  const [showAllPhotos, setShowAllPhotos] = useState<boolean>(() =>
+    typeof window === "undefined" ? true : localStorage.getItem(SHOW_ALL_PHOTOS_KEY) !== "0"
+  );
+
   const adminPassword = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_KEY) : null;
   const isAdmin = !!adminPassword;
+
+  const togglePeopleSection = () => {
+    setShowPeople((v) => {
+      const next = !v;
+      localStorage.setItem(SHOW_PEOPLE_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
+  const toggleAllPhotosSection = () => {
+    setShowAllPhotos((v) => {
+      const next = !v;
+      localStorage.setItem(SHOW_ALL_PHOTOS_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   const loadClusters = async () => {
     try {
@@ -64,8 +91,27 @@ const Index = () => {
     }
   };
 
+  const loadAllPhotos = async () => {
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-photos`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: "{}",
+      });
+      const data = await r.json();
+      if (!data?.error) setAllPhotos(data.photos || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     loadClusters();
+    loadAllPhotos();
   }, []);
 
   const onSelfieFile = async (file: File) => {
