@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2 } from "lucide-react";
+import { Heart, Download, Loader2, Share2 } from "lucide-react";
 import { HomeButton } from "@/components/HomeButton";
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { Lightbox } from "@/components/Lightbox";
 
 interface AlbumData {
   guest: { name: string };
@@ -18,6 +19,30 @@ const Album = () => {
   const [data, setData] = useState<AlbumData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const shareAlbum = async () => {
+    const shareUrl = window.location.href;
+    const title = data ? `${data.guest.name}'s wedding photos` : "My wedding album";
+    const text = "Check out my personal wedding album 💕";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Album link copied!");
+      }
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success("Album link copied!");
+        } catch {
+          toast.error("Could not share link");
+        }
+      }
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
