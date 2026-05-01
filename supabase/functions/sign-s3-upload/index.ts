@@ -47,14 +47,21 @@ Deno.serve(async (req) => {
     for (const f of files) {
       const id = crypto.randomUUID();
       const lower = (f.name || "").toLowerCase();
+
+      // Reject HEIC/HEIF outright — they must be converted client-side first
+      if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
+        return new Response(
+          JSON.stringify({ error: `HEIC/HEIF not supported by browsers. "${f.name}" must be converted to JPEG before upload.` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       const ext = (lower.split(".").pop() || "jpg").slice(0, 5);
 
-      // Normalize content type — iPhone often sends empty MIME for HEIC
+      // Normalize content type
       let contentType = f.contentType || "";
       if (!contentType || !ALLOWED.test(contentType)) {
-        if (lower.endsWith(".heic")) contentType = "image/heic";
-        else if (lower.endsWith(".heif")) contentType = "image/heif";
-        else if (lower.endsWith(".mp4")) contentType = "video/mp4";
+        if (lower.endsWith(".mp4")) contentType = "video/mp4";
         else if (lower.endsWith(".mov")) contentType = "video/quicktime";
         else if (lower.endsWith(".webm")) contentType = "video/webm";
         else if (lower.endsWith(".png")) contentType = "image/png";
