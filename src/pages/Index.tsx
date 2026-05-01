@@ -156,13 +156,38 @@ const Index = () => {
     setUploadProgress({ done: 0, total: uploadFiles.length });
     let done = 0;
     let errors = 0;
+    let heicSkipped = 0;
     try {
-      // Direct-to-S3 upload in batches: get pre-signed URLs, then PUT files in parallel.
-      // After each successful upload, immediately trigger face recognition synchronously.
+      // Direct-to-S3 upload in batches. HEIC files are converted client-side to JPEG.
+      // If a single HEIC conversion fails, we skip THAT file only — never block the batch.
       const BATCH = 8;
       for (let i = 0; i < uploadFiles.length; i += BATCH) {
         const batch = uploadFiles.slice(i, i + BATCH);
-        const converted = await Promise.all(batch.map((f) => convertHeicIfNeeded(f)));
+
+        // Per-file conversion with isolated error handling — one bad HEIC won't block the rest
+        const convertedResults = await Promise.all(
+          batch.map(async (f) => {
+            try {
+              return { ok: true as const, file: await convertHeicIfNeeded(f), original: f };
+            } catch (err) {
+              console.warn("Skipping file (conversion failed):", f.name, err);
+              return { ok: false as const, original: f };
+            }
+          })
+        );
+
+        const converted = convertedResults.filter((r) => r.ok).map((r) => r.file!);
+        const skippedInBatch = convertedResults.length - converted.length;
+        if (skippedInBatch) {
+          heicSkipped += skippedInBatch;
+        }
+
+        if (converted.length === 0) {
+          done += batch.length;
+          setUploadProgress({ done, total: uploadFiles.length });
+          continue;
+        }
+
         try {
           const { data, error } = await supabase.functions.invoke("sign-s3-upload", {
             body: {
@@ -174,33 +199,40 @@ const Index = () => {
           if (data?.error) throw new Error(data.error);
           const uploads = data.uploads as { photoId: string; uploadUrl: string }[];
 
-          // Upload files directly to S3, then process each one for faces
+          // Upload each file directly to S3 — isolate failures per file
           await Promise.all(uploads.map(async (u, idx) => {
             const file = converted[idx];
-            const r = await fetch(u.uploadUrl, {
-              method: "PUT",
-              headers: { "Content-Type": file.type || "image/jpeg" },
-              body: file,
-            });
-            if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
-            // Run face recognition synchronously (slower but immediate results)
             try {
-              await supabase.functions.invoke("process-photo-now", { body: { photoId: u.photoId } });
+              const r = await fetch(u.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": file.type || "image/jpeg" },
+                body: file,
+              });
+              if (!r.ok) throw new Error(`S3 upload failed: ${r.status}`);
+              try {
+                await supabase.functions.invoke("process-photo-now", { body: { photoId: u.photoId } });
+              } catch (err) {
+                console.error("Face processing failed (will retry via cron):", err);
+              }
             } catch (err) {
-              console.error("Face processing failed (will retry via cron):", err);
+              console.error("Per-file upload failed:", file.name, err);
+              errors += 1;
             }
           }));
         } catch (e) {
-          errors += batch.length;
+          errors += converted.length;
           console.error(e);
         }
         done += batch.length;
         setUploadProgress({ done, total: uploadFiles.length });
-        // Refresh clusters as we go so users see new persons appear
         loadClusters();
       }
-      if (errors) toast.error(`${errors} photos failed to upload`);
-      else toast.success(`Uploaded ${done} photos and matched faces! 🎉`);
+      if (heicSkipped) {
+        toast.warning(`${heicSkipped} HEIC file${heicSkipped > 1 ? "s" : ""} couldn't be read in this browser. Try converting to JPEG, or upload from a different device.`);
+      }
+      if (errors) toast.error(`${errors} photo${errors > 1 ? "s" : ""} failed to upload`);
+      const successful = done - errors - heicSkipped;
+      if (successful > 0) toast.success(`Uploaded ${successful} photo${successful > 1 ? "s" : ""} and matched faces! 🎉`);
       setUploadFiles([]);
     } finally {
       setUploading(false);

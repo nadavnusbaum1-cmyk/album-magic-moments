@@ -90,6 +90,40 @@ async function compressJpegIfLarge(file: File): Promise<File> {
   return decoded || file;
 }
 
+// Last-ditch fallback: libheif-js (pure JS HEIC decoder, works in all browsers).
+// Loaded lazily from CDN to keep bundle small.
+async function decodeViaLibheif(file: File): Promise<File | null> {
+  try {
+    // @ts-ignore — dynamic CDN import
+    const mod: any = await import(/* @vite-ignore */ "https://esm.sh/libheif-js@1.17.1?bundle");
+    const libheif = mod.default || mod;
+    const decoder = new libheif.HeifDecoder();
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const data = decoder.decode(buf);
+    if (!data?.length) return null;
+    const image = data[0];
+    const width = image.get_width();
+    const height = image.get_height();
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const imageData = ctx.createImageData(width, height);
+    await new Promise<void>((resolve, reject) => {
+      image.display(imageData, (displayData: ImageData | null) => {
+        if (!displayData) return reject(new Error("libheif display returned null"));
+        ctx.putImageData(displayData, 0, 0);
+        resolve();
+      });
+    });
+    return await canvasToJpegFile(canvas, file.name);
+  } catch (e) {
+    console.warn("libheif fallback failed", e);
+    return null;
+  }
+}
+
 export const convertHeicIfNeeded = async (file: File): Promise<File> => {
   if (isVideo(file)) return file;
   if (!isHeic(file)) return file;
@@ -107,6 +141,8 @@ export const convertHeicIfNeeded = async (file: File): Promise<File> => {
     if (viaCanvas) return await compressJpegIfLarge(viaCanvas);
     const viaImage = await decodeViaImageElement(file);
     if (viaImage) return await compressJpegIfLarge(viaImage);
+    const viaLibheif = await decodeViaLibheif(file);
+    if (viaLibheif) return await compressJpegIfLarge(viaLibheif);
     throw new Error("HEIC conversion failed. Please choose a JPEG/PNG copy of this image.");
   }
 };

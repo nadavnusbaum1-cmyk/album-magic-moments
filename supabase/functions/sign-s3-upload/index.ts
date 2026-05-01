@@ -9,7 +9,10 @@ const corsHeaders = {
 
 const API_URL = "https://connector-gateway.lovable.dev";
 
-const ALLOWED = /^(image\/(jpeg|jpg|png|webp|heic|heif|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
+// HEIC/HEIF intentionally excluded — browsers (and Rekognition) can't read them.
+// Client must convert HEIC to JPEG before requesting a signed URL.
+const ALLOWED = /^(image\/(jpeg|jpg|png|webp|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
+const HEIC_RE = /\.(heic|heif)$/i;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -44,14 +47,21 @@ Deno.serve(async (req) => {
     for (const f of files) {
       const id = crypto.randomUUID();
       const lower = (f.name || "").toLowerCase();
+
+      // Reject HEIC/HEIF outright — they must be converted client-side first
+      if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
+        return new Response(
+          JSON.stringify({ error: `HEIC/HEIF not supported by browsers. "${f.name}" must be converted to JPEG before upload.` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       const ext = (lower.split(".").pop() || "jpg").slice(0, 5);
 
-      // Normalize content type — iPhone often sends empty MIME for HEIC
+      // Normalize content type
       let contentType = f.contentType || "";
       if (!contentType || !ALLOWED.test(contentType)) {
-        if (lower.endsWith(".heic")) contentType = "image/heic";
-        else if (lower.endsWith(".heif")) contentType = "image/heif";
-        else if (lower.endsWith(".mp4")) contentType = "video/mp4";
+        if (lower.endsWith(".mp4")) contentType = "video/mp4";
         else if (lower.endsWith(".mov")) contentType = "video/quicktime";
         else if (lower.endsWith(".webm")) contentType = "video/webm";
         else if (lower.endsWith(".png")) contentType = "image/png";
