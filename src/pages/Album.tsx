@@ -117,13 +117,16 @@ const Album = () => {
           {data.count === 0 ? "No photos yet — check back soon!" : `${data.count} photos of you`}
         </p>
         {data.photos.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-4 flex gap-2 justify-center flex-wrap">
             <Button onClick={downloadAll} disabled={!!zipping} size="sm" className="gap-2">
               {zipping ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Preparing {zipping.done}/{zipping.total}…</>
               ) : (
                 <><Download className="w-4 h-4" /> Download all</>
               )}
+            </Button>
+            <Button onClick={shareAlbum} size="sm" variant="outline" className="gap-2">
+              <Share2 className="w-4 h-4" /> Share my album
             </Button>
           </div>
         )}
@@ -142,16 +145,22 @@ const Album = () => {
                 className="relative group aspect-square overflow-hidden rounded-2xl bg-muted"
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
-                <a href={p.url} target="_blank" rel="noreferrer" className="block w-full h-full">
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  className="block w-full h-full"
+                  aria-label="Open photo"
+                >
                   {p.media_type === "video" ? (
                     <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                   ) : (
                     <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                   )}
-                </a>
+                </button>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     downloadOne(p.url, `${data.guest.name}-${i + 1}.jpg`)
                       .catch(() => toast.error("Download failed"));
                   }}
@@ -165,6 +174,13 @@ const Album = () => {
           </div>
         )}
       </main>
+      <Lightbox
+        items={data.photos}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onIndexChange={setLightboxIndex}
+        fileNamePrefix={data.guest.name}
+      />
     </div>
   );
 };
