@@ -19,6 +19,7 @@ export type Database = {
           bounding_box: Json | null
           cluster_id: string
           created_at: string
+          event_id: string | null
           face_id: string | null
           id: string
           photo_id: string
@@ -28,6 +29,7 @@ export type Database = {
           bounding_box?: Json | null
           cluster_id: string
           created_at?: string
+          event_id?: string | null
           face_id?: string | null
           id?: string
           photo_id: string
@@ -37,6 +39,7 @@ export type Database = {
           bounding_box?: Json | null
           cluster_id?: string
           created_at?: string
+          event_id?: string | null
           face_id?: string | null
           id?: string
           photo_id?: string
@@ -51,6 +54,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cluster_photo_matches_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cluster_photo_matches_photo_id_fkey"
             columns: ["photo_id"]
             isOneToOne: false
@@ -59,10 +69,82 @@ export type Database = {
           },
         ]
       }
+      event_members: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_members_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          event_date: string | null
+          id: string
+          is_published: boolean
+          name: string
+          owner_id: string
+          show_all_photos: boolean
+          show_people: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          is_published?: boolean
+          name: string
+          owner_id: string
+          show_all_photos?: boolean
+          show_people?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          owner_id?: string
+          show_all_photos?: boolean
+          show_people?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       face_clusters: {
         Row: {
           created_at: string
           display_name: string | null
+          event_id: string | null
           hidden: boolean
           id: string
           photo_count: number
@@ -76,6 +158,7 @@ export type Database = {
         Insert: {
           created_at?: string
           display_name?: string | null
+          event_id?: string | null
           hidden?: boolean
           id?: string
           photo_count?: number
@@ -89,6 +172,7 @@ export type Database = {
         Update: {
           created_at?: string
           display_name?: string | null
+          event_id?: string | null
           hidden?: boolean
           id?: string
           photo_count?: number
@@ -99,12 +183,21 @@ export type Database = {
           representative_storage_path?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "face_clusters_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guests: {
         Row: {
           cluster_id: string | null
           created_at: string
+          event_id: string | null
           id: string
           magic_token: string
           name: string
@@ -116,6 +209,7 @@ export type Database = {
         Insert: {
           cluster_id?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           magic_token?: string
           name: string
@@ -127,6 +221,7 @@ export type Database = {
         Update: {
           cluster_id?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           magic_token?: string
           name?: string
@@ -143,11 +238,19 @@ export type Database = {
             referencedRelation: "face_clusters"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "guests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
         ]
       }
       photo_matches: {
         Row: {
           created_at: string
+          event_id: string | null
           guest_id: string
           id: string
           photo_id: string
@@ -155,6 +258,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          event_id?: string | null
           guest_id: string
           id?: string
           photo_id: string
@@ -162,12 +266,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          event_id?: string | null
           guest_id?: string
           id?: string
           photo_id?: string
           similarity?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "photo_matches_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "photo_matches_guest_id_fkey"
             columns: ["guest_id"]
@@ -188,6 +300,7 @@ export type Database = {
         Row: {
           content_type: string | null
           created_at: string
+          event_id: string | null
           face_count: number
           id: string
           media_type: string
@@ -195,6 +308,7 @@ export type Database = {
           processing_error: string | null
           s3_key: string | null
           source: string
+          source_label: string | null
           storage_path: string
           storage_provider: string
           uploaded_by: string | null
@@ -202,6 +316,7 @@ export type Database = {
         Insert: {
           content_type?: string | null
           created_at?: string
+          event_id?: string | null
           face_count?: number
           id?: string
           media_type?: string
@@ -209,6 +324,7 @@ export type Database = {
           processing_error?: string | null
           s3_key?: string | null
           source?: string
+          source_label?: string | null
           storage_path: string
           storage_provider?: string
           uploaded_by?: string | null
@@ -216,6 +332,7 @@ export type Database = {
         Update: {
           content_type?: string | null
           created_at?: string
+          event_id?: string | null
           face_count?: number
           id?: string
           media_type?: string
@@ -223,9 +340,60 @@ export type Database = {
           processing_error?: string | null
           s3_key?: string | null
           source?: string
+          source_label?: string | null
           storage_path?: string
           storage_provider?: string
           uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -234,10 +402,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_event_host: {
+        Args: { _event_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "host"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -364,6 +542,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "host"],
+    },
   },
 } as const
