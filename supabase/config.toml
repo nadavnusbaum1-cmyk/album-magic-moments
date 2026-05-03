@@ -39,3 +39,17 @@ verify_jwt = false
 [functions.merge-clusters]
 verify_jwt = false
 
+[functions.list-events]
+verify_jwt = false
+
+[functions.create-event]
+verify_jwt = false
+
+[functions.update-event]
+verify_jwt = false
+
+[functions.get-public-event]
+verify_jwt = false
+
+[functions.admin-list-photos]
+verify_jwt = false
