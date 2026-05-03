@@ -3,9 +3,6 @@ project_id = "tuanjmlepxdojysehytz"
 [functions.register-guest]
 verify_jwt = false
 
-[functions.upload-photos]
-verify_jwt = false
-
 [functions.get-album]
 verify_jwt = false
 
