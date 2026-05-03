@@ -1,6 +1,5 @@
-// Shared per-photo face processing: download from S3 (or Supabase storage),
-// run Rekognition IndexFaces + SearchFaces, write photo_matches and clusters.
-import { rekognition, COLLECTION_ID } from "./rekognition.ts";
+// Shared per-photo face processing — event-scoped.
+import { rekognition, collectionFor } from "./rekognition.ts";
 
 const API_URL = "https://connector-gateway.lovable.dev";
 
@@ -14,8 +13,7 @@ function looksProcessable(name: string): boolean {
 
 function isVideo(name: string, contentType?: string | null): boolean {
   if (contentType?.startsWith("video/")) return true;
-  const lower = name.toLowerCase();
-  return /\.(mp4|mov|m4v|webm|avi|mkv)$/.test(lower);
+  return /\.(mp4|mov|m4v|webm|avi|mkv)$/.test(name.toLowerCase());
 }
 
 async function downloadFromS3(key: string): Promise<Uint8Array> {
@@ -51,6 +49,7 @@ type Supa = any;
 
 export interface ProcessablePhoto {
   id: string;
+  event_id: string;
   s3_key: string | null;
   storage_path: string;
   storage_provider: string | null;
@@ -63,7 +62,7 @@ type FaceMatch = {
   Similarity?: number;
 };
 
-async function findBestCluster(supabase: Supa, matches: FaceMatch[]): Promise<string | null> {
+async function findBestCluster(supabase: Supa, eventId: string, matches: FaceMatch[]): Promise<string | null> {
   const ranked = matches
     .map((m) => ({ faceId: m.Face?.FaceId, externalId: m.Face?.ExternalImageId, similarity: Number(m.Similarity || 0) }))
     .filter((m): m is { faceId: string; externalId?: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
@@ -71,38 +70,26 @@ async function findBestCluster(supabase: Supa, matches: FaceMatch[]): Promise<st
   if (!ranked.length) return null;
 
   const faceIds = [...new Set(ranked.map((m) => m.faceId))];
-  const photoIds = [...new Set(ranked.map((m) => m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null).filter(Boolean))];
   const { data: matchRows } = await supabase
     .from("cluster_photo_matches")
     .select("cluster_id, face_id")
+    .eq("event_id", eventId)
     .in("face_id", faceIds);
-  const byFace = new Map((matchRows || []).map((r: { face_id: string; cluster_id: string }) => [r.face_id, r.cluster_id]));
-
-  const byPhoto = new Map<string, string>();
-  if (photoIds.length) {
-    const { data: photoRows } = await supabase
-      .from("cluster_photo_matches")
-      .select("cluster_id, photo_id")
-      .in("photo_id", photoIds);
-    for (const row of photoRows || []) byPhoto.set(row.photo_id, row.cluster_id);
-  }
-
+  const byFace = new Map((matchRows || []).map((r: any) => [r.face_id, r.cluster_id]));
   for (const m of ranked) {
-    const clusterId = byFace.get(m.faceId);
-    if (clusterId) return clusterId;
-    const photoId = m.externalId?.startsWith("photo-") ? m.externalId.slice("photo-".length) : null;
-    if (photoId && byPhoto.has(photoId)) return byPhoto.get(photoId)!;
+    const c = byFace.get(m.faceId);
+    if (c) return c;
   }
 
   const { data: clusters } = await supabase
     .from("face_clusters")
     .select("id, representative_face_id")
+    .eq("event_id", eventId)
     .in("representative_face_id", faceIds);
-  const byRepresentative = new Map((clusters || []).map((c: { representative_face_id: string; id: string }) => [c.representative_face_id, c.id]));
-
+  const byRep = new Map((clusters || []).map((c: any) => [c.representative_face_id, c.id]));
   for (const m of ranked) {
-    const clusterId = byRepresentative.get(m.faceId);
-    if (clusterId) return clusterId;
+    const c = byRep.get(m.faceId);
+    if (c) return c;
   }
   return null;
 }
@@ -117,21 +104,16 @@ async function refreshClusterPhotoCount(supabase: Supa, clusterId: string) {
 
 export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Promise<{ matches: number; faces: number }> {
   const ref = photo.s3_key || photo.storage_path;
+  const eventId = photo.event_id;
+  const COLLECTION = collectionFor(eventId);
 
-  // Skip videos entirely (no face recognition on video for now)
   if (photo.media_type === "video" || isVideo(ref, photo.content_type)) {
-    await supabase
-      .from("photos")
-      .update({ processed: true, face_count: 0, media_type: "video", processing_error: null })
-      .eq("id", photo.id);
+    await supabase.from("photos").update({ processed: true, face_count: 0, media_type: "video", processing_error: null }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
 
   if (!looksProcessable(ref)) {
-    await supabase
-      .from("photos")
-      .update({ processed: true, face_count: 0, processing_error: "Unsupported format (Rekognition needs JPEG/PNG)" })
-      .eq("id", photo.id);
+    await supabase.from("photos").update({ processed: true, face_count: 0, processing_error: "Unsupported format (need JPEG/PNG)" }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
 
@@ -145,17 +127,14 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   }
 
   if (bytes.byteLength > 5 * 1024 * 1024) {
-    await supabase
-      .from("photos")
-      .update({ processed: true, face_count: 0, processing_error: "File too large for face recognition (max 5MB)" })
-      .eq("id", photo.id);
+    await supabase.from("photos").update({ processed: true, face_count: 0, processing_error: "Too large for face recognition (max 5MB)" }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
 
   const base64 = bytesToBase64(bytes);
 
   const indexResult = await rekognition("IndexFaces", {
-    CollectionId: COLLECTION_ID,
+    CollectionId: COLLECTION,
     Image: { Bytes: base64 },
     ExternalImageId: `photo-${photo.id}`,
     DetectionAttributes: [],
@@ -170,10 +149,10 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   for (const fr of faceRecords) {
     const faceId = fr.Face?.FaceId;
     if (!faceId) continue;
-    const bbox = fr.Face?.BoundingBox || null; // {Width,Height,Left,Top} normalized 0-1
+    const bbox = fr.Face?.BoundingBox || null;
 
     const search = await rekognition("SearchFaces", {
-      CollectionId: COLLECTION_ID,
+      CollectionId: COLLECTION,
       FaceId: faceId,
       FaceMatchThreshold: 70,
       MaxFaces: 50,
@@ -186,29 +165,24 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
       if (!ext || ext.startsWith("photo-") || ext.startsWith("cluster-")) continue;
       if (similarity < MATCH_THRESHOLD) continue;
       if (matchedGuests.has(ext)) continue;
+      // ext is guest_id — verify it belongs to this event
+      const { data: g } = await supabase.from("guests").select("id, photo_count, event_id").eq("id", ext).maybeSingle();
+      if (!g || g.event_id !== eventId) continue;
       matchedGuests.add(ext);
-      await supabase.from("photo_matches").insert({
-        guest_id: ext,
-        photo_id: photo.id,
-        similarity,
-      });
-      const { data: g } = await supabase.from("guests").select("photo_count").eq("id", ext).single();
-      if (g) await supabase.from("guests").update({ photo_count: (g.photo_count || 0) + 1 }).eq("id", ext);
+      await supabase.from("photo_matches").insert({ guest_id: ext, photo_id: photo.id, similarity, event_id: eventId });
+      await supabase.from("guests").update({ photo_count: (g.photo_count || 0) + 1 }).eq("id", ext);
     }
 
-    let clusterId = await findBestCluster(supabase, matches);
+    let clusterId = await findBestCluster(supabase, eventId, matches);
     if (!clusterId) {
-      const { data: nc } = await supabase
-        .from("face_clusters")
-        .insert({
-          representative_face_id: faceId,
-          representative_photo_id: photo.id,
-          representative_storage_path: photo.storage_path,
-          representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
-          photo_count: 0,
-        })
-        .select()
-        .single();
+      const { data: nc } = await supabase.from("face_clusters").insert({
+        event_id: eventId,
+        representative_face_id: faceId,
+        representative_photo_id: photo.id,
+        representative_storage_path: photo.storage_path,
+        representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
+        photo_count: 0,
+      }).select().single();
       if (nc) clusterId = nc.id;
     }
     if (clusterId && !matchedClusters.has(clusterId)) {
@@ -219,15 +193,12 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
         similarity: 100,
         bounding_box: bbox,
         face_id: faceId,
+        event_id: eventId,
       }, { onConflict: "cluster_id,photo_id" });
       await refreshClusterPhotoCount(supabase, clusterId);
     }
   }
 
-  await supabase
-    .from("photos")
-    .update({ processed: true, face_count: faceRecords.length, processing_error: null })
-    .eq("id", photo.id);
-
+  await supabase.from("photos").update({ processed: true, face_count: faceRecords.length, processing_error: null }).eq("id", photo.id);
   return { matches: matchedGuests.size, faces: faceRecords.length };
 }
