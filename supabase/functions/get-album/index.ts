@@ -1,39 +1,24 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+// Public: get an album by guest magic token.
+import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { resolvePhotoUrl } from "../_shared/storage.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
     const url = new URL(req.url);
     const token = url.searchParams.get("token");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "token required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!token) return json({ error: "token required" }, 400);
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = svc();
+    const { data: guest } = await supabase
+      .from("guests").select("id, name, event_id, photo_count")
+      .eq("magic_token", token).maybeSingle();
+    if (!guest) return json({ error: "Album not found" }, 404);
 
-    const { data: guest, error } = await supabase
-      .from("guests")
-      .select("id, name, photo_count")
-      .eq("magic_token", token)
-      .single();
-    if (error || !guest) {
-      return new Response(JSON.stringify({ error: "Album not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let event: any = null;
+    if (guest.event_id) {
+      const { data } = await supabase.from("events").select("name, slug").eq("id", guest.event_id).maybeSingle();
+      event = data;
     }
 
     const { data: matches } = await supabase
@@ -43,26 +28,17 @@ Deno.serve(async (req) => {
       .order("created_at", { foreignTable: "photos", ascending: false });
 
     const photos = await Promise.all(
-      (matches || []).flatMap((m: { photos: unknown }) => {
+      (matches || []).flatMap((m: any) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
-        if (!p) return [];
-        return [p as { storage_path: string; storage_provider?: string; s3_key?: string; media_type?: string; content_type?: string }];
-      }).map(async (p) => ({
+        return p ? [p] : [];
+      }).map(async (p: any) => ({
         url: await resolvePhotoUrl(p),
         media_type: p.media_type || "image",
-        content_type: p.content_type || null,
       })),
     );
 
-    return new Response(
-      JSON.stringify({ guest: { name: guest.name }, photos, count: photos.length }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return json({ guest: { name: guest.name }, event, photos, count: photos.length });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }
 });

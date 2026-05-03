@@ -93,11 +93,14 @@ export async function rekognition(action: string, payload: Record<string, unknow
   return text ? JSON.parse(text) : {};
 }
 
-export const COLLECTION_ID = "wedding-guests";
+// Per-event collection — keeps faces isolated across events.
+export function collectionFor(eventId: string) {
+  return `event-${eventId.replace(/-/g, "")}`;
+}
 
-export async function ensureCollection() {
+export async function ensureCollection(collectionId: string) {
   try {
-    await rekognition("CreateCollection", { CollectionId: COLLECTION_ID });
+    await rekognition("CreateCollection", { CollectionId: collectionId });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (!msg.includes("ResourceAlreadyExistsException")) throw e;

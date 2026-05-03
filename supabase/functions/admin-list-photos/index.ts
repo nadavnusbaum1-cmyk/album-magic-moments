@@ -1,22 +1,21 @@
-// Public: list all photos for an event (used for "All photos" section). Filter by source optional.
-import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
+// Host-only: list photos in own event (richer data for admin gallery).
+import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
 import { resolvePhotoUrl } from "../_shared/storage.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { eventSlug, sourceLabel } = await req.json() as { eventSlug?: string; sourceLabel?: string };
-    if (!eventSlug) return json({ error: "eventSlug required" }, 400);
-    const event = await eventBySlug(eventSlug);
-    if (!event || !event.is_published) return json({ error: "Event not found" }, 404);
+    const { eventId, sourceLabel } = await req.json() as { eventId?: string; sourceLabel?: string };
+    if (!eventId) return json({ error: "eventId required" }, 400);
+    const auth = await requireHost(req, eventId);
+    if (auth.error) return json({ error: auth.error }, auth.status);
 
     const supabase = svc();
-    let q = supabase
-      .from("photos")
-      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, uploaded_by, media_type, content_type, source_label")
-      .eq("event_id", event.id)
+    let q = supabase.from("photos")
+      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, uploaded_by, media_type, content_type, source_label, processing_error")
+      .eq("event_id", eventId)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
     const { data: photos, error } = await q;
     if (error) throw error;
@@ -26,15 +25,14 @@ Deno.serve(async (req) => {
       url: await resolvePhotoUrl(p),
       face_count: p.face_count,
       processed: p.processed,
+      processing_error: p.processing_error,
       created_at: p.created_at,
       uploaded_by: p.uploaded_by,
       media_type: p.media_type || "image",
       source_label: p.source_label,
     })));
 
-    // Distinct source labels for filter UI
     const sources = Array.from(new Set((photos || []).map((p: any) => p.source_label).filter(Boolean))) as string[];
-
     return json({ photos: items, sources });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);

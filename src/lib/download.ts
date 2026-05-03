@@ -1,24 +1,37 @@
-// Download helpers: single file via fetch+blob, bulk as ZIP using JSZip.
-// Loaded dynamically so it doesn't bloat initial bundle.
+// Download helpers. Desktop: forced download via blob. Mobile: uses Web Share API
+// when available so iOS users can save to the Photos gallery.
+
+function isMobile() {
+  return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 export async function downloadOne(url: string, filename = "photo.jpg") {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  } catch (e) {
-    // Fallback: open in new tab
-    window.open(url, "_blank");
-    throw e;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+
+  if (isMobile() && typeof navigator.share === "function") {
+    try {
+      const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+      // @ts-ignore
+      if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+    }
   }
+
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 export async function downloadManyAsZip(
@@ -29,7 +42,6 @@ export async function downloadManyAsZip(
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   let done = 0;
-  // Limit concurrency so the browser doesn't choke
   const CONCURRENCY = 6;
   let idx = 0;
   await Promise.all(
