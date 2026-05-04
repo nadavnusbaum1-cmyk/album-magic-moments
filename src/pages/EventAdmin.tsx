@@ -216,8 +216,9 @@ export default function EventAdmin() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {photos.map((p) => {
                     const sel = selected.has(p.id);
+                    const isCover = event.cover_photo_id === p.id;
                     return (
-                      <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : "ring-transparent"}`}
+                      <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : isCover ? "ring-amber-400" : "ring-transparent"}`}
                         onClick={() => setSelected((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
                         {p.media_type === "video" ? (
                           <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
@@ -225,11 +226,20 @@ export default function EventAdmin() {
                           <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                         )}
                         <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
+                        {p.media_type !== "video" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
+                            className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
+                            title={isCover ? "Current cover" : "Set as cover"}
+                          >
+                            <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
+                          </button>
+                        )}
                         <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
                           {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
                           <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                         </div>
-                        {!p.processed && <span className="absolute top-1 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
+                        {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
                       </div>
                     );
                   })}
