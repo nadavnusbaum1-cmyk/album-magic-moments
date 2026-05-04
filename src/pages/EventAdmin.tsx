@@ -259,7 +259,7 @@ export default function EventAdmin() {
                 <Input type="date" defaultValue={event.event_date || ""} onChange={(e) => updateEvent({ event_date: e.target.value || null })} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Cover image URL</label>
+                <label className="text-sm font-medium">Cover image URL <span className="text-xs text-muted-foreground">(or pick one of your photos with the ⭐ icon)</span></label>
                 <Input defaultValue={event.cover_image_url || ""} placeholder="https://…"
                   onBlur={(e) => e.target.value !== (event.cover_image_url || "") && updateEvent({ cover_image_url: e.target.value || null })} />
               </div>
