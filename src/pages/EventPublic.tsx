@@ -128,7 +128,7 @@ export default function EventPublic() {
               <input id="selfie-gallery" type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])} disabled={loading} />
             </div>
           </div>
-          <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? "Doing the magic ✨" : "Find my photos &amp; videos"}</Button>
+          <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? "Doing the magic ✨" : "Find my photos"}</Button>
         </Card>
 
         {event.show_people && clusters.length > 0 && (
