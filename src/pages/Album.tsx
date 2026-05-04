@@ -47,11 +47,6 @@ const Album = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: res, error } = await supabase.functions.invoke("get-album", {
-          method: "GET" as const,
-          body: undefined,
-          headers: {},
-        });
         const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-album?token=${token}`;
         const r = await fetch(url, {
           headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -59,7 +54,6 @@ const Album = () => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Failed");
         setData(json);
-        void res; void error;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load album");
       }
