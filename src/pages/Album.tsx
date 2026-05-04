@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Share2 } from "lucide-react";
-import { HomeButton } from "@/components/HomeButton";
+
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
@@ -98,7 +98,6 @@ const Album = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
-      <HomeButton />
       <header className="px-6 pt-16 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 fill-current" />
