@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star } from "lucide-react";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; };
 
 export default function EventAdmin() {
