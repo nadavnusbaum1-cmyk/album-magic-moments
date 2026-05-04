@@ -64,7 +64,7 @@ export default function EventAdmin() {
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
     let done = 0, errors = 0, skipped = 0;
-    const BATCH = 8;
+    const BATCH = 20; // bigger batches = fewer round-trips
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
@@ -81,13 +81,14 @@ export default function EventAdmin() {
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: sourceLabel.trim() || null,
           });
+          // Upload in parallel; do NOT await per-photo face processing — the cron picks them up.
           await Promise.all(data.uploads.map(async (u, idx) => {
             const file = goodFiles[idx];
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
-              try { await authedInvoke("process-photo-now", { photoId: u.photoId }); }
-              catch (e) { console.warn("process-now failed", e); }
+              // Fire-and-forget — don't block the upload pipeline
+              authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
             } catch (e) { console.error(file.name, e); errors++; }
           }));
         } catch (e) { errors += goodFiles.length; console.error(e); }
@@ -98,7 +99,7 @@ export default function EventAdmin() {
     if (skipped) toast.warning(`${skipped} HEIC file(s) skipped (couldn't convert).`);
     if (errors) toast.error(`${errors} upload(s) failed.`);
     const ok = done - errors - skipped;
-    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉`);
+    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉 — face matching runs in the background.`);
     setFiles([]); setUploading(false);
   };
 
