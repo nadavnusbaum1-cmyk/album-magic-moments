@@ -1,4 +1,4 @@
-// Host-only: sign S3 PUT URLs for an event.
+// Host-only: sign S3 PUT URLs for an event. Parallelized for speed.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
 
 const API_URL = "https://connector-gateway.lovable.dev";
@@ -27,17 +27,15 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
     const source = (sourceLabel || "").trim().slice(0, 60) || null;
-    const results: { photoId: string; uploadUrl: string; key: string; contentType: string; skipped?: boolean; reason?: string }[] = [];
 
-    for (const f of files) {
+    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string; skipped?: boolean };
+    const plans: (Plan | { idx: number; skipped: true })[] = files.map((f, idx) => {
       const lower = (f.name || "").toLowerCase();
       if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
-        results.push({ photoId: "", uploadUrl: "", key: "", contentType: "", skipped: true, reason: "HEIC must be converted client-side" });
-        continue;
+        return { idx, skipped: true };
       }
       const id = crypto.randomUUID();
       const ext = (lower.split(".").pop() || "jpg").slice(0, 5);
-
       let contentType = f.contentType || "";
       if (!contentType || !ALLOWED.test(contentType)) {
         if (lower.endsWith(".mp4")) contentType = "video/mp4";
@@ -47,11 +45,15 @@ Deno.serve(async (req) => {
         else if (lower.endsWith(".webp")) contentType = "image/webp";
         else contentType = "image/jpeg";
       }
-      const isVideo = contentType.startsWith("video/");
-      const mediaType = isVideo ? "video" : "image";
-
+      const mediaType = contentType.startsWith("video/") ? "video" : "image";
       const key = `event-photos/${eventId}/${id}.${ext}`;
+      return { idx, id, key, contentType, mediaType };
+    });
 
+    const realPlans = plans.filter((p): p is Plan => !("skipped" in p && p.skipped));
+
+    // Sign URLs in parallel
+    const signed = await Promise.all(realPlans.map(async (p) => {
       const signRes = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=write`, {
         method: "POST",
         headers: {
@@ -59,31 +61,40 @@ Deno.serve(async (req) => {
           "X-Connection-Api-Key": AWS_S3_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ object_path: key }),
+        body: JSON.stringify({ object_path: p.key }),
       });
-      if (!signRes.ok) throw new Error(`Sign failed [${signRes.status}]: ${await signRes.text()}`);
-      const { url: uploadUrl } = await signRes.json();
+      if (!signRes.ok) throw new Error(`Sign failed [${signRes.status}]`);
+      const { url } = await signRes.json();
+      return { ...p, uploadUrl: url as string };
+    }));
 
-      const { data: photoRow, error: insErr } = await supabase
-        .from("photos")
-        .insert({
-          event_id: eventId,
-          storage_path: key,
-          s3_key: key,
-          storage_provider: "s3",
-          source: "upload",
-          source_label: source,
-          processed: false,
-          uploaded_by: uploader,
-          media_type: mediaType,
-          content_type: contentType,
-        })
-        .select()
-        .single();
+    // Batch insert photo rows
+    if (signed.length) {
+      const rows = signed.map((p) => ({
+        id: p.id,
+        event_id: eventId,
+        storage_path: p.key,
+        s3_key: p.key,
+        storage_provider: "s3",
+        source: "upload",
+        source_label: source,
+        processed: false,
+        uploaded_by: uploader,
+        media_type: p.mediaType,
+        content_type: p.contentType,
+      }));
+      const { error: insErr } = await supabase.from("photos").insert(rows);
       if (insErr) throw insErr;
-
-      results.push({ photoId: photoRow.id, uploadUrl, key, contentType });
     }
+
+    // Reassemble in original order
+    const results = plans.map((p) => {
+      if ("skipped" in p && p.skipped) {
+        return { photoId: "", uploadUrl: "", key: "", contentType: "", skipped: true, reason: "HEIC must be converted client-side" };
+      }
+      const s = signed.find((x) => x.idx === (p as Plan).idx)!;
+      return { photoId: s.id, uploadUrl: s.uploadUrl, key: s.key, contentType: s.contentType };
+    });
 
     return json({ uploads: results });
   } catch (e) {

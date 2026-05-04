@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Share2 } from "lucide-react";
-import { HomeButton } from "@/components/HomeButton";
+
 import { toast } from "sonner";
 import { downloadOne, downloadManyAsZip } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
@@ -47,11 +47,6 @@ const Album = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: res, error } = await supabase.functions.invoke("get-album", {
-          method: "GET" as const,
-          body: undefined,
-          headers: {},
-        });
         const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-album?token=${token}`;
         const r = await fetch(url, {
           headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -59,7 +54,6 @@ const Album = () => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Failed");
         setData(json);
-        void res; void error;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load album");
       }
@@ -104,7 +98,6 @@ const Album = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
-      <HomeButton />
       <header className="px-6 pt-16 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 fill-current" />

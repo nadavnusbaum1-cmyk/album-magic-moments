@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -81,7 +80,6 @@ const Person = () => {
   };
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
-      <HomeButton />
       <header className="px-6 pt-16 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 fill-current" />

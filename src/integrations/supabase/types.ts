@@ -101,6 +101,7 @@ export type Database = {
       events: {
         Row: {
           cover_image_url: string | null
+          cover_photo_id: string | null
           created_at: string
           event_date: string | null
           id: string
@@ -114,6 +115,7 @@ export type Database = {
         }
         Insert: {
           cover_image_url?: string | null
+          cover_photo_id?: string | null
           created_at?: string
           event_date?: string | null
           id?: string
@@ -127,6 +129,7 @@ export type Database = {
         }
         Update: {
           cover_image_url?: string | null
+          cover_photo_id?: string | null
           created_at?: string
           event_date?: string | null
           id?: string

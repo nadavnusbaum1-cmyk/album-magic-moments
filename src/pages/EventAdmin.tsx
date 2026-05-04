@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star } from "lucide-react";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; };
 
 export default function EventAdmin() {
@@ -64,7 +64,7 @@ export default function EventAdmin() {
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
     let done = 0, errors = 0, skipped = 0;
-    const BATCH = 8;
+    const BATCH = 20; // bigger batches = fewer round-trips
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
@@ -81,13 +81,14 @@ export default function EventAdmin() {
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: sourceLabel.trim() || null,
           });
+          // Upload in parallel; do NOT await per-photo face processing — the cron picks them up.
           await Promise.all(data.uploads.map(async (u, idx) => {
             const file = goodFiles[idx];
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
-              try { await authedInvoke("process-photo-now", { photoId: u.photoId }); }
-              catch (e) { console.warn("process-now failed", e); }
+              // Fire-and-forget — don't block the upload pipeline
+              authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
             } catch (e) { console.error(file.name, e); errors++; }
           }));
         } catch (e) { errors += goodFiles.length; console.error(e); }
@@ -98,7 +99,7 @@ export default function EventAdmin() {
     if (skipped) toast.warning(`${skipped} HEIC file(s) skipped (couldn't convert).`);
     if (errors) toast.error(`${errors} upload(s) failed.`);
     const ok = done - errors - skipped;
-    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉`);
+    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉 — face matching runs in the background.`);
     setFiles([]); setUploading(false);
   };
 
@@ -215,8 +216,9 @@ export default function EventAdmin() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {photos.map((p) => {
                     const sel = selected.has(p.id);
+                    const isCover = event.cover_photo_id === p.id;
                     return (
-                      <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : "ring-transparent"}`}
+                      <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : isCover ? "ring-amber-400" : "ring-transparent"}`}
                         onClick={() => setSelected((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
                         {p.media_type === "video" ? (
                           <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
@@ -224,11 +226,20 @@ export default function EventAdmin() {
                           <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                         )}
                         <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
+                        {p.media_type !== "video" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
+                            className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
+                            title={isCover ? "Current cover" : "Set as cover"}
+                          >
+                            <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
+                          </button>
+                        )}
                         <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
                           {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
                           <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                         </div>
-                        {!p.processed && <span className="absolute top-1 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
+                        {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
                       </div>
                     );
                   })}
@@ -248,7 +259,7 @@ export default function EventAdmin() {
                 <Input type="date" defaultValue={event.event_date || ""} onChange={(e) => updateEvent({ event_date: e.target.value || null })} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Cover image URL</label>
+                <label className="text-sm font-medium">Cover image URL <span className="text-xs text-muted-foreground">(or pick one of your photos with the ⭐ icon)</span></label>
                 <Input defaultValue={event.cover_image_url || ""} placeholder="https://…"
                   onBlur={(e) => e.target.value !== (event.cover_image_url || "") && updateEvent({ cover_image_url: e.target.value || null })} />
               </div>
