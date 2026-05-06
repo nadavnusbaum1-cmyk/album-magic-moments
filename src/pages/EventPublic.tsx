@@ -171,6 +171,13 @@ export default function EventPublic() {
                 </button>
               ))}
             </div>
+            {photosCursor && (
+              <div className="text-center mt-6">
+                <Button variant="outline" onClick={loadMorePhotos} disabled={loadingMore}>
+                  {loadingMore ? "Loading…" : "Load more"}
+                </Button>
+              </div>
+            )}
           </section>
         )}
       </main>
