@@ -1,4 +1,4 @@
-// Public: list photos for a cluster (person folder).
+// Public: list photos for a cluster (person folder). Returns event slug for back-nav.
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { resolvePhotoUrl } from "../_shared/storage.ts";
 
@@ -12,6 +12,12 @@ Deno.serve(async (req) => {
     const { data: cluster } = await supabase
       .from("face_clusters").select("display_name, event_id").eq("id", clusterId).maybeSingle();
     if (!cluster) return json({ error: "Not found" }, 404);
+
+    let eventSlug: string | null = null;
+    if (cluster.event_id) {
+      const { data: ev } = await supabase.from("events").select("slug").eq("id", cluster.event_id).maybeSingle();
+      eventSlug = ev?.slug || null;
+    }
 
     const { data: matches } = await supabase
       .from("cluster_photo_matches")
@@ -28,7 +34,7 @@ Deno.serve(async (req) => {
       media_type: photo.media_type || "image",
     })));
 
-    return json({ photos, count: photos.length, display_name: cluster.display_name || null });
+    return json({ photos, count: photos.length, display_name: cluster.display_name || null, event_slug: eventSlug });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }
