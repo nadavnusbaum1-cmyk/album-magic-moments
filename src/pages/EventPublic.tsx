@@ -27,6 +27,8 @@ export default function EventPublic() {
   const [result, setResult] = useState<{ token: string; photoCount: number } | null>(null);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
+  const [photosCursor, setPhotosCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
