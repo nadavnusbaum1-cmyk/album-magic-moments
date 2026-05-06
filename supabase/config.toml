@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.admin-list-photos]
 verify_jwt = false
+
+[functions.reprocess-event]
+verify_jwt = false

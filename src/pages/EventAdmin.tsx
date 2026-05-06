@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { convertHeicIfNeeded } from "@/lib/imageUtils";
 
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
-type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; };
+type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
+type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
+type ClusterPhoto = { id: string; url: string; media_type?: string };
 
 export default function EventAdmin() {
   const { id } = useParams();
@@ -22,7 +25,7 @@ export default function EventAdmin() {
   const [event, setEvent] = useState<Event | null>(null);
   const [tab, setTab] = useState("upload");
 
-  // Upload state
+  // Upload
   const [files, setFiles] = useState<File[]>([]);
   const [uploaderName, setUploaderName] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
@@ -31,10 +34,26 @@ export default function EventAdmin() {
 
   // Gallery
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photosCursor, setPhotosCursor] = useState<string | null>(null);
+  const [photosTotals, setPhotosTotals] = useState({ total: 0, processed: 0, pending: 0 });
   const [sources, setSources] = useState<string[]>([]);
   const [filterSource, setFilterSource] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Reprocess
+  const [reprocessing, setReprocessing] = useState(false);
+
+  // People
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [clustersLoading, setClustersLoading] = useState(false);
+  const [editingCluster, setEditingCluster] = useState<Cluster | null>(null);
+  const [editingClusterPhotos, setEditingClusterPhotos] = useState<ClusterPhoto[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerPhotos, setPickerPhotos] = useState<Photo[]>([]);
+  const [pickerCursor, setPickerCursor] = useState<string | null>(null);
+  const [pickerSel, setPickerSel] = useState<Set<string>>(new Set());
 
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
 
@@ -45,26 +64,48 @@ export default function EventAdmin() {
     setEvent(data as Event);
   };
 
-  const loadPhotos = async () => {
+  const loadPhotos = async (before?: string) => {
     if (!id) return;
-    setLoadingPhotos(true);
+    if (before) setLoadingMore(true); else setLoadingPhotos(true);
     try {
-      const data = await authedInvoke<{ photos: Photo[]; sources: string[] }>("admin-list-photos", {
-        eventId: id, sourceLabel: filterSource === "all" ? undefined : filterSource,
-      });
-      setPhotos(data.photos); setSources(data.sources); setSelected(new Set());
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } finally { setLoadingPhotos(false); }
+      const data = await authedInvoke<{ photos: Photo[]; sources: string[]; nextCursor: string | null; totals?: typeof photosTotals }>(
+        "admin-list-photos",
+        { eventId: id, sourceLabel: filterSource === "all" ? undefined : filterSource, before, limit: 100 },
+      );
+      if (before) {
+        setPhotos((prev) => [...prev, ...data.photos]);
+      } else {
+        setPhotos(data.photos);
+        setSources(data.sources);
+        if (data.totals) setPhotosTotals(data.totals);
+        setSelected(new Set());
+      }
+      setPhotosCursor(data.nextCursor);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoadingPhotos(false); setLoadingMore(false); }
+  };
+
+  const loadClusters = async () => {
+    if (!event) return;
+    setClustersLoading(true);
+    try {
+      const r = await authedFetch("list-clusters", { method: "POST", body: JSON.stringify({ eventSlug: event.slug }) });
+      const j = await r.json();
+      if (r.ok) setClusters(j.clusters || []);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setClustersLoading(false); }
   };
 
   useEffect(() => { if (session && id) loadEvent(); }, [session, id]);
   useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource]);
+  useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
 
   const upload = async () => {
     if (!files.length || !id) return;
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
     let done = 0, errors = 0, skipped = 0;
-    const BATCH = 20; // bigger batches = fewer round-trips
+    const BATCH = 20;
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
@@ -81,13 +122,11 @@ export default function EventAdmin() {
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: sourceLabel.trim() || null,
           });
-          // Upload in parallel; do NOT await per-photo face processing — the cron picks them up.
           await Promise.all(data.uploads.map(async (u, idx) => {
             const file = goodFiles[idx];
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
-              // Fire-and-forget — don't block the upload pipeline
               authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
             } catch (e) { console.error(file.name, e); errors++; }
           }));
@@ -124,6 +163,90 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   };
 
+  const reprocess = async () => {
+    if (!id) return;
+    if (!confirm("Re-run face matching on ALL photos? This clears existing people groupings and rebuilds them. Can take a few minutes for large albums.")) return;
+    setReprocessing(true);
+    try {
+      const r = await authedFetch("reprocess-event", { method: "POST", body: JSON.stringify({ eventId: id, mode: "all" }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      toast.success(`Reprocessed ${j.processed} of ${j.total} photos`);
+      if (tab === "all") loadPhotos();
+      if (tab === "people") loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setReprocessing(false); }
+  };
+
+  const openClusterEditor = async (c: Cluster) => {
+    setEditingCluster(c);
+    setEditingClusterPhotos([]);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cluster-photos?id=${c.id}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
+      const j = await r.json();
+      if (r.ok) setEditingClusterPhotos(j.photos || []);
+    } catch { toast.error("Failed to load"); }
+  };
+
+  const removePhotosFromCluster = async (photoIds: string[]) => {
+    if (!editingCluster || !photoIds.length) return;
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, removePhotoIds: photoIds }) });
+      setEditingClusterPhotos((p) => p.filter((x) => !photoIds.includes(x.id)));
+      toast.success("Removed");
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const renameCluster = async (name: string) => {
+    if (!editingCluster) return;
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, displayName: name || null }) });
+      setEditingCluster({ ...editingCluster, display_name: name });
+      toast.success("Renamed");
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const toggleClusterHidden = async (c: Cluster) => {
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: c.id, hidden: !c.hidden }) });
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const openPicker = async () => {
+    setPickerOpen(true);
+    setPickerSel(new Set());
+    if (!id) return;
+    try {
+      const data = await authedInvoke<{ photos: Photo[]; nextCursor: string | null }>("admin-list-photos", { eventId: id, limit: 60 });
+      setPickerPhotos(data.photos);
+      setPickerCursor(data.nextCursor);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const loadMorePicker = async () => {
+    if (!id || !pickerCursor) return;
+    try {
+      const data = await authedInvoke<{ photos: Photo[]; nextCursor: string | null }>("admin-list-photos", { eventId: id, limit: 60, before: pickerCursor });
+      setPickerPhotos((p) => [...p, ...data.photos]);
+      setPickerCursor(data.nextCursor);
+    } catch { /* ignore */ }
+  };
+
+  const addPickedPhotos = async () => {
+    if (!editingCluster || !pickerSel.size) return;
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, addPhotoIds: [...pickerSel] }) });
+      toast.success(`Added ${pickerSel.size} photo(s)`);
+      setPickerOpen(false);
+      openClusterEditor(editingCluster);
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Link copied"); };
 
@@ -148,20 +271,20 @@ export default function EventAdmin() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-md mb-6">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl mb-6">
             <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
             <TabsTrigger value="all" className="gap-2"><ImageIcon className="w-4 h-4" /> Photos</TabsTrigger>
+            <TabsTrigger value="people" className="gap-2"><Users className="w-4 h-4" /> People</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload">
             <Card className="p-6 space-y-4">
-              <Input placeholder="Photographer / source name (optional, e.g. Pro photographer, Guest cam)"
-                value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} disabled={uploading} maxLength={60} />
+              <Input placeholder="Photographer / source name (optional)" value={sourceLabel} onChange={(e) => setSourceLabel(e.target.value)} disabled={uploading} maxLength={60} />
               <Input placeholder="Uploader name (optional)" value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
               <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-10 cursor-pointer hover:border-primary bg-secondary/40">
                 <Upload className="w-10 h-10 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{files.length ? `${files.length} file(s) selected` : "Drag &amp; drop or tap to choose photos / videos"}</span>
+                <span className="text-sm text-muted-foreground">{files.length ? `${files.length} file(s) selected` : "Drag & drop or tap to choose photos / videos"}</span>
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
@@ -180,7 +303,10 @@ export default function EventAdmin() {
           <TabsContent value="all">
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h2 className="font-medium">{photos.length} photo{photos.length === 1 ? "" : "s"}</h2>
+                <div>
+                  <h2 className="font-medium">{photosTotals.total || photos.length} photo{(photosTotals.total || photos.length) === 1 ? "" : "s"}</h2>
+                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{photosTotals.pending} still indexing</p>}
+                </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {sources.length > 0 && (
                     <Select value={filterSource} onValueChange={setFilterSource}>
@@ -203,8 +329,12 @@ export default function EventAdmin() {
                       <Trash2 className="w-4 h-4" /> Delete {selected.size}
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={loadPhotos} disabled={loadingPhotos}>
+                  <Button variant="outline" size="sm" onClick={() => loadPhotos()} disabled={loadingPhotos}>
                     {loadingPhotos ? "…" : "Refresh"}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
+                    {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Re-run face matching
                   </Button>
                 </div>
               </div>
@@ -213,36 +343,80 @@ export default function EventAdmin() {
               ) : photos.length === 0 ? (
                 <p className="text-muted-foreground text-sm py-8 text-center">No photos yet.</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {photos.map((p) => {
-                    const sel = selected.has(p.id);
-                    const isCover = event.cover_photo_id === p.id;
-                    return (
-                      <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : isCover ? "ring-amber-400" : "ring-transparent"}`}
-                        onClick={() => setSelected((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
-                        {p.media_type === "video" ? (
-                          <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-                        ) : (
-                          <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                        )}
-                        <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
-                        {p.media_type !== "video" && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
-                            className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
-                            title={isCover ? "Current cover" : "Set as cover"}
-                          >
-                            <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
-                          </button>
-                        )}
-                        <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
-                          {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
-                          <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {photos.map((p) => {
+                      const sel = selected.has(p.id);
+                      const isCover = event.cover_photo_id === p.id;
+                      return (
+                        <div key={p.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ring-2 transition-all ${sel ? "ring-primary" : isCover ? "ring-amber-400" : "ring-transparent"}`}
+                          onClick={() => setSelected((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
+                          {p.media_type === "video" ? (
+                            <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                          ) : (
+                            <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          )}
+                          <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
+                          {p.media_type !== "video" && (
+                            <button onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
+                              className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
+                              title={isCover ? "Current cover" : "Set as cover"}>
+                              <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
+                            </button>
+                          )}
+                          <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
+                            {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
+                            <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
+                          </div>
+                          {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
                         </div>
-                        {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
+                      );
+                    })}
+                  </div>
+                  {photosCursor && (
+                    <div className="text-center mt-6">
+                      <Button variant="outline" onClick={() => loadPhotos(photosCursor)} disabled={loadingMore}>
+                        {loadingMore ? "Loading…" : "Load more"}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="people">
+            <Card className="p-6">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h2 className="font-medium">{clusters.length} {clusters.length === 1 ? "person" : "people"}</h2>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : "Refresh"}</Button>
+                  <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
+                    {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Re-run matching
+                  </Button>
+                </div>
+              </div>
+              {clustersLoading && clusters.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+              ) : clusters.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">No people detected yet. Upload photos and run face matching.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {clusters.map((c) => (
+                    <div key={c.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ${c.hidden ? "opacity-50" : ""}`} onClick={() => openClusterEditor(c)}>
+                      {c.cover_url ? <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex items-end justify-between">
+                        <span className="text-white text-sm font-semibold truncate">{c.display_name || "Unnamed"}</span>
+                        <span className="text-white/80 text-xs">{c.photo_count}</span>
                       </div>
-                    );
-                  })}
+                      <button onClick={(e) => { e.stopPropagation(); toggleClusterHidden(c); }}
+                        className="absolute top-1 right-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        title={c.hidden ? "Show on public album" : "Hide from public album"}>
+                        {c.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </Card>
@@ -279,6 +453,62 @@ export default function EventAdmin() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Cluster editor */}
+      <Dialog open={!!editingCluster} onOpenChange={(o) => !o && setEditingCluster(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit person</DialogTitle></DialogHeader>
+          {editingCluster && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Input defaultValue={editingCluster.display_name || ""} placeholder="Name (e.g. Sarah)"
+                  onBlur={(e) => { if (e.target.value !== (editingCluster.display_name || "")) renameCluster(e.target.value); }} />
+                <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> Add photos</Button>
+              </div>
+              <div className="text-sm text-muted-foreground">{editingClusterPhotos.length} photo(s) in this person.</div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {editingClusterPhotos.map((p) => (
+                  <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
+                    {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    <button onClick={() => removePhotosFromCluster([p.id])}
+                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove from this person">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo picker */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Add photos to this person</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {pickerPhotos.map((p) => {
+              const sel = pickerSel.has(p.id);
+              return (
+                <div key={p.id} className={`relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer ring-2 ${sel ? "ring-primary" : "ring-transparent"}`}
+                  onClick={() => setPickerSel((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
+                  {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                  {sel && <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
+                </div>
+              );
+            })}
+          </div>
+          {pickerCursor && (
+            <div className="text-center mt-3">
+              <Button variant="outline" size="sm" onClick={loadMorePicker}>Load more</Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickerOpen(false)}>Cancel</Button>
+            <Button onClick={addPickedPhotos} disabled={!pickerSel.size}>Add {pickerSel.size || ""}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
