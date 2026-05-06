@@ -52,12 +52,22 @@ export default function EventPublic() {
         if (r.ok) setClusters(j.clusters || []);
       } catch (e) { console.error(e); }
       try {
-        const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug }) });
+        const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 60 }) });
         const j = await r.json();
-        if (r.ok) setAllPhotos(j.photos || []);
+        if (r.ok) { setAllPhotos(j.photos || []); setPhotosCursor(j.nextCursor || null); }
       } catch (e) { console.error(e); }
     })();
   }, [event]);
+
+  const loadMorePhotos = async () => {
+    if (!event || !photosCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 60, before: photosCursor }) });
+      const j = await r.json();
+      if (r.ok) { setAllPhotos((prev) => [...prev, ...(j.photos || [])]); setPhotosCursor(j.nextCursor || null); }
+    } finally { setLoadingMore(false); }
+  };
 
   const onSelfieFile = async (file: File) => {
     try {
