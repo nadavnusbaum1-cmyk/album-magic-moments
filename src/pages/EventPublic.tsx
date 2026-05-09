@@ -164,25 +164,35 @@ export default function EventPublic() {
           </section>
         )}
 
-        {event.show_all_photos && allPhotos.length > 0 && (
-          <section className="max-w-5xl mx-auto mt-16">
-            <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">All photos</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {allPhotos.map((p, i) => (
-                <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90">
-                  {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                </button>
-              ))}
-            </div>
-            {photosCursor && (
-              <div className="text-center mt-6">
-                <Button variant="outline" onClick={loadMorePhotos} disabled={loadingMore}>
-                  {loadingMore ? "Loading…" : "Load more"}
-                </Button>
-              </div>
+        {event.show_all_photos && (
+          <section className="max-w-5xl mx-auto mt-12 text-center">
+            {!showFullAlbum ? (
+              <Button size="lg" variant="outline" onClick={() => loadFullAlbum(true)}>
+                <ImageIcon className="w-4 h-4 mr-2" /> View full album
+              </Button>
+            ) : (
+              <>
+                <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1 text-left">All photos</h2>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {allPhotos.map((p, i) => (
+                    <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90">
+                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    </button>
+                  ))}
+                </div>
+                {photosCursor && (
+                  <div className="text-center mt-6">
+                    <Button variant="outline" onClick={() => loadFullAlbum(false)} disabled={loadingMore}>
+                      {loadingMore ? "Loading…" : "Load more"}
+                    </Button>
+                  </div>
+                )}
+                {!allPhotos.length && loadingMore && <p className="text-sm text-muted-foreground py-6">Loading…</p>}
+              </>
             )}
           </section>
         )}
+
       </main>
       <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
     </div>
