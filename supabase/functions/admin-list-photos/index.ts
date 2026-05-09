@@ -1,12 +1,12 @@
-// Host-only: list photos in own event (paginated).
+// Host-only: list photos in own event (paginated). Optional review-only filter.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
 import { resolvePhotoUrl } from "../_shared/storage.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { eventId, sourceLabel, before, limit } = await req.json() as {
-      eventId?: string; sourceLabel?: string; before?: string; limit?: number;
+    const { eventId, sourceLabel, before, limit, review } = await req.json() as {
+      eventId?: string; sourceLabel?: string; before?: string; limit?: number; review?: boolean;
     };
     if (!eventId) return json({ error: "eventId required" }, 400);
     const auth = await requireHost(req, eventId);
@@ -20,6 +20,10 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
+    if (review) {
+      // Photos needing manual review: processed but no person OR processing failed.
+      q = q.or("and(processed.eq.true,face_count.eq.0),processing_error.not.is.null");
+    }
     if (before) q = q.lt("created_at", before);
     const { data: photos, error } = await q;
     if (error) throw error;
@@ -36,15 +40,19 @@ Deno.serve(async (req) => {
       source_label: p.source_label,
     })));
 
-    let sources: string[] = [];
-    let totals = { total: 0, processed: 0, pending: 0 };
+    // First page only: include sources + lightweight totals (estimated, fast).
+    let sources: { label: string; count: number }[] = [];
+    let totals = { total: 0, processed: 0, pending: 0, review: 0 };
     if (!before) {
-      const { data: srcRows } = await supabase
-        .from("photos").select("source_label").eq("event_id", eventId).not("source_label", "is", null).limit(1000);
-      sources = Array.from(new Set((srcRows || []).map((p: any) => p.source_label).filter(Boolean))) as string[];
-      const { count: total } = await supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId);
-      const { count: processed } = await supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("processed", true);
-      totals = { total: total || 0, processed: processed || 0, pending: (total || 0) - (processed || 0) };
+      const { data: srcRows } = await supabase.rpc("get_event_sources", { _event_id: eventId });
+      sources = (srcRows || []).map((r: any) => ({ label: r.source_label as string, count: Number(r.count) }));
+      // Counts (head:true is fast — uses index)
+      const [{ count: total }, { count: processed }, { count: review }] = await Promise.all([
+        supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+        supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("processed", true),
+        supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("processed", true).eq("face_count", 0),
+      ]);
+      totals = { total: total || 0, processed: processed || 0, pending: (total || 0) - (processed || 0), review: review || 0 };
     }
 
     const nextCursor = items.length === pageSize ? items[items.length - 1].created_at : null;

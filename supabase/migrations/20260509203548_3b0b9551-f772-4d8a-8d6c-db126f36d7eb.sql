@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.get_event_sources(uuid) FROM PUBLIC, anon, authenticated;
