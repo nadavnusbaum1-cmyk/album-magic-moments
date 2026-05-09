@@ -29,6 +29,7 @@ export default function EventPublic() {
   const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
   const [photosCursor, setPhotosCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showFullAlbum, setShowFullAlbum] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function EventPublic() {
     })();
   }, [slug]);
 
+  // Only load people on first paint — full album is gated behind a button.
   useEffect(() => {
     if (!event) return;
     (async () => {
@@ -51,23 +53,24 @@ export default function EventPublic() {
         const j = await r.json();
         if (r.ok) setClusters(j.clusters || []);
       } catch (e) { console.error(e); }
-      try {
-        const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 60 }) });
-        const j = await r.json();
-        if (r.ok) { setAllPhotos(j.photos || []); setPhotosCursor(j.nextCursor || null); }
-      } catch (e) { console.error(e); }
     })();
   }, [event]);
 
-  const loadMorePhotos = async () => {
-    if (!event || !photosCursor || loadingMore) return;
+  const loadFullAlbum = async (initial = false) => {
+    if (!event) return;
+    if (initial) setShowFullAlbum(true);
+    if (loadingMore) return;
     setLoadingMore(true);
     try {
-      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 60, before: photosCursor }) });
+      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 60, before: initial ? undefined : photosCursor }) });
       const j = await r.json();
-      if (r.ok) { setAllPhotos((prev) => [...prev, ...(j.photos || [])]); setPhotosCursor(j.nextCursor || null); }
+      if (r.ok) {
+        setAllPhotos((prev) => initial ? (j.photos || []) : [...prev, ...(j.photos || [])]);
+        setPhotosCursor(j.nextCursor || null);
+      }
     } finally { setLoadingMore(false); }
   };
+
 
   const onSelfieFile = async (file: File) => {
     try {
