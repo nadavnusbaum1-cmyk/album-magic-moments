@@ -100,6 +100,7 @@ export type Database = {
       }
       events: {
         Row: {
+          allow_guest_uploads: boolean
           cover_image_url: string | null
           cover_photo_id: string | null
           created_at: string
@@ -114,6 +115,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_guest_uploads?: boolean
           cover_image_url?: string | null
           cover_photo_id?: string | null
           created_at?: string
@@ -128,6 +130,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_guest_uploads?: boolean
           cover_image_url?: string | null
           cover_photo_id?: string | null
           created_at?: string

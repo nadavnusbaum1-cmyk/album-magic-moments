@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.rename-source]
 verify_jwt = false
+
+[functions.guest-sign-s3-upload]
+verify_jwt = false

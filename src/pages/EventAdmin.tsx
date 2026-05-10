@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { convertHeicIfNeeded } from "@/lib/imageUtils";
+import { prepareImageForUpload } from "@/lib/imageUtils";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; media_type?: string };
@@ -148,7 +148,7 @@ export default function EventAdmin() {
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
-        try { return { ok: true as const, file: await convertHeicIfNeeded(f), original: f }; }
+        try { return { ok: true as const, file: await prepareImageForUpload(f), original: f }; }
         catch { return { ok: false as const, original: f }; }
       }));
       const goodFiles = conv.filter((c) => c.ok).map((c) => c.file!);
@@ -592,6 +592,10 @@ export default function EventAdmin() {
               <div className="flex items-center justify-between">
                 <div><div className="font-medium text-sm">Show "All photos" link</div><p className="text-xs text-muted-foreground">A "View full album" button below People</p></div>
                 <Switch checked={event.show_all_photos} onCheckedChange={(v) => updateEvent({ show_all_photos: v })} />
+              </div>
+              <div className="flex items-center justify-between border-t pt-4">
+                <div><div className="font-medium text-sm">Allow guest uploads</div><p className="text-xs text-muted-foreground">Guests can add photos from the public album page</p></div>
+                <Switch checked={event.allow_guest_uploads} onCheckedChange={(v) => updateEvent({ allow_guest_uploads: v })} />
               </div>
               <div className="flex items-center justify-between border-t pt-4">
                 <div><div className="font-medium text-sm">Published</div><p className="text-xs text-muted-foreground">Public URL is live</p></div>
