@@ -84,11 +84,54 @@ async function decodeViaImageElement(file: File): Promise<File | null> {
   }
 }
 
-async function compressJpegIfLarge(file: File): Promise<File> {
-  if (file.size <= 4.5 * 1024 * 1024) return file;
-  const decoded = await decodeViaCanvas(file);
-  return decoded || file;
+// Max bytes that AWS Rekognition accepts for inline image bytes.
+const REKOG_MAX_BYTES = 5 * 1024 * 1024;
+// Re-encode threshold a bit below the limit to allow base64 overhead headroom.
+const SHRINK_THRESHOLD = 4.5 * 1024 * 1024;
+
+async function shrinkOnce(file: File, maxSide: number, quality: number): Promise<File | null> {
+  // Try createImageBitmap first
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bitmap.close?.(); return null; }
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return await canvasToJpegFile(canvas, file.name, quality);
+  } catch {
+    return await decodeViaImageElement(file);
+  }
 }
+
+async function compressJpegIfLarge(file: File): Promise<File> {
+  if (file.size <= SHRINK_THRESHOLD) return file;
+  // Iterate down until under the Rekognition limit (max 3 passes).
+  let current: File = file;
+  const passes = [
+    { maxSide: 2200, quality: 0.85 },
+    { maxSide: 1800, quality: 0.8 },
+    { maxSide: 1400, quality: 0.75 },
+  ];
+  for (const p of passes) {
+    const next = await shrinkOnce(current, p.maxSide, p.quality);
+    if (!next) break;
+    current = next;
+    if (current.size <= REKOG_MAX_BYTES) break;
+  }
+  return current;
+}
+
+// Use this for any image being uploaded — handles HEIC + shrinks large
+// JPEG/PNG so AWS Rekognition's 5MB inline-bytes cap is never hit.
+export const prepareImageForUpload = async (file: File): Promise<File> => {
+  if (isVideo(file)) return file;
+  if (isHeic(file)) return await convertHeicIfNeeded(file);
+  return await compressJpegIfLarge(file);
+};
 
 // Last-ditch fallback: libheif-js (pure JS HEIC decoder, works in all browsers).
 // Loaded lazily from CDN to keep bundle small.
