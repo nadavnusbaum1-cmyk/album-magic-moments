@@ -1,6 +1,6 @@
 // Host-only: list photos in own event (paginated). Optional review-only filter.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+import { resolvePhotoUrl, mapWithConcurrency } from "../_shared/storage.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -31,17 +31,25 @@ Deno.serve(async (req) => {
     const { data: photos, error } = await q;
     if (error) throw error;
 
-    const items = await Promise.all((photos || []).map(async (p) => ({
-      id: p.id,
-      url: await resolvePhotoUrl(p),
-      face_count: p.face_count,
-      processed: p.processed,
-      processing_error: p.processing_error,
-      created_at: p.created_at,
-      uploaded_by: p.uploaded_by,
-      media_type: p.media_type || "image",
-      source_label: p.source_label,
-    })));
+    const items = await mapWithConcurrency(photos || [], 6, async (p) => {
+      let url = "";
+      try {
+        url = await resolvePhotoUrl(p);
+      } catch (err) {
+        console.error("resolvePhotoUrl failed", p.id, err instanceof Error ? err.message : err);
+      }
+      return {
+        id: p.id,
+        url,
+        face_count: p.face_count,
+        processed: p.processed,
+        processing_error: p.processing_error,
+        created_at: p.created_at,
+        uploaded_by: p.uploaded_by,
+        media_type: p.media_type || "image",
+        source_label: p.source_label,
+      };
+    });
 
     // First page only: include sources + lightweight totals (estimated, fast).
     let sources: { label: string; count: number }[] = [];
