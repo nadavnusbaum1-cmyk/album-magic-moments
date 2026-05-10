@@ -184,6 +184,25 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
         photo_count: 0,
       }).select().single();
       if (nc) clusterId = nc.id;
+    } else {
+      // Prefer a "solo" photo (only one face) as the cluster cover whenever possible.
+      // If this photo has only one face and the cluster's current representative is from
+      // a multi-face photo, swap the representative to this one.
+      if (faceRecords.length === 1) {
+        const { data: cl } = await supabase.from("face_clusters")
+          .select("representative_photo_id").eq("id", clusterId).maybeSingle();
+        const repId = cl?.representative_photo_id;
+        if (repId && repId !== photo.id) {
+          const { data: rep } = await supabase.from("photos").select("face_count").eq("id", repId).maybeSingle();
+          if (rep && (rep.face_count || 0) > 1) {
+            await supabase.from("face_clusters").update({
+              representative_photo_id: photo.id,
+              representative_storage_path: photo.storage_path,
+              representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
+            }).eq("id", clusterId);
+          }
+        }
+      }
     }
     if (clusterId && !matchedClusters.has(clusterId)) {
       matchedClusters.add(clusterId);
