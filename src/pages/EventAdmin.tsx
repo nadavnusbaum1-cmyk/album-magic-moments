@@ -660,6 +660,12 @@ export default function EventAdmin() {
                 {editingClusterPhotos.map((p) => (
                   <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
                     {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    {p.media_type !== "video" && (
+                      <button onClick={() => setClusterCover(p.id)}
+                        className="absolute top-1 left-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title="Set as cover photo">
+                        <Star className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => removePhotosFromCluster([p.id])}
                       className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove from this person">
                       <X className="w-3.5 h-3.5" />
