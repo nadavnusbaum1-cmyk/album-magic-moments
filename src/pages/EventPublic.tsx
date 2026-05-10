@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { convertHeicIfNeeded } from "@/lib/imageUtils";
+import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/imageUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
-import { authedFetch } from "@/lib/auth";
+import { authedFetch, authedInvoke } from "@/lib/auth";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; media_type?: string };
 
