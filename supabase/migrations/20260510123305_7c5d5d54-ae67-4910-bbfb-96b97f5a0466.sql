@@ -1,0 +1,2 @@
+ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS review_skipped boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_photos_review_skipped ON public.photos(event_id, review_skipped) WHERE review_skipped = true;
