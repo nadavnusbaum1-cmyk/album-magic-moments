@@ -207,6 +207,37 @@ export default function EventPublic() {
           <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? "Doing the magic ✨" : "Find my photos"}</Button>
         </Card>
 
+        {event.allow_guest_uploads && (
+          <Card className="max-w-md mx-auto mt-6 p-6 space-y-4">
+            <div>
+              <h3 className="font-serif text-xl">Share your photos 📷</h3>
+              <p className="text-sm text-muted-foreground mt-1">Got pictures from the event? Add them to the album!</p>
+            </div>
+            <Input
+              placeholder="Your name (optional)"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              disabled={guestUploading}
+              maxLength={60}
+            />
+            <div className="flex gap-2">
+              <label htmlFor="guest-camera" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                <Camera className="w-4 h-4" /> Take photo
+              </label>
+              <label htmlFor="guest-gallery" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                <Upload className="w-4 h-4" /> Choose files
+              </label>
+            </div>
+            <input id="guest-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
+            <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
+            {guestUploading && (
+              <p className="text-xs text-center text-muted-foreground">
+                Uploading {guestProgress.done}/{guestProgress.total}{guestProgress.errors ? ` · ${guestProgress.errors} failed` : ""}…
+              </p>
+            )}
+          </Card>
+        )}
+
         {event.show_people && clusters.length > 0 && (
           <section className="max-w-5xl mx-auto mt-12">
             <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">People &amp; Pets</h2>
