@@ -53,7 +53,9 @@ Deno.serve(async (req) => {
       const [{ count: total }, { count: processed }, { count: review }] = await Promise.all([
         supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId),
         supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("processed", true),
-        supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("processed", true).eq("face_count", 0),
+        supabase.from("photos").select("id", { count: "exact", head: true })
+          .eq("event_id", eventId).eq("processed", true).eq("face_count", 0)
+          .eq("review_skipped", false).neq("media_type", "video"),
       ]);
       totals = { total: total || 0, processed: processed || 0, pending: (total || 0) - (processed || 0), review: review || 0 };
     }
