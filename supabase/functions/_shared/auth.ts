@@ -39,7 +39,7 @@ export async function eventBySlug(slug: string) {
   const supabase = svc();
   const { data } = await supabase
     .from("events")
-    .select("id, name, slug, event_date, cover_image_url, show_people, show_all_photos, is_published")
+    .select("id, name, slug, event_date, cover_image_url, show_people, show_all_photos, is_published, allow_guest_uploads")
     .ilike("slug", slug)
     .maybeSingle();
   return data;
