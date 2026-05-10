@@ -57,19 +57,28 @@ Deno.serve(async (req) => {
 
     const realPlans = plans.filter((p): p is Plan => !("skipped" in p && p.skipped));
 
+    const signOne = async (objectPath: string): Promise<string> => {
+      let lastStatus = 0;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const r = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=write`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": AWS_S3_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ object_path: objectPath }),
+        });
+        if (r.ok) { const { url } = await r.json(); return url as string; }
+        lastStatus = r.status;
+        if (r.status !== 429 && r.status < 500) break;
+        await new Promise((res) => setTimeout(res, 200 * Math.pow(2, attempt) + Math.random() * 150));
+      }
+      throw new Error(`Sign failed [${lastStatus}]`);
+    };
     const signed = await Promise.all(realPlans.map(async (p) => {
-      const signRes = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=write`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-          "X-Connection-Api-Key": AWS_S3_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ object_path: p.key }),
-      });
-      if (!signRes.ok) throw new Error(`Sign failed [${signRes.status}]`);
-      const { url } = await signRes.json();
-      return { ...p, uploadUrl: url as string };
+      const url = await signOne(p.key);
+      return { ...p, uploadUrl: url };
     }));
 
     if (signed.length) {

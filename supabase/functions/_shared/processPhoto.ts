@@ -16,23 +16,45 @@ function isVideo(name: string, contentType?: string | null): boolean {
   return /\.(mp4|mov|m4v|webm|avi|mkv)$/.test(name.toLowerCase());
 }
 
-async function downloadFromS3(key: string): Promise<Uint8Array> {
+async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function signReadOnce(key: string): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
   const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY")!;
-  const signRes = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=read`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": AWS_S3_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ object_path: key }),
-  });
-  if (!signRes.ok) throw new Error(`Sign read failed: ${await signRes.text()}`);
-  const { url } = await signRes.json();
-  const fileRes = await fetch(url);
-  if (!fileRes.ok) throw new Error(`Download failed [${fileRes.status}]`);
-  return new Uint8Array(await fileRes.arrayBuffer());
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=read`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": AWS_S3_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ object_path: key }),
+    });
+    if (res.ok) { const { url } = await res.json(); return url as string; }
+    lastStatus = res.status;
+    if (res.status !== 429 && res.status < 500) break;
+    await sleep(200 * Math.pow(2, attempt) + Math.random() * 150);
+  }
+  throw new Error(`Sign read failed [${lastStatus}]`);
+}
+
+async function downloadFromS3(key: string): Promise<Uint8Array> {
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const url = await signReadOnce(key);
+      const fileRes = await fetch(url);
+      if (fileRes.ok) return new Uint8Array(await fileRes.arrayBuffer());
+      if (fileRes.status < 500 && fileRes.status !== 429) throw new Error(`Download failed [${fileRes.status}]`);
+      lastErr = new Error(`Download failed [${fileRes.status}]`);
+    } catch (e) {
+      lastErr = e;
+    }
+    await sleep(300 * Math.pow(2, attempt) + Math.random() * 200);
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("S3 download failed");
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
