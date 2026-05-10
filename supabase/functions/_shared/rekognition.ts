@@ -98,11 +98,30 @@ export function collectionFor(eventId: string) {
   return `event-${eventId.replace(/-/g, "")}`;
 }
 
+// In-memory cache (per warm container) of collections we've already ensured —
+// avoids hammering CreateCollection on every photo (AWS rate-limits this hard).
+const _ensuredCollections = new Set<string>();
+
 export async function ensureCollection(collectionId: string) {
+  if (_ensuredCollections.has(collectionId)) return;
   try {
     await rekognition("CreateCollection", { CollectionId: collectionId });
+    _ensuredCollections.add(collectionId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (!msg.includes("ResourceAlreadyExistsException")) throw e;
+    // Already exists — perfect.
+    if (msg.includes("ResourceAlreadyExistsException")) {
+      _ensuredCollections.add(collectionId);
+      return;
+    }
+    // AWS rate-limited the CreateCollection call. The collection almost certainly
+    // already exists (we hit this only because we keep re-asking). Treat as success;
+    // if it really doesn't exist, the next IndexFaces call will surface a clear
+    // ResourceNotFoundException and the user can retry.
+    if (msg.includes("ProvisionedThroughputExceededException") || msg.includes("ThrottlingException")) {
+      _ensuredCollections.add(collectionId);
+      return;
+    }
+    throw e;
   }
 }

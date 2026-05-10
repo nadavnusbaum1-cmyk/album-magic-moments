@@ -195,6 +195,26 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   };
 
+  const skipReviewPhotos = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      const r = await authedFetch("skip-review-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      toast.success(`Skipped ${ids.length}`);
+      setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const setClusterCover = async (photoId: string) => {
+    if (!editingCluster) return;
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, coverPhotoId: photoId }) });
+      toast.success("Cover updated");
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
   const reindexPhoto = async (photoId: string) => {
     try {
       await authedInvoke("process-photo-now", { photoId });
@@ -374,12 +394,26 @@ export default function EventAdmin() {
                 )}
               </div>
               <Input placeholder="Uploader name (optional)" value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
-              <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-10 cursor-pointer hover:border-primary bg-secondary/40">
-                <Upload className="w-10 h-10 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{files.length ? `${files.length} file(s) selected` : "Drag & drop or tap to choose photos / videos"}</span>
-                <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))} />
-              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label htmlFor="files-camera" className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-border rounded-2xl p-5 cursor-pointer hover:border-primary bg-secondary/40">
+                  <Upload className="w-6 h-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground text-center">Take photo</span>
+                  <input id="files-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" disabled={uploading}
+                    onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files || [])])} />
+                </label>
+                <label htmlFor="files-gallery" className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-border rounded-2xl p-5 cursor-pointer hover:border-primary bg-secondary/40">
+                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground text-center">Choose from gallery</span>
+                  <input id="files-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
+                    onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files || [])])} />
+                </label>
+              </div>
+              {files.length > 0 && (
+                <div className="flex items-center justify-between text-sm bg-secondary/40 rounded-lg px-3 py-2">
+                  <span>{files.length} file{files.length === 1 ? "" : "s"} ready to upload</span>
+                  <Button variant="ghost" size="sm" onClick={() => setFiles([])} disabled={uploading}>Clear</Button>
+                </div>
+              )}
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading {progress.done}/{progress.total}
@@ -514,6 +548,9 @@ export default function EventAdmin() {
                           <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
                             <RefreshCw className="w-3 h-3" /> Re-index
                           </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2" title="Skip — keep but hide from review" onClick={() => skipReviewPhotos([p.id])}>
+                            <EyeOff className="w-3 h-3" />
+                          </Button>
                           <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deletePhotos([p.id], "review")}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -637,6 +674,12 @@ export default function EventAdmin() {
                 {editingClusterPhotos.map((p) => (
                   <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
                     {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    {p.media_type !== "video" && (
+                      <button onClick={() => setClusterCover(p.id)}
+                        className="absolute top-1 left-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title="Set as cover photo">
+                        <Star className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => removePhotosFromCluster([p.id])}
                       className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove from this person">
                       <X className="w-3.5 h-3.5" />

@@ -312,6 +312,7 @@ export type Database = {
           media_type: string
           processed: boolean
           processing_error: string | null
+          review_skipped: boolean
           s3_key: string | null
           source: string
           source_label: string | null
@@ -328,6 +329,7 @@ export type Database = {
           media_type?: string
           processed?: boolean
           processing_error?: string | null
+          review_skipped?: boolean
           s3_key?: string | null
           source?: string
           source_label?: string | null
@@ -344,6 +346,7 @@ export type Database = {
           media_type?: string
           processed?: boolean
           processing_error?: string | null
+          review_skipped?: boolean
           s3_key?: string | null
           source?: string
           source_label?: string | null
