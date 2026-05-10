@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS allow_guest_uploads boolean NOT NULL DEFAULT true;
