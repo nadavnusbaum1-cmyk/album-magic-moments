@@ -534,6 +534,9 @@ export default function EventAdmin() {
                           <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
                             <RefreshCw className="w-3 h-3" /> Re-index
                           </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2" title="Skip — keep but hide from review" onClick={() => skipReviewPhotos([p.id])}>
+                            <EyeOff className="w-3 h-3" />
+                          </Button>
                           <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deletePhotos([p.id], "review")}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
