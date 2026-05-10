@@ -75,22 +75,39 @@ export async function rekognition(action: string, payload: Record<string, unknow
   const authorization =
     `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": contentType,
-      "X-Amz-Date": amzDate,
-      "X-Amz-Target": target,
-      "Authorization": authorization,
-    },
-    body,
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Rekognition ${action} failed [${res.status}]: ${text}`);
+  let lastStatus = 0;
+  let lastText = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": contentType,
+          "X-Amz-Date": amzDate,
+          "X-Amz-Target": target,
+          "Authorization": authorization,
+        },
+        body,
+      });
+    } catch (e) {
+      // network error — retry
+      lastText = e instanceof Error ? e.message : String(e);
+      lastStatus = 0;
+      await new Promise((r) => setTimeout(r, 300 * Math.pow(2, attempt) + Math.random() * 200));
+      continue;
+    }
+    const text = await res.text();
+    if (res.ok) return text ? JSON.parse(text) : {};
+    lastStatus = res.status;
+    lastText = text;
+    const throttled = text.includes("ProvisionedThroughputExceededException")
+      || text.includes("ThrottlingException")
+      || text.includes("ServiceUnavailable");
+    if (!throttled && res.status < 500) break;
+    await new Promise((r) => setTimeout(r, 400 * Math.pow(2, attempt) + Math.random() * 300));
   }
-  return text ? JSON.parse(text) : {};
+  throw new Error(`Rekognition ${action} failed [${lastStatus}]: ${lastText}`);
 }
 
 // Per-event collection — keeps faces isolated across events.
