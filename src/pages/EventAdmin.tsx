@@ -394,26 +394,15 @@ export default function EventAdmin() {
                 )}
               </div>
               <Input placeholder="Uploader name (optional)" value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
-              <div className="grid grid-cols-2 gap-2">
-                <label htmlFor="files-camera" className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-border rounded-2xl p-5 cursor-pointer hover:border-primary bg-secondary/40">
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground text-center">Take photo</span>
-                  <input id="files-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" disabled={uploading}
-                    onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files || [])])} />
-                </label>
-                <label htmlFor="files-gallery" className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-border rounded-2xl p-5 cursor-pointer hover:border-primary bg-secondary/40">
-                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground text-center">Choose from gallery</span>
-                  <input id="files-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
-                    onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files || [])])} />
-                </label>
-              </div>
-              {files.length > 0 && (
-                <div className="flex items-center justify-between text-sm bg-secondary/40 rounded-lg px-3 py-2">
-                  <span>{files.length} file{files.length === 1 ? "" : "s"} ready to upload</span>
-                  <Button variant="ghost" size="sm" onClick={() => setFiles([])} disabled={uploading}>Clear</Button>
-                </div>
-              )}
+              <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
+                <Upload className="w-8 h-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground text-center">
+                  {files.length ? `${files.length} file${files.length === 1 ? "" : "s"} ready` : "Tap to choose photos or videos"}
+                </span>
+                <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+              </label>
+
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Uploading {progress.done}/{progress.total}

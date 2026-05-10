@@ -51,42 +51,44 @@ export default function EventPublic() {
     setGuestUploading(true);
     setGuestProgress({ done: 0, total: files.length, errors: 0 });
     let done = 0, errors = 0;
-    const BATCH = 10;
-    for (let i = 0; i < files.length; i += BATCH) {
-      const batch = files.slice(i, i + BATCH);
-      const prepared = await Promise.all(batch.map(async (f) => {
-        try { return isVideo(f) ? f : await prepareImageForUpload(f); }
-        catch { return null; }
-      }));
-      const good = prepared.filter((f): f is File => !!f);
-      if (good.length) {
+    const bumpDone = () => { done++; setGuestProgress({ done, total: files.length, errors }); };
+    const bumpErr = () => { errors++; bumpDone(); };
+
+    // Pipeline: each worker preps one file, signs, PUTs, kicks processing.
+    // Concurrency = 4 keeps phones responsive while overlapping CPU + network.
+    const CONCURRENCY = 4;
+    let cursor = 0;
+    const worker = async () => {
+      while (true) {
+        const idx = cursor++;
+        if (idx >= files.length) return;
+        const raw = files[idx];
         try {
+          const prepared = isVideo(raw) ? raw : await prepareImageForUpload(raw);
           const r = await authedFetch("guest-sign-s3-upload", {
             method: "POST",
             body: JSON.stringify({
               eventSlug: event.slug,
               uploadedBy: guestName.trim() || null,
-              files: good.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })),
+              files: [{ name: prepared.name, contentType: prepared.type || "image/jpeg" }],
             }),
           });
           const j = await r.json();
-          if (!r.ok) throw new Error(j.error || "Failed");
-          const uploads = (j.uploads || []) as { photoId: string; uploadUrl: string; skipped?: boolean }[];
-          await Promise.all(uploads.map(async (u, idx) => {
-            if (u.skipped) { errors++; return; }
-            const file = good[idx];
-            try {
-              const put = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
-              if (!put.ok) throw new Error(`${put.status}`);
-              authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
-            } catch (e) { console.error(file.name, e); errors++; }
-          }));
-        } catch (e) { errors += good.length; console.error(e); }
+          if (!r.ok) throw new Error(j.error || "sign failed");
+          const u = (j.uploads || [])[0] as { photoId: string; uploadUrl: string; skipped?: boolean } | undefined;
+          if (!u || u.skipped) { bumpErr(); continue; }
+          const put = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": prepared.type || "image/jpeg" }, body: prepared });
+          if (!put.ok) throw new Error(`put ${put.status}`);
+          authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
+          bumpDone();
+        } catch (e) {
+          console.error(raw.name, e);
+          bumpErr();
+        }
       }
-      errors += batch.length - good.length;
-      done += batch.length;
-      setGuestProgress({ done, total: files.length, errors });
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
+
     setGuestUploading(false);
     const ok = done - errors;
     if (ok > 0) toast.success(`Thanks! Added ${ok} photo${ok === 1 ? "" : "s"} to the album 💖`);
