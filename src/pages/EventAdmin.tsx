@@ -195,6 +195,26 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   };
 
+  const skipReviewPhotos = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      const r = await authedFetch("skip-review-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      toast.success(`Skipped ${ids.length}`);
+      setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  const setClusterCover = async (photoId: string) => {
+    if (!editingCluster) return;
+    try {
+      await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, coverPhotoId: photoId }) });
+      toast.success("Cover updated");
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
   const reindexPhoto = async (photoId: string) => {
     try {
       await authedInvoke("process-photo-now", { photoId });
