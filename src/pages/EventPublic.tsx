@@ -187,7 +187,7 @@ export default function EventPublic() {
           <Heart className="w-5 h-5 fill-current" />
         </div>
         <h1 className="text-4xl md:text-5xl font-serif">Find your photos &amp; videos</h1>
-        <p className="text-muted-foreground mt-3 max-w-md mx-auto">Snap a selfie — we'll find every photo and video you appear in.</p>
+        <p className="text-muted-foreground mt-3 max-w-md mx-auto">Take a quick selfie so we can find every photo and video <em>you appear in</em>. Your selfie isn't added to the album.</p>
       </header>
 
       <main className="px-6 pb-12">
