@@ -193,7 +193,8 @@ export default function EventPublic() {
       <main className="px-6 pb-12">
         <Card className="max-w-md mx-auto p-6 space-y-5">
           <div>
-            <label className="text-sm font-medium mb-2 block">Your selfie 📸</label>
+            <label className="text-sm font-medium mb-1 block">Selfie to find your photos 🔍</label>
+            <p className="text-xs text-muted-foreground mb-2">Used only to match your face — not uploaded to the album.</p>
             <div className="flex flex-col items-center gap-3 border-2 border-dashed border-border rounded-2xl p-6 bg-secondary/40">
               {selfie ? <img src={selfie} alt="Your selfie" className="w-32 h-32 rounded-full object-cover" /> : <Camera className="w-10 h-10 text-muted-foreground" />}
               {isMobile ? (
