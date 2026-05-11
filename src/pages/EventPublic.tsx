@@ -32,6 +32,7 @@ export default function EventPublic() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showFullAlbum, setShowFullAlbum] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [peopleVisible, setPeopleVisible] = useState(12);
 
   // Guest upload state
   const [guestName, setGuestName] = useState("");
