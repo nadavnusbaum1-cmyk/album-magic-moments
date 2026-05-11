@@ -450,8 +450,38 @@ export default function EventAdmin() {
                     </Button>
                   )}
                   {selected.size > 0 && (
-                    <Button variant="destructive" size="sm" className="gap-2" onClick={() => deletePhotos([...selected])}>
-                      <Trash2 className="w-4 h-4" /> Delete {selected.size}
+                    <>
+                      <Button variant="destructive" size="sm" className="gap-2" onClick={() => deletePhotos([...selected])}>
+                        <Trash2 className="w-4 h-4" /> Delete {selected.size}
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
+                        onClick={async () => {
+                          const items = photos.filter((p) => selected.has(p.id) && p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
+                          if (!items.length) { toast.error("No images selected"); return; }
+                          setZipping({ done: 0, total: items.length });
+                          try {
+                            await downloadManyAsZip(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
+                            toast.success("Download ready");
+                          } catch { toast.error("Download failed"); }
+                          finally { setZipping(null); }
+                        }}>
+                        {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download {selected.size}</>}
+                      </Button>
+                    </>
+                  )}
+                  {photos.length > 0 && selected.size === 0 && (
+                    <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
+                      onClick={async () => {
+                        const items = photos.filter((p) => p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
+                        if (!items.length) { toast.error("No images to download"); return; }
+                        setZipping({ done: 0, total: items.length });
+                        try {
+                          await downloadManyAsZip(items, `${event.slug}-photos.zip`, (d, t) => setZipping({ done: d, total: t }));
+                          toast.success("Download ready");
+                        } catch { toast.error("Download failed"); }
+                        finally { setZipping(null); }
+                      }}>
+                      {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download all</>}
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => loadPhotos()} disabled={loadingPhotos}>
