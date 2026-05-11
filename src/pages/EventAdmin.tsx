@@ -46,6 +46,7 @@ export default function EventAdmin() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
 
   // Review
   const [reviewPhotos, setReviewPhotos] = useState<Photo[]>([]);
