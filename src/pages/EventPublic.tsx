@@ -236,9 +236,12 @@ export default function EventPublic() {
             <input id="guest-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             {guestUploading && (
-              <p className="text-xs text-center text-muted-foreground">
-                Uploading {guestProgress.done}/{guestProgress.total}{guestProgress.errors ? ` · ${guestProgress.errors} failed` : ""}…
-              </p>
+              <div className="space-y-2">
+                <Progress value={guestProgress.total ? (guestProgress.done / guestProgress.total) * 100 : 0} />
+                <p className="text-xs text-center text-muted-foreground">
+                  Uploading {guestProgress.done}/{guestProgress.total}{guestProgress.errors ? ` · ${guestProgress.errors} failed` : ""}…
+                </p>
+              </div>
             )}
           </Card>
         )}
