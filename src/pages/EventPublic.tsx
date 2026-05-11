@@ -58,7 +58,7 @@ export default function EventPublic() {
 
     // Pipeline: each worker preps one file, signs, PUTs, kicks processing.
     // Concurrency = 4 keeps phones responsive while overlapping CPU + network.
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 6;
     let cursor = 0;
     const worker = async () => {
       while (true) {
