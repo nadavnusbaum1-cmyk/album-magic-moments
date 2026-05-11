@@ -250,17 +250,24 @@ export default function EventPublic() {
           <section className="max-w-5xl mx-auto mt-12">
             <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">People &amp; Pets</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {clusters.map((c) => (
+              {clusters.slice(0, peopleVisible).map((c) => (
                 <Link key={c.id} to={`/person/${c.id}`} className="block relative aspect-square rounded-3xl overflow-hidden bg-muted shadow-sm hover:shadow-md">
                   {c.cover_url ? <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
                   <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-end justify-between gap-1">
-                    <span className="text-white font-semibold text-sm truncate drop-shadow">{c.display_name || "Add name"}</span>
+                    {c.display_name ? <span className="text-white font-semibold text-sm truncate drop-shadow">{c.display_name}</span> : <span />}
                     <span className="text-white/80 text-[10px]">{c.photo_count}</span>
                   </div>
                 </Link>
               ))}
             </div>
+            {clusters.length > peopleVisible && (
+              <div className="text-center mt-6">
+                <Button variant="outline" onClick={() => setPeopleVisible((n) => n + 12)}>
+                  Load more people ({clusters.length - peopleVisible})
+                </Button>
+              </div>
+            )}
           </section>
         )}
 
