@@ -126,7 +126,7 @@ function shareBatchSize(files: File[]) {
 }
 
 async function nativeShareFiles(files: File[], title: string) {
-  if (!canShareFiles(files)) {
+  if (navigator.canShare && !navigator.canShare(shareDataFor(files, title))) {
     throw new Error("Saving to your phone gallery is not supported in this browser. Try opening the album in Safari or Chrome.");
   }
   await navigator.share(shareDataFor(files, title));
