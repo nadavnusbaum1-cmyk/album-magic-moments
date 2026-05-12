@@ -121,12 +121,12 @@ function canShareFiles(files: File[]) {
 
 function shareBatchSize(files: File[]) {
   if (canShareFiles(files)) return files.length;
-  const candidates = [500, 250, 100, 75, 50, 25, 10, 5, 1].filter((n) => n < files.length);
+  const candidates = [500, 250, 100, 75, 50, 25, 10, 1].filter((n) => n < files.length);
   return candidates.find((n) => canShareFiles(files.slice(0, n))) ?? 0;
 }
 
 async function nativeShareFiles(files: File[], title: string) {
-  if (navigator.canShare && !navigator.canShare(shareDataFor(files, title))) {
+  if (files.length === 1 && navigator.canShare && !navigator.canShare(shareDataFor(files, title))) {
     throw new Error("Saving to your phone gallery is not supported in this browser. Try opening the album in Safari or Chrome.");
   }
   await navigator.share(shareDataFor(files, title));
@@ -215,6 +215,15 @@ function waitForTapToShare(files: File[], title: string) {
 }
 
 async function shareFilesToGallery(files: File[], title: string) {
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await nativeShareFiles(files, title);
+      return;
+    } catch (error) {
+      if (isAbortError(error) || files.length === 1) throw error;
+    }
+  }
+
   const batchSize = shareBatchSize(files);
   if (!batchSize) {
     throw new Error("Saving to your phone gallery is not supported in this browser. Try opening the album in Safari or Chrome.");
