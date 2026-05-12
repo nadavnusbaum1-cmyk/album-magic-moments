@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
+import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
@@ -17,6 +17,8 @@ const Person = () => {
   const [error, setError] = useState<string | null>(null);
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const load = async () => {
@@ -39,12 +41,12 @@ const Person = () => {
     preloadDownloadFiles(photos.map((p, i) => ({ url: p.url, name: `${displayName || "person"}-${i + 1}.jpg` }))).catch(() => {});
   }, [photos, displayName]);
 
-  const downloadAll = async () => {
-    if (!photos.length) return;
-    setZipping({ done: 0, total: photos.length });
+  const downloadItems = async (itemsToDownload: PhotoItem[]) => {
+    if (!itemsToDownload.length) return;
+    setZipping({ done: 0, total: itemsToDownload.length });
     try {
       await saveManyToGallery(
-        photos.map((p, i) => ({ url: p.url, name: `${displayName || "person"}-${i + 1}.jpg` })),
+        itemsToDownload.map((p) => ({ url: p.url, name: `${displayName || "person"}-${photos.findIndex((x) => x.id === p.id) + 1}.jpg` })),
         `${displayName || "person"}-photos.zip`,
         (done, total) => setZipping({ done, total }),
       );
@@ -52,6 +54,9 @@ const Person = () => {
     } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Some photos failed to download"); }
     finally { setZipping(null); }
   };
+
+  const downloadAll = () => downloadItems(photos);
+  const downloadSelected = () => downloadItems(photos.filter((p) => selected.has(p.id)));
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
@@ -70,10 +75,18 @@ const Person = () => {
         <h1 className="text-3xl md:text-4xl font-serif text-foreground">{displayName || "Photos of this person"}</h1>
         <p className="text-muted-foreground mt-2">{loading ? "Loading…" : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}</p>
         {photos.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Button onClick={downloadAll} disabled={!!zipping} size="sm" className="gap-2">
               {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing {zipping.done}/{zipping.total}…</> : <><Download className="w-4 h-4" /> Download all</>}
             </Button>
+            <Button variant="outline" onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }} disabled={!!zipping} size="sm" className="gap-2">
+              {selecting ? <><X className="w-4 h-4" /> Cancel</> : <><CheckSquare className="w-4 h-4" /> Select</>}
+            </Button>
+            {selecting && selected.size > 0 && (
+              <Button variant="secondary" onClick={downloadSelected} disabled={!!zipping} size="sm" className="gap-2">
+                <Download className="w-4 h-4" /> Download {selected.size}
+              </Button>
+            )}
           </div>
         )}
       </header>
@@ -82,13 +95,26 @@ const Person = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {photos.map((p, i) => (
             <div key={p.id} className="relative group aspect-square overflow-hidden rounded-2xl bg-muted" style={{ boxShadow: "var(--shadow-card)" }}>
-              <button type="button" onClick={() => setLightboxIndex(i)} className="block w-full h-full" aria-label="Open photo">
+              <button type="button" onClick={() => {
+                if (selecting) {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    next.has(p.id) ? next.delete(p.id) : next.add(p.id);
+                    return next;
+                  });
+                } else setLightboxIndex(i);
+              }} className="block w-full h-full" aria-label={selecting ? "Select photo" : "Open photo"}>
                 {p.media_type === "video" ? (
                   <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 )}
               </button>
+              {selecting && (
+                <div className="absolute top-2 left-2 bg-background/90 text-foreground rounded-full p-2 shadow" aria-hidden="true">
+                  {selected.has(p.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                </div>
+              )}
               <button
                 onPointerDown={() => preloadDownloadFile(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch(() => {})}
                 onFocus={() => preloadDownloadFile(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch(() => {})}
