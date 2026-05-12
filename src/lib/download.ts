@@ -45,8 +45,13 @@ function proxyUrl(url: string) {
 }
 
 async function fetchAsFile(url: string, filename: string): Promise<File> {
-  let res = await fetch(url, { credentials: "omit", mode: "cors" });
-  if (!res.ok) res = await fetch(proxyUrl(url), { credentials: "omit" });
+  let res: Response;
+  try {
+    res = await fetch(url, { credentials: "omit", mode: "cors" });
+    if (!res.ok) res = await fetch(proxyUrl(url), { credentials: "omit" });
+  } catch {
+    res = await fetch(proxyUrl(url), { credentials: "omit" });
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const name = ensureExt(filename, url);
@@ -264,8 +269,13 @@ export async function downloadManyAsZip(
         const i = idx++;
         const it = items[i];
         try {
-          let r = await fetch(it.url, { credentials: "omit", mode: "cors" });
-          if (!r.ok) r = await fetch(proxyUrl(it.url), { credentials: "omit" });
+          let r: Response;
+          try {
+            r = await fetch(it.url, { credentials: "omit", mode: "cors" });
+            if (!r.ok) r = await fetch(proxyUrl(it.url), { credentials: "omit" });
+          } catch {
+            r = await fetch(proxyUrl(it.url), { credentials: "omit" });
+          }
           if (r.ok) zip.file(ensureExt(it.name, it.url), await r.blob());
         } catch { /* skip */ }
         done++;
