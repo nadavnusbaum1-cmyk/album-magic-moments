@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
+import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
@@ -21,6 +21,8 @@ const Album = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const fetchPage = useCallback(async (before?: string) => {
     const url = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-album`);
@@ -53,12 +55,12 @@ const Album = () => {
     } catch { toast.error("Failed to load more"); } finally { setLoadingMore(false); }
   };
 
-  const downloadAll = async () => {
-    if (!data?.photos.length) return;
-    setZipping({ done: 0, total: data.photos.length });
+  const downloadItems = async (indices: number[]) => {
+    if (!data || !indices.length) return;
+    setZipping({ done: 0, total: indices.length });
     try {
       await saveManyToGallery(
-        data.photos.map((p, i) => ({ url: p.url, name: `${data.guest.name}-${i + 1}.jpg` })),
+        indices.map((i) => ({ url: data.photos[i].url, name: `${data.guest.name}-${i + 1}.jpg` })),
         `${data.guest.name}-photos.zip`,
         (done, total) => setZipping({ done, total }),
       );
@@ -66,6 +68,9 @@ const Album = () => {
     } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Some photos failed to download"); }
     finally { setZipping(null); }
   };
+
+  const downloadAll = () => downloadItems(data?.photos.map((_, i) => i) ?? []);
+  const downloadSelected = () => downloadItems([...selected]);
 
   if (error) return <div className="min-h-screen flex items-center justify-center p-6 text-center"><p className="text-destructive">{error}</p></div>;
   if (!data) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading your album…</p></div>;
@@ -89,10 +94,18 @@ const Album = () => {
           {data.count === 0 ? "No photos yet — check back soon!" : `${data.count} photos of you`}
         </p>
         {data.photos.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Button onClick={downloadAll} disabled={!!zipping} size="sm" className="gap-2">
               {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing {zipping.done}/{zipping.total}…</> : <><Download className="w-4 h-4" /> Download all</>}
             </Button>
+            <Button variant="outline" onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }} disabled={!!zipping} size="sm" className="gap-2">
+              {selecting ? <><X className="w-4 h-4" /> Cancel</> : <><CheckSquare className="w-4 h-4" /> Select</>}
+            </Button>
+            {selecting && selected.size > 0 && (
+              <Button variant="secondary" onClick={downloadSelected} disabled={!!zipping} size="sm" className="gap-2">
+                <Download className="w-4 h-4" /> Download {selected.size}
+              </Button>
+            )}
           </div>
         )}
       </header>
@@ -105,13 +118,26 @@ const Album = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {data.photos.map((p, i) => (
                 <div key={i} className="relative group aspect-square overflow-hidden rounded-2xl bg-muted" style={{ boxShadow: "var(--shadow-card)" }}>
-                  <button type="button" onClick={() => setLightboxIndex(i)} className="block w-full h-full" aria-label="Open photo">
+                  <button type="button" onClick={() => {
+                    if (selecting) {
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        next.has(i) ? next.delete(i) : next.add(i);
+                        return next;
+                      });
+                    } else setLightboxIndex(i);
+                  }} className="block w-full h-full" aria-label={selecting ? "Select photo" : "Open photo"}>
                     {p.media_type === "video" ? (
                       <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                     ) : (
                       <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                     )}
                   </button>
+                  {selecting && (
+                    <div className="absolute top-2 left-2 bg-background/90 text-foreground rounded-full p-2 shadow" aria-hidden="true">
+                      {selected.has(i) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </div>
+                  )}
                   <button
                     onPointerDown={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}
                     onFocus={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}

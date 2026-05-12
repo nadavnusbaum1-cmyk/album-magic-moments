@@ -38,8 +38,20 @@ function ensureExt(name: string, url: string) {
   return `${name}.${extFromUrl(url)}`;
 }
 
+function proxyUrl(url: string) {
+  const base = import.meta.env.VITE_SUPABASE_URL;
+  if (!base) return url;
+  return `${base}/functions/v1/photo-proxy?url=${encodeURIComponent(url)}`;
+}
+
 async function fetchAsFile(url: string, filename: string): Promise<File> {
-  const res = await fetch(url, { credentials: "omit" });
+  let res: Response;
+  try {
+    res = await fetch(url, { credentials: "omit", mode: "cors" });
+    if (!res.ok) res = await fetch(proxyUrl(url), { credentials: "omit" });
+  } catch {
+    res = await fetch(proxyUrl(url), { credentials: "omit" });
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const name = ensureExt(filename, url);
@@ -92,6 +104,11 @@ function blobDownload(file: File) {
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
+function openUrlFallback(url: string) {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
+}
+
 function shareDataFor(files: File[], title: string) {
   return { files, title } as ShareData & { files: File[] };
 }
@@ -104,12 +121,12 @@ function canShareFiles(files: File[]) {
 
 function shareBatchSize(files: File[]) {
   if (canShareFiles(files)) return files.length;
-  const candidates = [100, 50, 25, 10, 5, 1].filter((n) => n < files.length);
+  const candidates = [500, 250, 100, 75, 50, 25, 10, 1].filter((n) => n < files.length);
   return candidates.find((n) => canShareFiles(files.slice(0, n))) ?? 0;
 }
 
 async function nativeShareFiles(files: File[], title: string) {
-  if (!canShareFiles(files)) {
+  if (files.length === 1 && navigator.canShare && !navigator.canShare(shareDataFor(files, title))) {
     throw new Error("Saving to your phone gallery is not supported in this browser. Try opening the album in Safari or Chrome.");
   }
   await navigator.share(shareDataFor(files, title));
@@ -158,7 +175,7 @@ function waitForTapToShare(files: File[], title: string) {
       const currentBatch = Math.floor(index / batchSize) + 1;
       const batches = Math.ceil(files.length / batchSize);
       copy.textContent = batches > 1
-        ? `Save batch ${currentBatch} of ${batches} to your phone gallery.`
+        ? `Your phone limits each save to ${batchSize} photos. Save batch ${currentBatch} of ${batches} to get all ${files.length} photos.`
         : "Tap below, then choose Save Image or Save Images in the phone share sheet.";
       button.textContent = batches > 1 ? `Save batch ${currentBatch}` : "Save to gallery";
       button.disabled = false;
@@ -198,6 +215,15 @@ function waitForTapToShare(files: File[], title: string) {
 }
 
 async function shareFilesToGallery(files: File[], title: string) {
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await nativeShareFiles(files, title);
+      return;
+    } catch (error) {
+      if (isAbortError(error) || files.length === 1) throw error;
+    }
+  }
+
   const batchSize = shareBatchSize(files);
   if (!batchSize) {
     throw new Error("Saving to your phone gallery is not supported in this browser. Try opening the album in Safari or Chrome.");
@@ -228,8 +254,12 @@ export async function downloadOne(url: string, filename = "photo.jpg") {
     return;
   }
 
-  const file = await preloadDownloadFile(url, filename);
-  blobDownload(file);
+  try {
+    const file = await preloadDownloadFile(url, filename);
+    blobDownload(file);
+  } catch {
+    openUrlFallback(url);
+  }
 }
 
 export async function downloadManyAsZip(
@@ -248,7 +278,13 @@ export async function downloadManyAsZip(
         const i = idx++;
         const it = items[i];
         try {
-          const r = await fetch(it.url);
+          let r: Response;
+          try {
+            r = await fetch(it.url, { credentials: "omit", mode: "cors" });
+            if (!r.ok) r = await fetch(proxyUrl(it.url), { credentials: "omit" });
+          } catch {
+            r = await fetch(proxyUrl(it.url), { credentials: "omit" });
+          }
           if (r.ok) zip.file(ensureExt(it.name, it.url), await r.blob());
         } catch { /* skip */ }
         done++;
