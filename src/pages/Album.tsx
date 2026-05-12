@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, saveManyToGallery, isMobile } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 interface AlbumData {
@@ -58,7 +58,7 @@ const Album = () => {
         (done, total) => setZipping({ done, total }),
       );
       toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-    } catch { toast.error("Some photos failed to download"); }
+    } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Some photos failed to download"); }
     finally { setZipping(null); }
   };
 
@@ -108,7 +108,9 @@ const Album = () => {
                     )}
                   </button>
                   <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadOne(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => toast.error("Download failed")); }}
+                    onPointerDown={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}
+                    onFocus={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadOne(p.url, `${data.guest.name}-${i + 1}.jpg`).catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }); }}
                     className="absolute top-2 right-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
                     aria-label="Download photo"
                   >
