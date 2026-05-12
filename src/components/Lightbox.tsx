@@ -102,14 +102,14 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
         <>
           <button
             onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 text-white/90 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20"
+            className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20"
             aria-label="Previous"
           >
             <ChevronLeft className="w-7 h-7" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-4 text-white/90 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20"
+            className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 text-white/90 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20"
             aria-label="Next"
           >
             <ChevronRight className="w-7 h-7" />
