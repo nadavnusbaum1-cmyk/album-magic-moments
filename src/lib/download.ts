@@ -39,7 +39,7 @@ function ensureExt(name: string, url: string) {
 }
 
 async function fetchAsFile(url: string, filename: string): Promise<File> {
-  const res = await fetch(url, { credentials: "omit" });
+  const res = await fetch(url, { credentials: "omit", mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const name = ensureExt(filename, url);
@@ -90,6 +90,11 @@ function blobDownload(file: File) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+function openUrlFallback(url: string) {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
 }
 
 function shareDataFor(files: File[], title: string) {
@@ -228,8 +233,12 @@ export async function downloadOne(url: string, filename = "photo.jpg") {
     return;
   }
 
-  const file = await preloadDownloadFile(url, filename);
-  blobDownload(file);
+  try {
+    const file = await preloadDownloadFile(url, filename);
+    blobDownload(file);
+  } catch {
+    openUrlFallback(url);
+  }
 }
 
 export async function downloadManyAsZip(
@@ -248,7 +257,7 @@ export async function downloadManyAsZip(
         const i = idx++;
         const it = items[i];
         try {
-          const r = await fetch(it.url);
+          const r = await fetch(it.url, { credentials: "omit", mode: "cors" });
           if (r.ok) zip.file(ensureExt(it.name, it.url), await r.blob());
         } catch { /* skip */ }
         done++;
