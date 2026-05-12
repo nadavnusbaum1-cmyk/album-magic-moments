@@ -38,8 +38,15 @@ function ensureExt(name: string, url: string) {
   return `${name}.${extFromUrl(url)}`;
 }
 
+function proxyUrl(url: string) {
+  const base = import.meta.env.VITE_SUPABASE_URL;
+  if (!base) return url;
+  return `${base}/functions/v1/photo-proxy?url=${encodeURIComponent(url)}`;
+}
+
 async function fetchAsFile(url: string, filename: string): Promise<File> {
-  const res = await fetch(url, { credentials: "omit", mode: "cors" });
+  let res = await fetch(url, { credentials: "omit", mode: "cors" });
+  if (!res.ok) res = await fetch(proxyUrl(url), { credentials: "omit" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   const name = ensureExt(filename, url);
@@ -257,7 +264,8 @@ export async function downloadManyAsZip(
         const i = idx++;
         const it = items[i];
         try {
-          const r = await fetch(it.url, { credentials: "omit", mode: "cors" });
+          let r = await fetch(it.url, { credentials: "omit", mode: "cors" });
+          if (!r.ok) r = await fetch(proxyUrl(it.url), { credentials: "omit" });
           if (r.ok) zip.file(ensureExt(it.name, it.url), await r.blob());
         } catch { /* skip */ }
         done++;
