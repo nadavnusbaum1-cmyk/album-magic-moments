@@ -242,9 +242,9 @@ export async function downloadManyAsZip(
   blobDownload(new File([blob], zipName, { type: "application/zip" }));
 }
 
-// Mobile-aware bulk save. Phones: fetch every image first, then open the
-// share sheet ONCE with all files so the user can tap "Save N Images" to
-// drop them straight into Photos/Gallery. Desktop: zip download.
+// Mobile-aware bulk save. Phones fetch every image first, then use the native
+// share flow so the user can choose Save Images into Photos/Gallery. Desktop:
+// zip download.
 export async function saveManyToGallery(
   items: { url: string; name: string }[],
   zipName = "photos.zip",
