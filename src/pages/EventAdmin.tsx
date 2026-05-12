@@ -460,8 +460,8 @@ export default function EventAdmin() {
                           if (!items.length) { toast.error("No images selected"); return; }
                           setZipping({ done: 0, total: items.length });
                           try {
-                            await downloadManyAsZip(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
-                            toast.success("Download ready");
+                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
+                            toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
                           } catch { toast.error("Download failed"); }
                           finally { setZipping(null); }
                         }}>
