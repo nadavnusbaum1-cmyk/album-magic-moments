@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { downloadOne, saveManyToGallery, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 interface AlbumData {
