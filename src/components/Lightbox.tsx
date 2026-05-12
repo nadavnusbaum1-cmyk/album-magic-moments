@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
-import { downloadOne, preloadDownloadFile, isAbortError } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, isAbortError, isMobile } from "@/lib/download";
 import { toast } from "sonner";
 
 export type LightboxItem = { url: string; media_type?: string };
@@ -54,6 +54,7 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
 
   if (!isOpen) return null;
   const current = items[index!];
+  const currentName = `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`;
 
   return (
     <div
@@ -85,11 +86,14 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
       </button>
 
       <button
-        onPointerDown={() => preloadDownloadFile(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`).catch(() => {})}
-        onFocus={() => preloadDownloadFile(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`).catch(() => {})}
+        onPointerDown={() => preloadDownloadFile(current.url, currentName).catch(() => {})}
+        onFocus={() => preloadDownloadFile(current.url, currentName).catch(() => {})}
         onClick={(e) => {
+          e.preventDefault();
           e.stopPropagation();
-          downloadOne(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`)
+          const message = isMobile() ? "Preparing photo… tap Save to gallery when it appears" : "Preparing download…";
+          toast.info(message);
+          downloadOne(current.url, currentName)
             .catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); });
         }}
         className="absolute top-4 right-16 text-white/90 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20"
