@@ -9,7 +9,7 @@ export function isMobile() {
 }
 
 export function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === "AbortError";
+  return !!error && typeof error === "object" && "name" in error && error.name === "AbortError";
 }
 
 function extFromUrl(url: string, fallback = "jpg") {
