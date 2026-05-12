@@ -109,7 +109,7 @@ function canShareFiles(files: File[]) {
 
 function shareBatchSize(files: File[]) {
   if (canShareFiles(files)) return files.length;
-  const candidates = [100, 50, 25, 10, 5, 1].filter((n) => n < files.length);
+  const candidates = [500, 250, 100, 75, 50, 25, 10, 5, 1].filter((n) => n < files.length);
   return candidates.find((n) => canShareFiles(files.slice(0, n))) ?? 0;
 }
 
@@ -163,7 +163,7 @@ function waitForTapToShare(files: File[], title: string) {
       const currentBatch = Math.floor(index / batchSize) + 1;
       const batches = Math.ceil(files.length / batchSize);
       copy.textContent = batches > 1
-        ? `Save batch ${currentBatch} of ${batches} to your phone gallery.`
+        ? `Your phone limits each save to ${batchSize} photos. Save batch ${currentBatch} of ${batches} to get all ${files.length} photos.`
         : "Tap below, then choose Save Image or Save Images in the phone share sheet.";
       button.textContent = batches > 1 ? `Save batch ${currentBatch}` : "Save to gallery";
       button.disabled = false;
