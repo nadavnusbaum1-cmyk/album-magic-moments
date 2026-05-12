@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 type PhotoItem = { id: string; url: string; media_type?: string };
@@ -38,13 +38,13 @@ const Person = () => {
     if (!photos.length) return;
     setZipping({ done: 0, total: photos.length });
     try {
-      await downloadManyAsZip(
+      await saveManyToGallery(
         photos.map((p, i) => ({ url: p.url, name: `${displayName || "person"}-${i + 1}.jpg` })),
         `${displayName || "person"}-photos.zip`,
         (done, total) => setZipping({ done, total }),
       );
-      toast.success("Download ready");
-    } catch { toast.error("Some photos failed to download"); }
+      toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
+    } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Some photos failed to download"); }
     finally { setZipping(null); }
   };
 
@@ -85,7 +85,9 @@ const Person = () => {
                 )}
               </button>
               <button
-                onClick={(e) => { e.preventDefault(); downloadOne(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch(() => toast.error("Download failed")); }}
+                onPointerDown={() => preloadDownloadFile(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch(() => {})}
+                onFocus={() => preloadDownloadFile(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch(() => {})}
+                onClick={(e) => { e.preventDefault(); downloadOne(p.url, `${displayName || "person"}-${i + 1}.jpg`).catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }); }}
                 className="absolute top-2 right-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
                 aria-label="Download photo"
               >

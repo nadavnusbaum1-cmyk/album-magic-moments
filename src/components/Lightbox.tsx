@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
-import { downloadOne } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, isAbortError } from "@/lib/download";
 import { toast } from "sonner";
 
 export type LightboxItem = { url: string; media_type?: string };
@@ -60,10 +60,12 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
       </button>
 
       <button
+        onPointerDown={() => preloadDownloadFile(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`).catch(() => {})}
+        onFocus={() => preloadDownloadFile(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`).catch(() => {})}
         onClick={(e) => {
           e.stopPropagation();
           downloadOne(current.url, `${fileNamePrefix}-${index! + 1}.${current.media_type === "video" ? "mp4" : "jpg"}`)
-            .catch(() => toast.error("Download failed"));
+            .catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); });
         }}
         className="absolute top-4 right-16 text-white/90 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20"
         aria-label="Download"
