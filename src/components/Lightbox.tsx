@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { downloadOne, preloadDownloadFile, isAbortError } from "@/lib/download";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ type Props = {
 
 export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix = "photo" }: Props) => {
   const isOpen = index !== null && index >= 0 && index < items.length;
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   const next = useCallback(() => {
     if (index === null) return;
@@ -41,6 +43,15 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
     };
   }, [isOpen, onClose, next, prev]);
 
+  useEffect(() => {
+    if (!isOpen || index === null) return;
+    const neighbors = [index, (index + 1) % items.length, (index - 1 + items.length) % items.length];
+    neighbors.forEach((i) => {
+      const item = items[i];
+      if (item) preloadDownloadFile(item.url, `${fileNamePrefix}-${i + 1}.${item.media_type === "video" ? "mp4" : "jpg"}`).catch(() => {});
+    });
+  }, [fileNamePrefix, index, isOpen, items]);
+
   if (!isOpen) return null;
   const current = items[index!];
 
@@ -48,6 +59,20 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
     <div
       className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
       onClick={onClose}
+      onTouchStart={(e) => {
+        touchStartX.current = e.touches[0]?.clientX ?? null;
+        touchStartY.current = e.touches[0]?.clientY ?? null;
+      }}
+      onTouchEnd={(e) => {
+        if (touchStartX.current === null || touchStartY.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        const dy = e.changedTouches[0].clientY - touchStartY.current;
+        touchStartX.current = null;
+        touchStartY.current = null;
+        if (items.length < 2 || Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+        e.stopPropagation();
+        if (dx < 0) next(); else prev();
+      }}
       role="dialog"
       aria-modal="true"
     >
