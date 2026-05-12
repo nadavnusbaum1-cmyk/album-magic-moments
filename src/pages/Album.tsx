@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, downloadManyAsZip } from "@/lib/download";
+import { downloadOne, saveManyToGallery, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 interface AlbumData {
@@ -52,12 +52,12 @@ const Album = () => {
     if (!data?.photos.length) return;
     setZipping({ done: 0, total: data.photos.length });
     try {
-      await downloadManyAsZip(
+      await saveManyToGallery(
         data.photos.map((p, i) => ({ url: p.url, name: `${data.guest.name}-${i + 1}.jpg` })),
         `${data.guest.name}-photos.zip`,
         (done, total) => setZipping({ done, total }),
       );
-      toast.success("Download ready");
+      toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
     } catch { toast.error("Some photos failed to download"); }
     finally { setZipping(null); }
   };

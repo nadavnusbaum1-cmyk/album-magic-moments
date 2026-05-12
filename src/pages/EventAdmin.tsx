@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download } from "lucide-react";
 import { toast } from "sonner";
 import { prepareImageForUpload } from "@/lib/imageUtils";
-import { downloadManyAsZip } from "@/lib/download";
+import { saveManyToGallery, isMobile } from "@/lib/download";
 
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
@@ -460,8 +460,8 @@ export default function EventAdmin() {
                           if (!items.length) { toast.error("No images selected"); return; }
                           setZipping({ done: 0, total: items.length });
                           try {
-                            await downloadManyAsZip(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
-                            toast.success("Download ready");
+                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
+                            toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
                           } catch { toast.error("Download failed"); }
                           finally { setZipping(null); }
                         }}>
@@ -476,8 +476,8 @@ export default function EventAdmin() {
                         if (!items.length) { toast.error("No images to download"); return; }
                         setZipping({ done: 0, total: items.length });
                         try {
-                          await downloadManyAsZip(items, `${event.slug}-photos.zip`, (d, t) => setZipping({ done: d, total: t }));
-                          toast.success("Download ready");
+                          await saveManyToGallery(items, `${event.slug}-photos.zip`, (d, t) => setZipping({ done: d, total: t }));
+                          toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
                         } catch { toast.error("Download failed"); }
                         finally { setZipping(null); }
                       }}>
