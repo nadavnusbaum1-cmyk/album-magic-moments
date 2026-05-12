@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, preloadDownloadFile, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 type PhotoItem = { id: string; url: string; media_type?: string };
@@ -33,6 +33,11 @@ const Person = () => {
     };
     if (id) load();
   }, [id]);
+
+  useEffect(() => {
+    if (!photos.length || !isMobile()) return;
+    preloadDownloadFiles(photos.map((p, i) => ({ url: p.url, name: `${displayName || "person"}-${i + 1}.jpg` }))).catch(() => {});
+  }, [photos, displayName]);
 
   const downloadAll = async () => {
     if (!photos.length) return;

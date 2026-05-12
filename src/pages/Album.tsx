@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Heart, Download, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { downloadOne, preloadDownloadFile, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
+import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 
 interface AlbumData {
@@ -38,6 +38,11 @@ const Album = () => {
     if (!token) return;
     fetchPage().then(setData).catch((e) => setError(e instanceof Error ? e.message : "Failed"));
   }, [token, fetchPage]);
+
+  useEffect(() => {
+    if (!data?.photos.length || !isMobile()) return;
+    preloadDownloadFiles(data.photos.map((p, i) => ({ url: p.url, name: `${data.guest.name}-${i + 1}.jpg` }))).catch(() => {});
+  }, [data]);
 
   const loadMore = async () => {
     if (!data?.nextCursor || loadingMore) return;
