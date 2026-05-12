@@ -1,7 +1,7 @@
 // Download helpers. Desktop: forced download via blob. Mobile: uses Web Share API
 // when available so iOS users can save to the Photos gallery.
 
-function isMobile() {
+export function isMobile() {
   return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
