@@ -68,6 +68,18 @@ function getPreloadedFile(url: string, filename = "photo.jpg") {
   return fileCache.get(`${url}\n${filename}`)?.file;
 }
 
+export function preloadDownloadFiles(items: { url: string; name: string }[], concurrency = 3) {
+  let idx = 0;
+  return Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (idx < items.length) {
+        const item = items[idx++];
+        try { await preloadDownloadFile(item.url, item.name); } catch { /* ignore */ }
+      }
+    }),
+  );
+}
+
 function blobDownload(file: File) {
   const objectUrl = URL.createObjectURL(file);
   const a = document.createElement("a");
@@ -205,8 +217,14 @@ async function shareFilesToGallery(files: File[], title: string) {
 
 export async function downloadOne(url: string, filename = "photo.jpg") {
   if (isMobile()) {
-    const prepared = getPreloadedFile(url, filename) ?? await preloadDownloadFile(url, filename);
-    await shareFilesToGallery([prepared], prepared.name);
+    const prepared = getPreloadedFile(url, filename);
+    if (prepared) {
+      await shareFilesToGallery([prepared], prepared.name);
+      return;
+    }
+
+    const file = await preloadDownloadFile(url, filename);
+    await waitForTapToShare([file], file.name);
     return;
   }
 
@@ -257,6 +275,13 @@ export async function saveManyToGallery(
     return { method: "zip" };
   }
 
+  const cachedFiles = items.map((it) => getPreloadedFile(it.url, it.name));
+  if (cachedFiles.every(Boolean)) {
+    await shareFilesToGallery(cachedFiles as File[], zipName.replace(/\.zip$/i, ""));
+    onProgress?.(items.length, items.length);
+    return { method: "share" };
+  }
+
   // Fetch all files in parallel first (don't depend on user-activation across awaits).
   let done = 0;
   const CONCURRENCY = 6;
@@ -277,6 +302,6 @@ export async function saveManyToGallery(
   );
 
   if (!files.length) throw new Error("No files to share");
-  await shareFilesToGallery(files, zipName.replace(/\.zip$/i, ""));
+  await waitForTapToShare(files, zipName.replace(/\.zip$/i, ""));
   return { method: "share" };
 }
