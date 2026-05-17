@@ -70,7 +70,19 @@ export default function EventAdmin() {
   const [pickerCursor, setPickerCursor] = useState<string | null>(null);
   const [pickerSel, setPickerSel] = useState<Set<string>>(new Set());
 
+  // Share / WhatsApp
+  const [waFrom, setWaFrom] = useState("");
+  const [waNumbers, setWaNumbers] = useState("");
+  const [waMessage, setWaMessage] = useState("");
+  const [waSending, setWaSending] = useState(false);
+  const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
+
+  useEffect(() => {
+    const f = localStorage.getItem("wa:from");
+    if (f) setWaFrom(f);
+  }, []);
 
   // Restore last folder per event
   useEffect(() => {
