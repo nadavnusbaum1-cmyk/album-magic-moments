@@ -673,6 +673,52 @@ export default function EventAdmin() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="share">
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> Send album via WhatsApp</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Send the album link to guests through Twilio WhatsApp. Numbers must be in international format (e.g. <code>+14155550123</code>).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Your Twilio WhatsApp number</label>
+                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886 (Twilio sandbox)" />
+                <p className="text-xs text-muted-foreground">
+                  Use your approved WhatsApp sender, or the Twilio sandbox number <code>+14155238886</code> for testing (recipients must join your sandbox first).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Recipient phone numbers</label>
+                <Textarea
+                  rows={5}
+                  value={waNumbers}
+                  onChange={(e) => setWaNumbers(e.target.value)}
+                  placeholder={"+14155550123\n+447700900123\n+33612345678"}
+                />
+                <p className="text-xs text-muted-foreground">One per line, or comma-separated. Up to 500.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message</label>
+                <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
+                <p className="text-xs text-muted-foreground">{waMessage.length}/1500 characters</p>
+              </div>
+
+              <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
+                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send WhatsApp messages</>}
+              </Button>
+
+              {waResult && (
+                <div className="text-sm border rounded-md p-3 bg-secondary/40">
+                  ✅ Sent: <b>{waResult.sent}</b> · ❌ Failed: <b>{waResult.failed}</b> · ⚠️ Skipped (invalid): <b>{waResult.skipped}</b>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
           <TabsContent value="settings">
             <Card className="p-6 space-y-5">
               <div className="space-y-2">
