@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { prepareImageForUpload } from "@/lib/imageUtils";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
@@ -69,7 +70,19 @@ export default function EventAdmin() {
   const [pickerCursor, setPickerCursor] = useState<string | null>(null);
   const [pickerSel, setPickerSel] = useState<Set<string>>(new Set());
 
+  // Share / WhatsApp
+  const [waFrom, setWaFrom] = useState("");
+  const [waNumbers, setWaNumbers] = useState("");
+  const [waMessage, setWaMessage] = useState("");
+  const [waSending, setWaSending] = useState(false);
+  const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
+
+  useEffect(() => {
+    const f = localStorage.getItem("wa:from");
+    if (f) setWaFrom(f);
+  }, []);
 
   // Restore last folder per event
   useEffect(() => {
@@ -347,6 +360,37 @@ export default function EventAdmin() {
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Link copied"); };
 
+  useEffect(() => {
+    if (event && !waMessage) {
+      setWaMessage(`Hi! 📸 Photos from ${event.name} are ready. View the album: ${window.location.origin}/e/${event.slug}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event]);
+
+  const sendWhatsApp = async () => {
+    if (!event) return;
+    const list = waNumbers.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (list.length === 0) { toast.error("Add at least one phone number"); return; }
+    if (!waFrom.trim()) { toast.error("Enter your Twilio WhatsApp number"); return; }
+    if (!waMessage.trim()) { toast.error("Message can't be empty"); return; }
+    localStorage.setItem("wa:from", waFrom.trim());
+    setWaSending(true);
+    setWaResult(null);
+    try {
+      const res = await authedInvoke<{ sent: number; failed: number; skipped: number }>(
+        "send-whatsapp",
+        { eventId: event.id, from: waFrom.trim(), message: waMessage, numbers: list },
+      );
+      setWaResult(res);
+      toast.success(`Sent ${res.sent} · ${res.failed} failed · ${res.skipped} skipped`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Send failed");
+    } finally {
+      setWaSending(false);
+    }
+  };
+
+
   const folderOptions = useMemo(() => sources.map((s) => s.label), [sources]);
 
   if (loading || !event) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
@@ -370,11 +414,12 @@ export default function EventAdmin() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl mb-6">
+          <TabsList className="grid grid-cols-6 w-full max-w-3xl mb-6">
             <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
             <TabsTrigger value="all" className="gap-2"><ImageIcon className="w-4 h-4" /> Photos</TabsTrigger>
             <TabsTrigger value="review" className="gap-2 relative"><AlertTriangle className="w-4 h-4" /> Review{photosTotals.review > 0 && <span className="ml-1 text-xs bg-amber-500 text-white rounded-full px-1.5">{photosTotals.review}</span>}</TabsTrigger>
             <TabsTrigger value="people" className="gap-2"><Users className="w-4 h-4" /> People</TabsTrigger>
+            <TabsTrigger value="share" className="gap-2"><MessageCircle className="w-4 h-4" /> Share</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
 
@@ -623,6 +668,52 @@ export default function EventAdmin() {
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="share">
+            <Card className="p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> Send album via WhatsApp</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Send the album link to guests through Twilio WhatsApp. Numbers must be in international format (e.g. <code>+14155550123</code>).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Your Twilio WhatsApp number</label>
+                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886 (Twilio sandbox)" />
+                <p className="text-xs text-muted-foreground">
+                  Use your approved WhatsApp sender, or the Twilio sandbox number <code>+14155238886</code> for testing (recipients must join your sandbox first).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Recipient phone numbers</label>
+                <Textarea
+                  rows={5}
+                  value={waNumbers}
+                  onChange={(e) => setWaNumbers(e.target.value)}
+                  placeholder={"+14155550123\n+447700900123\n+33612345678"}
+                />
+                <p className="text-xs text-muted-foreground">One per line, or comma-separated. Up to 500.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message</label>
+                <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
+                <p className="text-xs text-muted-foreground">{waMessage.length}/1500 characters</p>
+              </div>
+
+              <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
+                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send WhatsApp messages</>}
+              </Button>
+
+              {waResult && (
+                <div className="text-sm border rounded-md p-3 bg-secondary/40">
+                  ✅ Sent: <b>{waResult.sent}</b> · ❌ Failed: <b>{waResult.failed}</b> · ⚠️ Skipped (invalid): <b>{waResult.skipped}</b>
                 </div>
               )}
             </Card>
