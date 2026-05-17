@@ -360,6 +360,37 @@ export default function EventAdmin() {
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Link copied"); };
 
+  useEffect(() => {
+    if (event && !waMessage) {
+      setWaMessage(`Hi! 📸 Photos from ${event.name} are ready. View the album: ${window.location.origin}/e/${event.slug}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event]);
+
+  const sendWhatsApp = async () => {
+    if (!event) return;
+    const list = waNumbers.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (list.length === 0) { toast.error("Add at least one phone number"); return; }
+    if (!waFrom.trim()) { toast.error("Enter your Twilio WhatsApp number"); return; }
+    if (!waMessage.trim()) { toast.error("Message can't be empty"); return; }
+    localStorage.setItem("wa:from", waFrom.trim());
+    setWaSending(true);
+    setWaResult(null);
+    try {
+      const res = await authedInvoke<{ sent: number; failed: number; skipped: number }>(
+        "send-whatsapp",
+        { eventId: event.id, from: waFrom.trim(), message: waMessage, numbers: list },
+      );
+      setWaResult(res);
+      toast.success(`Sent ${res.sent} · ${res.failed} failed · ${res.skipped} skipped`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Send failed");
+    } finally {
+      setWaSending(false);
+    }
+  };
+
+
   const folderOptions = useMemo(() => sources.map((s) => s.label), [sources]);
 
   if (loading || !event) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
