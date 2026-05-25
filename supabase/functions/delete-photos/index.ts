@@ -1,5 +1,6 @@
 // Host-only: delete photos within an event.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
+import { deleteS3Objects } from "../_shared/s3Delete.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
