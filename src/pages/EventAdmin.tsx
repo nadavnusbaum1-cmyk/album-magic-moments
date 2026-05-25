@@ -259,6 +259,23 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   };
 
+  const uploadCover = async (file: File) => {
+    if (!id) return;
+    setCoverUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("eventId", id);
+      fd.append("file", file);
+      const r = await authedFetch("upload-cover", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      setEvent(j.event);
+      toast.success("Cover image uploaded");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed"); }
+    finally { setCoverUploading(false); }
+  };
+
+
   const reprocess = async () => {
     if (!id) return;
     if (!confirm("Re-run face matching on ALL photos? This clears existing people groupings and rebuilds them. Can take a few minutes for large albums.")) return;
