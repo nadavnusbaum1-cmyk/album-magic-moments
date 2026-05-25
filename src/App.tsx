@@ -11,27 +11,30 @@ import Auth from "./pages/Auth.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import EventAdmin from "./pages/EventAdmin.tsx";
 import EventPublic from "./pages/EventPublic.tsx";
+import { LanguageProvider } from "@/lib/i18n";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/event/:id" element={<EventAdmin />} />
-          <Route path="/e/:slug" element={<EventPublic />} />
-          <Route path="/album/:token" element={<Album />} />
-          <Route path="/person/:id" element={<Person />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LanguageProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/event/:id" element={<EventAdmin />} />
+            <Route path="/e/:slug" element={<EventPublic />} />
+            <Route path="/album/:token" element={<Album />} />
+            <Route path="/person/:id" element={<Person />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 
