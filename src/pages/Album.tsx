@@ -5,6 +5,8 @@ import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X } from "luc
 import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
+import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/lib/i18n";
 
 interface AlbumData {
   guest: { name: string };
@@ -15,6 +17,7 @@ interface AlbumData {
 }
 
 const Album = () => {
+  const { t } = useI18n();
   const { token } = useParams();
   const [data, setData] = useState<AlbumData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +55,7 @@ const Album = () => {
     try {
       const next = await fetchPage(data.nextCursor);
       setData({ ...data, photos: [...data.photos, ...next.photos], nextCursor: next.nextCursor });
-    } catch { toast.error("Failed to load more"); } finally { setLoadingMore(false); }
+    } catch { toast.error(t("failed_load_more")); } finally { setLoadingMore(false); }
   };
 
   const downloadItems = async (indices: number[]) => {
@@ -64,8 +67,8 @@ const Album = () => {
         `${data.guest.name}-photos.zip`,
         (done, total) => setZipping({ done, total }),
       );
-      toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-    } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Some photos failed to download"); }
+      toast.success(isMobile() ? t("saved_to_gallery") : t("download_ready"));
+    } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("some_failed")); }
     finally { setZipping(null); }
   };
 
@@ -73,37 +76,38 @@ const Album = () => {
   const downloadSelected = () => downloadItems([...selected]);
 
   if (error) return <div className="min-h-screen flex items-center justify-center p-6 text-center"><p className="text-destructive">{error}</p></div>;
-  if (!data) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading your album…</p></div>;
+  if (!data) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">{t("loading_album")}</p></div>;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
+      <FloatingLanguageSwitcher />
       {data.event?.slug && (
         <div className="px-6 pt-4">
           <Link to={`/e/${data.event.slug}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-4 h-4" /> Back to album
+            <ArrowLeft className="w-4 h-4 rtl:rotate-180" /> {t("back_to_album")}
           </Link>
         </div>
       )}
       <header className="px-6 pt-8 pb-6 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 fill-current" />
-          <span className="text-xs uppercase tracking-wider">Personal Album</span>
+          <span className="text-xs uppercase tracking-wider">{t("personal_album")}</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-serif text-foreground">Hi {data.guest.name} 👋</h1>
+        <h1 className="text-3xl md:text-4xl font-serif text-foreground">{t("hi_name", { name: data.guest.name })}</h1>
         <p className="text-muted-foreground mt-2">
-          {data.count === 0 ? "No photos yet — check back soon!" : `${data.count} photos of you`}
+          {data.count === 0 ? t("no_photos_check_back") : t("n_photos_of_you", { n: data.count })}
         </p>
         {data.photos.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Button onClick={downloadAll} disabled={!!zipping} size="sm" className="gap-2">
-              {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing {zipping.done}/{zipping.total}…</> : <><Download className="w-4 h-4" /> Download all</>}
+              {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("preparing", { done: zipping.done, total: zipping.total })}</> : <><Download className="w-4 h-4" /> {t("download_all")}</>}
             </Button>
             <Button variant="outline" onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }} disabled={!!zipping} size="sm" className="gap-2">
-              {selecting ? <><X className="w-4 h-4" /> Cancel</> : <><CheckSquare className="w-4 h-4" /> Select</>}
+              {selecting ? <><X className="w-4 h-4" /> {t("cancel")}</> : <><CheckSquare className="w-4 h-4" /> {t("select")}</>}
             </Button>
             {selecting && selected.size > 0 && (
               <Button variant="secondary" onClick={downloadSelected} disabled={!!zipping} size="sm" className="gap-2">
-                <Download className="w-4 h-4" /> Download {selected.size}
+                <Download className="w-4 h-4" /> {t("download_n", { n: selected.size })}
               </Button>
             )}
           </div>
@@ -112,7 +116,7 @@ const Album = () => {
 
       <main className="px-4 pb-16 max-w-5xl mx-auto">
         {data.photos.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">We'll notify you when new pics arrive ✨</div>
+          <div className="text-center py-16 text-muted-foreground">{t("notify_new")}</div>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -126,24 +130,24 @@ const Album = () => {
                         return next;
                       });
                     } else setLightboxIndex(i);
-                  }} className="block w-full h-full" aria-label={selecting ? "Select photo" : "Open photo"}>
+                  }} className="block w-full h-full" aria-label={selecting ? t("select") : t("view_my_album")}>
                     {p.media_type === "video" ? (
                       <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                     ) : (
-                      <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                      <img src={p.url} alt={t("n_photo", { n: i + 1 })} className="w-full h-full object-cover" loading="lazy" />
                     )}
                   </button>
                   {selecting && (
-                    <div className="absolute top-2 left-2 bg-background/90 text-foreground rounded-full p-2 shadow" aria-hidden="true">
+                    <div className="absolute top-2 start-2 bg-background/90 text-foreground rounded-full p-2 shadow" aria-hidden="true">
                       {selected.has(i) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                     </div>
                   )}
                   <button
                     onPointerDown={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}
                     onFocus={() => preloadDownloadFile(p.url, `${data.guest.name}-${i + 1}.jpg`).catch(() => {})}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadOne(p.url, `${data.guest.name}-${i + 1}.jpg`).catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }); }}
-                    className="absolute top-2 right-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
-                    aria-label="Download photo"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadOne(p.url, `${data.guest.name}-${i + 1}.jpg`).catch((error) => { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("download_failed")); }); }}
+                    className="absolute top-2 end-2 bg-background/90 hover:bg-background text-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shadow"
+                    aria-label={t("download_all")}
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -153,7 +157,7 @@ const Album = () => {
             {data.nextCursor && (
               <div className="text-center mt-6">
                 <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-                  {loadingMore ? "Loading…" : "Load more"}
+                  {loadingMore ? t("loading") : t("load_more")}
                 </Button>
               </div>
             )}
