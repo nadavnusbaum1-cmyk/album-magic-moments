@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ deleted: photoIds.length, removedClusters, removedGuests });
+    return json({ deleted: photoIds.length, removedClusters, removedGuests, s3Deleted, s3Failed: s3Failed.length });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }
