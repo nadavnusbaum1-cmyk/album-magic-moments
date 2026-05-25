@@ -28,8 +28,10 @@ export default function EventAdmin() {
   const { id } = useParams();
   const { session, loading } = useSession();
   const navigate = useNavigate();
+  const { t, lang, setLang } = useI18n();
   const [event, setEvent] = useState<Event | null>(null);
   const [tab, setTab] = useState("upload");
+  const [coverUploading, setCoverUploading] = useState(false);
 
   // Upload
   const [files, setFiles] = useState<File[]>([]);
