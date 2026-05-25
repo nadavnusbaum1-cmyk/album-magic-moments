@@ -742,32 +742,63 @@ export default function EventAdmin() {
           <TabsContent value="settings">
             <Card className="p-6 space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Event name</label>
+                <label className="text-sm font-medium">{t("language")}</label>
+                <Select value={lang} onValueChange={(v) => setLang(v as Lang)}>
+                  <SelectTrigger className="w-full max-w-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">{t("english")}</SelectItem>
+                    <SelectItem value="he">{t("hebrew")} (RTL)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 border-t pt-5">
+                <label className="text-sm font-medium">{t("event_name")}</label>
                 <Input defaultValue={event.name} onBlur={(e) => e.target.value !== event.name && updateEvent({ name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Event date</label>
+                <label className="text-sm font-medium">{t("event_date")}</label>
                 <Input type="date" defaultValue={event.event_date || ""} onChange={(e) => updateEvent({ event_date: e.target.value || null })} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Cover image URL <span className="text-xs text-muted-foreground">(or pick one of your photos with the ⭐ icon)</span></label>
-                <Input defaultValue={event.cover_image_url || ""} placeholder="https://…"
+                <label className="text-sm font-medium">{t("cover_image")}</label>
+                <p className="text-xs text-muted-foreground">{t("cover_image_hint")}</p>
+                {event.cover_image_url && (
+                  <img src={event.cover_image_url} alt="Cover preview" className="w-full max-w-sm aspect-video object-cover rounded-md border" />
+                )}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <label className="inline-flex">
+                    <Button type="button" variant="outline" size="sm" disabled={coverUploading} asChild>
+                      <span className="cursor-pointer gap-2 inline-flex items-center">
+                        {coverUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {t("upload_image")}
+                      </span>
+                    </Button>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.currentTarget.value = ""; }} />
+                  </label>
+                  {event.cover_image_url && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateEvent({ cover_image_url: null })}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <Input defaultValue={event.cover_image_url || ""} placeholder={t("paste_url")}
                   onBlur={(e) => e.target.value !== (event.cover_image_url || "") && updateEvent({ cover_image_url: e.target.value || null })} />
               </div>
               <div className="flex items-center justify-between border-t pt-4">
-                <div><div className="font-medium text-sm">Show "People" section</div><p className="text-xs text-muted-foreground">Browse-by-person tiles on the public album</p></div>
+                <div><div className="font-medium text-sm">{t("show_people_title")}</div><p className="text-xs text-muted-foreground">{t("show_people_desc")}</p></div>
                 <Switch checked={event.show_people} onCheckedChange={(v) => updateEvent({ show_people: v })} />
               </div>
               <div className="flex items-center justify-between">
-                <div><div className="font-medium text-sm">Show "All photos" link</div><p className="text-xs text-muted-foreground">A "View full album" button below People</p></div>
+                <div><div className="font-medium text-sm">{t("show_all_photos_title")}</div><p className="text-xs text-muted-foreground">{t("show_all_photos_desc")}</p></div>
                 <Switch checked={event.show_all_photos} onCheckedChange={(v) => updateEvent({ show_all_photos: v })} />
               </div>
               <div className="flex items-center justify-between border-t pt-4">
-                <div><div className="font-medium text-sm">Allow guest uploads</div><p className="text-xs text-muted-foreground">Guests can add photos from the public album page</p></div>
+                <div><div className="font-medium text-sm">{t("allow_guest_title")}</div><p className="text-xs text-muted-foreground">{t("allow_guest_desc")}</p></div>
                 <Switch checked={event.allow_guest_uploads} onCheckedChange={(v) => updateEvent({ allow_guest_uploads: v })} />
               </div>
               <div className="flex items-center justify-between border-t pt-4">
-                <div><div className="font-medium text-sm">Published</div><p className="text-xs text-muted-foreground">Public URL is live</p></div>
+                <div><div className="font-medium text-sm">{t("published_title")}</div><p className="text-xs text-muted-foreground">{t("published_desc")}</p></div>
                 <Switch checked={event.is_published} onCheckedChange={(v) => updateEvent({ is_published: v })} />
               </div>
             </Card>
