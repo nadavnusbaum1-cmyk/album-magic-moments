@@ -1,5 +1,6 @@
 // Host-only: delete photos within an event.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
+import { deleteS3Objects } from "../_shared/s3Delete.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -19,19 +20,13 @@ Deno.serve(async (req) => {
     const s3Keys = photos.filter((p) => p.storage_provider === "s3" && p.s3_key).map((p) => p.s3_key as string);
 
     if (supabasePaths.length) await supabase.storage.from("event-photos").remove(supabasePaths);
+    let s3Deleted = 0;
+    const s3Failed: { key: string; status: number; body?: string }[] = [];
     if (s3Keys.length) {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY");
-      if (LOVABLE_API_KEY && AWS_S3_API_KEY) {
-        await Promise.all(s3Keys.map(async (key) => {
-          try {
-            await fetch(`https://connector-gateway.lovable.dev/aws_s3/${key}`, {
-              method: "DELETE",
-              headers: { "Authorization": `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": AWS_S3_API_KEY },
-            });
-          } catch (e) { console.error("S3 delete failed:", key, e); }
-        }));
-      }
+      const r = await deleteS3Objects(s3Keys);
+      s3Deleted = r.deleted;
+      s3Failed.push(...r.failed);
+      if (s3Failed.length) console.error("S3 delete failures:", JSON.stringify(s3Failed.slice(0, 5)));
     }
 
     const { data: gm } = await supabase.from("photo_matches").select("guest_id").in("photo_id", photoIds);
@@ -69,7 +64,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ deleted: photoIds.length, removedClusters, removedGuests });
+    return json({ deleted: photoIds.length, removedClusters, removedGuests, s3Deleted, s3Failed: s3Failed.length });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }

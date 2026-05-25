@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.send-whatsapp]
 verify_jwt = false
+
+[functions.upload-cover]
+verify_jwt = false

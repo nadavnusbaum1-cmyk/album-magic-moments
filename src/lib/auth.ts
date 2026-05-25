@@ -31,6 +31,6 @@ export async function authedFetch(path: string, init: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const headers = new Headers(init.headers || {});
   headers.set("Authorization", `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${path}`, { ...init, headers });
 }
