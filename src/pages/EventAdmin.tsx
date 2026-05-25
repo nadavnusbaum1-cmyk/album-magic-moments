@@ -435,12 +435,12 @@ export default function EventAdmin() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid grid-cols-6 w-full max-w-3xl mb-6">
-            <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
-            <TabsTrigger value="all" className="gap-2"><ImageIcon className="w-4 h-4" /> Photos</TabsTrigger>
-            <TabsTrigger value="review" className="gap-2 relative"><AlertTriangle className="w-4 h-4" /> Review{photosTotals.review > 0 && <span className="ml-1 text-xs bg-amber-500 text-white rounded-full px-1.5">{photosTotals.review}</span>}</TabsTrigger>
-            <TabsTrigger value="people" className="gap-2"><Users className="w-4 h-4" /> People</TabsTrigger>
-            <TabsTrigger value="share" className="gap-2"><MessageCircle className="w-4 h-4" /> Share</TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
+            <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> {t("upload")}</TabsTrigger>
+            <TabsTrigger value="all" className="gap-2"><ImageIcon className="w-4 h-4" /> {t("photos")}</TabsTrigger>
+            <TabsTrigger value="review" className="gap-2 relative"><AlertTriangle className="w-4 h-4" /> {t("review")}{photosTotals.review > 0 && <span className="ml-1 text-xs bg-amber-500 text-white rounded-full px-1.5">{photosTotals.review}</span>}</TabsTrigger>
+            <TabsTrigger value="people" className="gap-2"><Users className="w-4 h-4" /> {t("people")}</TabsTrigger>
+            <TabsTrigger value="share" className="gap-2"><MessageCircle className="w-4 h-4" /> {t("share")}</TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> {t("settings")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload">
