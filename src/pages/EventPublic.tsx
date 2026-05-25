@@ -13,12 +13,15 @@ import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/image
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, authedInvoke } from "@/lib/auth";
+import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/lib/i18n";
 
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; media_type?: string };
 
 export default function EventPublic() {
+  const { t } = useI18n();
   const { slug } = useParams();
   const isMobile = useIsMobile();
   const [event, setEvent] = useState<Event | null>(null);
@@ -47,7 +50,7 @@ export default function EventPublic() {
 
   const onGuestFiles = async (fileList: FileList | null) => {
     if (!fileList || !fileList.length || !event) return;
-    if (!event.allow_guest_uploads) { toast.error("Guest uploads are off for this event"); return; }
+    if (!event.allow_guest_uploads) { toast.error(t("guest_uploads_off")); return; }
     const files = Array.from(fileList);
     if (guestName.trim()) localStorage.setItem(`guest-name:${slug}`, guestName.trim());
     setGuestUploading(true);
@@ -56,8 +59,6 @@ export default function EventPublic() {
     const bumpDone = () => { done++; setGuestProgress({ done, total: files.length, errors }); };
     const bumpErr = () => { errors++; bumpDone(); };
 
-    // Pipeline: each worker preps one file, signs, PUTs, kicks processing.
-    // Concurrency = 4 keeps phones responsive while overlapping CPU + network.
     const CONCURRENCY = 6;
     let cursor = 0;
     const worker = async () => {
@@ -93,8 +94,8 @@ export default function EventPublic() {
 
     setGuestUploading(false);
     const ok = done - errors;
-    if (ok > 0) toast.success(`Thanks! Added ${ok} photo${ok === 1 ? "" : "s"} to the album 💖`);
-    if (errors) toast.error(`${errors} file(s) failed`);
+    if (ok > 0) toast.success(t("thanks_added", { n: ok }));
+    if (errors) toast.error(t("n_files_failed", { n: errors }));
   };
 
   useEffect(() => {
@@ -109,7 +110,6 @@ export default function EventPublic() {
     })();
   }, [slug]);
 
-  // Only load people on first paint — full album is gated behind a button.
   useEffect(() => {
     if (!event) return;
     (async () => {
@@ -136,18 +136,17 @@ export default function EventPublic() {
     } finally { setLoadingMore(false); }
   };
 
-
   const onSelfieFile = async (file: File) => {
     try {
       const converted = await convertHeicIfNeeded(file);
       const reader = new FileReader();
       reader.onload = () => setSelfie(reader.result as string);
       reader.readAsDataURL(converted);
-    } catch { toast.error("Could not read that image"); }
+    } catch { toast.error(t("couldnt_read_image")); }
   };
 
   const submit = async () => {
-    if (!selfie || !event) return toast.error("Please add a selfie ✨");
+    if (!selfie || !event) return toast.error(t("please_add_selfie"));
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("register-guest", {
@@ -156,70 +155,77 @@ export default function EventPublic() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
       setResult({ token: data.token, photoCount: data.photoCount });
-      toast.success(`Found ${data.photoCount} photos of you! 🎉`);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Something went wrong"); }
+      toast.success(t("found_n_photos", { n: data.photoCount }));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("something_wrong")); }
     finally { setLoading(false); }
   };
 
-  if (notFound) return <div className="min-h-screen flex items-center justify-center text-center p-6"><div><h1 className="font-serif text-2xl">Event not found</h1><Link to="/" className="text-sm text-primary mt-2 inline-block">Go home</Link></div></div>;
+  if (notFound) return (
+    <div className="min-h-screen flex items-center justify-center text-center p-6">
+      <FloatingLanguageSwitcher />
+      <div><h1 className="font-serif text-2xl">{t("event_not_found")}</h1><Link to="/" className="text-sm text-primary mt-2 inline-block">{t("go_home")}</Link></div>
+    </div>
+  );
   if (!event) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
   if (result) return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
+      <FloatingLanguageSwitcher />
       <Card className="max-w-md w-full p-8 text-center space-y-6">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mx-auto" style={{ background: "var(--gradient-romantic)" }}>
           <Sparkles className="w-10 h-10 text-primary-foreground" />
         </div>
-        <h1 className="text-3xl font-serif">You're in! 💕</h1>
-        <p className="text-muted-foreground">Found <b className="text-primary">{result.photoCount}</b> photos &amp; videos of you.</p>
-        <Link to={`/album/${result.token}`}><Button size="lg" className="w-full">View My Album</Button></Link>
-        <Button variant="outline" className="w-full" onClick={() => setResult(null)}>Back</Button>
+        <h1 className="text-3xl font-serif">{t("youre_in")}</h1>
+        <p className="text-muted-foreground">{t("found_n_photos_videos", { n: result.photoCount })}</p>
+        <Link to={`/album/${result.token}`}><Button size="lg" className="w-full">{t("view_my_album")}</Button></Link>
+        <Button variant="outline" className="w-full" onClick={() => setResult(null)}>{t("back")}</Button>
       </Card>
     </div>
   );
 
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
+      <FloatingLanguageSwitcher />
       <header className="px-6 pt-12 pb-8 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-3">
           <Heart className="w-5 h-5 fill-current" />
           <span className="text-sm tracking-wide uppercase">{event.name}</span>
           <Heart className="w-5 h-5 fill-current" />
         </div>
-        <h1 className="text-4xl md:text-5xl font-serif">Find your photos &amp; videos</h1>
-        <p className="text-muted-foreground mt-3 max-w-md mx-auto">Take a quick selfie so we can find every photo and video <em>you appear in</em>. Your selfie isn't added to the album.</p>
+        <h1 className="text-4xl md:text-5xl font-serif">{t("find_your_photos")}</h1>
+        <p className="text-muted-foreground mt-3 max-w-md mx-auto">{t("find_desc")}</p>
       </header>
 
       <main className="px-6 pb-12">
         <Card className="max-w-md mx-auto p-6 space-y-5">
           <div>
-            <label className="text-sm font-medium mb-1 block">Selfie to find your photos 🔍</label>
-            <p className="text-xs text-muted-foreground mb-2">Used only to match your face — not uploaded to the album.</p>
+            <label className="text-sm font-medium mb-1 block">{t("selfie_label")}</label>
+            <p className="text-xs text-muted-foreground mb-2">{t("selfie_hint")}</p>
             <div className="flex flex-col items-center gap-3 border-2 border-dashed border-border rounded-2xl p-6 bg-secondary/40">
-              {selfie ? <img src={selfie} alt="Your selfie" className="w-32 h-32 rounded-full object-cover" /> : <Camera className="w-10 h-10 text-muted-foreground" />}
+              {selfie ? <img src={selfie} alt={t("your_selfie")} className="w-32 h-32 rounded-full object-cover" /> : <Camera className="w-10 h-10 text-muted-foreground" />}
               {isMobile ? (
                 <div className="flex gap-2 w-full">
-                  <label htmlFor="selfie-camera" className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Camera className="w-4 h-4" /> Take photo</label>
-                  <label htmlFor="selfie-gallery" className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Upload className="w-4 h-4" /> From gallery</label>
+                  <label htmlFor="selfie-camera" className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Camera className="w-4 h-4" /> {t("take_photo")}</label>
+                  <label htmlFor="selfie-gallery" className="flex-1 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Upload className="w-4 h-4" /> {t("from_gallery")}</label>
                 </div>
               ) : (
-                <label htmlFor="selfie-gallery" className="w-full flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Upload className="w-4 h-4" /> Choose photo</label>
+                <label htmlFor="selfie-gallery" className="w-full flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary"><Upload className="w-4 h-4" /> {t("choose_photo")}</label>
               )}
               <input id="selfie-camera" type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])} disabled={loading} />
               <input id="selfie-gallery" type="file" accept="image/*,.heic,.heif" className="hidden" onChange={(e) => e.target.files?.[0] && onSelfieFile(e.target.files[0])} disabled={loading} />
             </div>
           </div>
-          <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? "Doing the magic ✨" : "Find my photos"}</Button>
+          <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? t("doing_magic") : t("find_my_photos")}</Button>
         </Card>
 
         {event.allow_guest_uploads && (
           <Card className="max-w-md mx-auto mt-6 p-6 space-y-4">
             <div>
-              <h3 className="font-serif text-xl">Share your photos 📷</h3>
-              <p className="text-sm text-muted-foreground mt-1">Got pictures from the event? Add them to the album!</p>
+              <h3 className="font-serif text-xl">{t("share_your_photos")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">{t("share_your_photos_desc")}</p>
             </div>
             <Input
-              placeholder="Your name (optional)"
+              placeholder={t("your_name_optional")}
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               disabled={guestUploading}
@@ -227,10 +233,10 @@ export default function EventPublic() {
             />
             <div className="flex gap-2">
               <label htmlFor="guest-camera" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                <Camera className="w-4 h-4" /> Take photo
+                <Camera className="w-4 h-4" /> {t("take_photo")}
               </label>
               <label htmlFor="guest-gallery" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                <Upload className="w-4 h-4" /> Choose files
+                <Upload className="w-4 h-4" /> {t("choose_files")}
               </label>
             </div>
             <input id="guest-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
@@ -239,7 +245,7 @@ export default function EventPublic() {
               <div className="space-y-2">
                 <Progress value={guestProgress.total ? (guestProgress.done / guestProgress.total) * 100 : 0} />
                 <p className="text-xs text-center text-muted-foreground">
-                  Uploading {guestProgress.done}/{guestProgress.total}{guestProgress.errors ? ` · ${guestProgress.errors} failed` : ""}…
+                  {t("upload_progress", { done: guestProgress.done, total: guestProgress.total })}{guestProgress.errors ? ` · ${t("uploads_failed", { n: guestProgress.errors })}` : ""}…
                 </p>
               </div>
             )}
@@ -248,11 +254,11 @@ export default function EventPublic() {
 
         {event.show_people && clusters.length > 0 && (
           <section className="max-w-5xl mx-auto mt-12">
-            <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">People &amp; Pets</h2>
+            <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">{t("people_and_pets")}</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {clusters.slice(0, peopleVisible).map((c) => (
                 <Link key={c.id} to={`/person/${c.id}`} className="block relative aspect-square rounded-3xl overflow-hidden bg-muted shadow-sm hover:shadow-md">
-                  {c.cover_url ? <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
+                  {c.cover_url ? <img src={c.cover_url} alt={c.display_name || t("person_folder")} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
                   <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-2.5 flex items-end justify-between gap-1">
                     {c.display_name ? <span className="text-white font-semibold text-sm truncate drop-shadow">{c.display_name}</span> : <span />}
@@ -264,7 +270,7 @@ export default function EventPublic() {
             {clusters.length > peopleVisible && (
               <div className="text-center mt-6">
                 <Button variant="outline" onClick={() => setPeopleVisible((n) => n + 12)}>
-                  Load more people ({clusters.length - peopleVisible})
+                  {t("load_more_people", { n: clusters.length - peopleVisible })}
                 </Button>
               </div>
             )}
@@ -275,26 +281,26 @@ export default function EventPublic() {
           <section className="max-w-5xl mx-auto mt-12 text-center">
             {!showFullAlbum ? (
               <Button size="lg" variant="outline" onClick={() => loadFullAlbum(true)}>
-                <ImageIcon className="w-4 h-4 mr-2" /> View full album
+                <ImageIcon className="w-4 h-4 me-2" /> {t("view_full_album")}
               </Button>
             ) : (
               <>
-                <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1 text-left">All photos</h2>
+                <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1 text-start">{t("all_photos")}</h2>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                   {allPhotos.map((p, i) => (
                     <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90">
-                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                     </button>
                   ))}
                 </div>
                 {photosCursor && (
                   <div className="text-center mt-6">
                     <Button variant="outline" onClick={() => loadFullAlbum(false)} disabled={loadingMore}>
-                      {loadingMore ? "Loading…" : "Load more"}
+                      {loadingMore ? t("loading") : t("load_more")}
                     </Button>
                   </div>
                 )}
-                {!allPhotos.length && loadingMore && <p className="text-sm text-muted-foreground py-6">Loading…</p>}
+                {!allPhotos.length && loadingMore && <p className="text-sm text-muted-foreground py-6">{t("loading")}</p>}
               </>
             )}
           </section>
