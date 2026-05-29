@@ -419,7 +419,7 @@ export default function EventAdmin() {
     <div className="min-h-screen p-6" style={{ background: "var(--gradient-soft)" }}>
       <div className="max-w-5xl mx-auto pt-2">
         <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> All events
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" /> {t("all_events")}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
@@ -446,25 +446,25 @@ export default function EventAdmin() {
           <TabsContent value="upload">
             <Card className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Folder *</label>
-                <p className="text-xs text-muted-foreground">Group photos by photographer or source. You can filter by folder later.</p>
+                <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4" /> {t("folder")} *</label>
+                <p className="text-xs text-muted-foreground">{t("folder_hint")}</p>
                 <Select value={folderChoice} onValueChange={(v) => setFolderChoice(v)} disabled={uploading}>
-                  <SelectTrigger><SelectValue placeholder="Pick a folder…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("pick_folder")} /></SelectTrigger>
                   <SelectContent>
                     {folderOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    <SelectItem value={NEW_FOLDER}>+ New folder…</SelectItem>
+                    <SelectItem value={NEW_FOLDER}>{t("new_folder")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {folderChoice === NEW_FOLDER && (
-                  <Input autoFocus placeholder="New folder name (e.g. Photographer Sarah)" value={newFolderName}
+                  <Input autoFocus placeholder={t("new_folder_placeholder")} value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)} disabled={uploading} maxLength={60} />
                 )}
               </div>
-              <Input placeholder="Uploader name (optional)" value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
+              <Input placeholder={t("uploader_name_optional")} value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
               <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
                 <Upload className="w-8 h-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground text-center">
-                  {files.length ? `${files.length} file${files.length === 1 ? "" : "s"} ready` : "Tap to choose photos or videos"}
+                  {files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
@@ -472,12 +472,12 @@ export default function EventAdmin() {
 
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Uploading {progress.done}/{progress.total}
-                  {progress.errors ? ` · ${progress.errors} failed` : ""} {progress.skipped ? ` · ${progress.skipped} skipped` : ""}
+                  <Loader2 className="w-4 h-4 animate-spin" /> {t("upload_progress", { done: progress.done, total: progress.total })}
+                  {progress.errors ? ` · ${t("uploads_failed", { n: progress.errors })}` : ""} {progress.skipped ? ` · ${t("heic_skipped", { n: progress.skipped })}` : ""}
                 </div>
               )}
               <Button onClick={upload} disabled={!files.length || uploading || !folderForUpload} size="lg" className="w-full">
-                {uploading ? "Processing…" : `Upload ${files.length || ""} file(s)${folderForUpload ? ` to "${folderForUpload}"` : ""}`}
+                {uploading ? t("processing") : `${t("upload_files", { n: files.length || "" })}${folderForUpload ? ` ${t("upload_to", { folder: folderForUpload })}` : ""}`}
               </Button>
             </Card>
           </TabsContent>
@@ -486,23 +486,23 @@ export default function EventAdmin() {
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">{photosTotals.total || photos.length} photo{(photosTotals.total || photos.length) === 1 ? "" : "s"}</h2>
-                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{photosTotals.pending} still indexing</p>}
-                  {photosTotals.review > 0 && <p className="text-xs text-amber-600">{photosTotals.review} need review (no person detected)</p>}
+                  <h2 className="font-medium">{t("n_photos", { n: photosTotals.total || photos.length })}</h2>
+                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{t("still_indexing", { n: photosTotals.pending })}</p>}
+                  {photosTotals.review > 0 && <p className="text-xs text-amber-600">{t("need_review", { n: photosTotals.review })}</p>}
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {sources.length > 0 && (
                     <>
                       <Select value={filterSource} onValueChange={setFilterSource}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="All folders" /></SelectTrigger>
+                        <SelectTrigger className="w-48"><SelectValue placeholder={t("all_folders")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All folders ({photosTotals.total})</SelectItem>
+                          <SelectItem value="all">{t("all_folders")} ({photosTotals.total})</SelectItem>
                           {sources.map((s) => <SelectItem key={s.label} value={s.label}>{s.label} ({s.count})</SelectItem>)}
                         </SelectContent>
                       </Select>
                       {filterSource !== "all" && (
                         <Button variant="ghost" size="sm" className="gap-1" onClick={() => setFolderDialog({ open: true, from: filterSource, to: filterSource })}>
-                          <Pencil className="w-3.5 h-3.5" /> Edit folder
+                          <Pencil className="w-3.5 h-3.5" /> {t("edit_folder")}
                         </Button>
                       )}
                     </>
@@ -511,26 +511,26 @@ export default function EventAdmin() {
                     <Button variant="outline" size="sm" className="gap-2"
                       onClick={() => selected.size === photos.length ? setSelected(new Set()) : setSelected(new Set(photos.map((p) => p.id)))}>
                       {selected.size === photos.length ? <Square className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
-                      {selected.size === photos.length ? "Clear" : "Select all"}
+                      {selected.size === photos.length ? t("clear") : t("select_all")}
                     </Button>
                   )}
                   {selected.size > 0 && (
                     <>
                       <Button variant="destructive" size="sm" className="gap-2" onClick={() => deletePhotos([...selected])}>
-                        <Trash2 className="w-4 h-4" /> Delete {selected.size}
+                        <Trash2 className="w-4 h-4" /> {t("delete")} {selected.size}
                       </Button>
                       <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
                         onClick={async () => {
                           const items = photos.filter((p) => selected.has(p.id) && p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
-                          if (!items.length) { toast.error("No images selected"); return; }
+                          if (!items.length) { toast.error(t("no_images_selected")); return; }
                           setZipping({ done: 0, total: items.length });
                           try {
-                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
-                            toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-                          } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }
+                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, tt) => setZipping({ done: d, total: tt }));
+                            toast.success(isMobile() ? t("saved_to_gallery") : t("download_ready"));
+                          } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("download_failed")); }
                           finally { setZipping(null); }
                         }}>
-                        {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download {selected.size}</>}
+                        {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> {t("download_n", { n: selected.size })}</>}
                       </Button>
                     </>
                   )}
@@ -538,30 +538,30 @@ export default function EventAdmin() {
                     <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
                       onClick={async () => {
                         const items = photos.filter((p) => p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
-                        if (!items.length) { toast.error("No images to download"); return; }
+                        if (!items.length) { toast.error(t("no_images_to_download")); return; }
                         setZipping({ done: 0, total: items.length });
                         try {
-                          await saveManyToGallery(items, `${event.slug}-photos.zip`, (d, t) => setZipping({ done: d, total: t }));
-                          toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-                        } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }
+                          await saveManyToGallery(items, `${event.slug}-photos.zip`, (d, tt) => setZipping({ done: d, total: tt }));
+                          toast.success(isMobile() ? t("saved_to_gallery") : t("download_ready"));
+                        } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("download_failed")); }
                         finally { setZipping(null); }
                       }}>
-                      {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download all</>}
+                      {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> {t("download_all")}</>}
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => loadPhotos()} disabled={loadingPhotos}>
-                    {loadingPhotos ? "…" : "Refresh"}
+                    {loadingPhotos ? "…" : t("refresh")}
                   </Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Re-run face matching
+                    {t("rerun_face_matching")}
                   </Button>
                 </div>
               </div>
               {loadingPhotos && photos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : photos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No photos yet.</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("no_photos_yet")}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -576,19 +576,19 @@ export default function EventAdmin() {
                           ) : (
                             <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                           )}
-                          <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
+                          <div className="absolute top-1 start-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
                           {p.media_type !== "video" && (
                             <button onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
-                              className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
-                              title={isCover ? "Current cover" : "Set as cover"}>
+                              className={`absolute top-1 end-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
+                              title={isCover ? t("current_cover") : t("set_as_cover")}>
                               <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
                             </button>
                           )}
-                          <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
+                          <div className="absolute bottom-1 start-1 end-1 flex items-end justify-between gap-1 pointer-events-none">
                             {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
-                            <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
+                            <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ms-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                           </div>
-                          {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
+                          {!p.processed && <span className="absolute top-7 end-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">{t("indexing_label")}</span>}
                         </div>
                       );
                     })}
@@ -596,7 +596,7 @@ export default function EventAdmin() {
                   {photosCursor && (
                     <div className="text-center mt-6">
                       <Button variant="outline" onClick={() => loadPhotos(photosCursor)} disabled={loadingMore}>
-                        {loadingMore ? "Loading…" : "Load more"}
+                        {loadingMore ? t("loading") : t("load_more")}
                       </Button>
                     </div>
                   )}
@@ -604,8 +604,6 @@ export default function EventAdmin() {
               )}
             </Card>
           </TabsContent>
-
-          <TabsContent value="review">
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
