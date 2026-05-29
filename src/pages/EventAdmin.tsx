@@ -659,31 +659,31 @@ export default function EventAdmin() {
           <TabsContent value="people">
             <Card className="p-6">
               <div className="flex items-center justify-between gap-2 mb-4">
-                <h2 className="font-medium">{clusters.length} {clusters.length === 1 ? "person" : "people"}</h2>
+                <h2 className="font-medium">{clusters.length === 1 ? t("n_person", { n: 1 }) : t("n_people", { n: clusters.length })}</h2>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : "Refresh"}</Button>
+                  <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : t("refresh")}</Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Re-run matching
+                    {t("rerun_matching")}
                   </Button>
                 </div>
               </div>
               {clustersLoading && clusters.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : clusters.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No people detected yet. Upload photos and run face matching.</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("no_people_yet")}</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {clusters.map((c) => (
                     <div key={c.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ${c.hidden ? "opacity-50" : ""}`} onClick={() => openClusterEditor(c)}>
-                      {c.cover_url ? <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
+                      {c.cover_url ? <img src={c.cover_url} alt={c.display_name || ""} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex items-end justify-between">
-                        <span className="text-white text-sm font-semibold truncate">{c.display_name || "Unnamed"}</span>
+                        <span className="text-white text-sm font-semibold truncate">{c.display_name || "—"}</span>
                         <span className="text-white/80 text-xs">{c.photo_count}</span>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); toggleClusterHidden(c); }}
-                        className="absolute top-1 right-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                        title={c.hidden ? "Show on public album" : "Hide from public album"}>
+                        className="absolute top-1 end-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        title={c.hidden ? t("show_on_public") : t("hide_from_public")}>
                         {c.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                       </button>
                     </div>
@@ -696,44 +696,40 @@ export default function EventAdmin() {
           <TabsContent value="share">
             <Card className="p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> Send album via WhatsApp</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Send the album link to guests through Twilio WhatsApp. Numbers must be in international format (e.g. <code>+14155550123</code>).
-                </p>
+                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> {t("share_title")}</h2>
+                <p className="text-xs text-muted-foreground mt-1">{t("share_desc")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Your Twilio WhatsApp number</label>
-                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886 (Twilio sandbox)" />
-                <p className="text-xs text-muted-foreground">
-                  Use your approved WhatsApp sender, or the Twilio sandbox number <code>+14155238886</code> for testing (recipients must join your sandbox first).
-                </p>
+                <label className="text-sm font-medium">{t("twilio_number")}</label>
+                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886" />
+                <p className="text-xs text-muted-foreground">{t("twilio_hint")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Recipient phone numbers</label>
+                <label className="text-sm font-medium">{t("recipient_numbers")}</label>
                 <Textarea
                   rows={5}
                   value={waNumbers}
                   onChange={(e) => setWaNumbers(e.target.value)}
-                  placeholder={"+14155550123\n+447700900123\n+33612345678"}
+                  placeholder={"+972501234567\n+14155550123"}
                 />
-                <p className="text-xs text-muted-foreground">One per line, or comma-separated. Up to 500.</p>
+                <p className="text-xs text-muted-foreground">{t("one_per_line")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Message</label>
+                <label className="text-sm font-medium">{t("message")}</label>
                 <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
-                <p className="text-xs text-muted-foreground">{waMessage.length}/1500 characters</p>
+                <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
               </div>
 
               <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
-                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send WhatsApp messages</>}
+                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
               </Button>
 
               {waResult && (
                 <div className="text-sm border rounded-md p-3 bg-secondary/40">
-                  ✅ Sent: <b>{waResult.sent}</b> · ❌ Failed: <b>{waResult.failed}</b> · ⚠️ Skipped (invalid): <b>{waResult.skipped}</b>
+                  {t("sent_summary", { sent: waResult.sent, failed: waResult.failed, skipped: waResult.skipped })}
                 </div>
               )}
             </Card>
