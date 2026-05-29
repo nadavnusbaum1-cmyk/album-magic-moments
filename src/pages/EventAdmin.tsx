@@ -604,35 +604,37 @@ export default function EventAdmin() {
               )}
             </Card>
           </TabsContent>
+
+          <TabsContent value="review">
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">Photos needing review</h2>
-                  <p className="text-xs text-muted-foreground">No person was detected, or processing failed. Re-run indexing or delete unsuitable photos.</p>
+                  <h2 className="font-medium">{t("review_title")}</h2>
+                  <p className="text-xs text-muted-foreground">{t("review_desc")}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => loadReview()} disabled={reviewLoading}>{reviewLoading ? "…" : "Refresh"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => loadReview()} disabled={reviewLoading}>{reviewLoading ? "…" : t("refresh")}</Button>
                   <Button variant="secondary" size="sm" className="gap-2" onClick={reindexAllReview} disabled={!reviewPhotos.length}>
-                    <RefreshCw className="w-4 h-4" /> Re-index all shown
+                    <RefreshCw className="w-4 h-4" /> {t("reindex_all")}
                   </Button>
                 </div>
               </div>
               {reviewLoading && reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">All photos are indexed with at least one person. 🎉</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("review_all_done")}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {reviewPhotos.map((p) => (
                       <div key={p.id} className="relative group rounded-xl overflow-hidden bg-muted aspect-square">
                         {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                        {p.processing_error && <div className="absolute top-1 left-1 right-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
+                        {p.processing_error && <div className="absolute top-1 start-1 end-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
                         <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
                           <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
-                            <RefreshCw className="w-3 h-3" /> Re-index
+                            <RefreshCw className="w-3 h-3" /> {t("reindex")}
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2" title="Skip — keep but hide from review" onClick={() => skipReviewPhotos([p.id])}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" title={t("skip")} onClick={() => skipReviewPhotos([p.id])}>
                             <EyeOff className="w-3 h-3" />
                           </Button>
                           <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deletePhotos([p.id], "review")}>
@@ -645,7 +647,7 @@ export default function EventAdmin() {
                   {reviewCursor && (
                     <div className="text-center mt-6">
                       <Button variant="outline" onClick={() => loadReview(reviewCursor)} disabled={reviewLoading}>
-                        {reviewLoading ? "Loading…" : "Load more"}
+                        {reviewLoading ? t("loading") : t("load_more")}
                       </Button>
                     </div>
                   )}
