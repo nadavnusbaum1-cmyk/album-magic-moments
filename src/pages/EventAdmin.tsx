@@ -759,7 +759,7 @@ export default function EventAdmin() {
                 <label className="text-sm font-medium">{t("cover_image")}</label>
                 <p className="text-xs text-muted-foreground">{t("cover_image_hint")}</p>
                 {event.cover_image_url && (
-                  <img src={event.cover_image_url} alt="Cover preview" className="w-full max-w-sm aspect-video object-cover rounded-md border" />
+                  <img src={event.cover_image_url} alt={t("cover_preview")} className="w-full max-w-sm aspect-video object-cover rounded-md border" />
                 )}
                 <div className="flex flex-wrap gap-2 items-center">
                   <label className="inline-flex">
@@ -805,14 +805,14 @@ export default function EventAdmin() {
       {/* Folder edit dialog */}
       <Dialog open={folderDialog.open} onOpenChange={(o) => setFolderDialog((d) => ({ ...d, open: o }))}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit folder "{folderDialog.from}"</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("edit_folder_title", { name: folderDialog.from })}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <label className="text-sm font-medium">Rename to</label>
+            <label className="text-sm font-medium">{t("rename_to")}</label>
             <Input value={folderDialog.to} onChange={(e) => setFolderDialog((d) => ({ ...d, to: e.target.value }))} maxLength={60} />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="destructive" onClick={() => renameOrDeleteFolder("delete")}>Unfile all</Button>
-            <Button onClick={() => renameOrDeleteFolder("rename")} disabled={!folderDialog.to.trim() || folderDialog.to === folderDialog.from}>Rename</Button>
+            <Button variant="destructive" onClick={() => renameOrDeleteFolder("delete")}>{t("unfile_all")}</Button>
+            <Button onClick={() => renameOrDeleteFolder("rename")} disabled={!folderDialog.to.trim() || folderDialog.to === folderDialog.from}>{t("rename")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -820,27 +820,27 @@ export default function EventAdmin() {
       {/* Cluster editor */}
       <Dialog open={!!editingCluster} onOpenChange={(o) => !o && setEditingCluster(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Edit person</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("edit_person")}</DialogTitle></DialogHeader>
           {editingCluster && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Input defaultValue={editingCluster.display_name || ""} placeholder="Name (e.g. Sarah)"
+                <Input defaultValue={editingCluster.display_name || ""} placeholder={t("person_name_placeholder")}
                   onBlur={(e) => { if (e.target.value !== (editingCluster.display_name || "")) renameCluster(e.target.value); }} />
-                <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> Add photos</Button>
+                <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> {t("add_photos")}</Button>
               </div>
-              <div className="text-sm text-muted-foreground">{editingClusterPhotos.length} photo(s) in this person.</div>
+              <div className="text-sm text-muted-foreground">{t("n_photos_in_person", { n: editingClusterPhotos.length })}</div>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {editingClusterPhotos.map((p) => (
                   <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
                     {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                     {p.media_type !== "video" && (
                       <button onClick={() => setClusterCover(p.id)}
-                        className="absolute top-1 left-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title="Set as cover photo">
+                        className="absolute top-1 start-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title={t("set_cover_photo")}>
                         <Star className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button onClick={() => removePhotosFromCluster([p.id])}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove from this person">
+                      className="absolute top-1 end-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title={t("remove_from_person")}>
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -854,7 +854,7 @@ export default function EventAdmin() {
       {/* Photo picker */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Add photos to this person</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("add_photos_to_person")}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {pickerPhotos.map((p) => {
               const sel = pickerSel.has(p.id);
@@ -862,19 +862,19 @@ export default function EventAdmin() {
                 <div key={p.id} className={`relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer ring-2 ${sel ? "ring-primary" : "ring-transparent"}`}
                   onClick={() => setPickerSel((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
                   {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                  {sel && <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
+                  {sel && <div className="absolute top-1 start-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
                 </div>
               );
             })}
           </div>
           {pickerCursor && (
             <div className="text-center mt-3">
-              <Button variant="outline" size="sm" onClick={loadMorePicker}>Load more</Button>
+              <Button variant="outline" size="sm" onClick={loadMorePicker}>{t("load_more")}</Button>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPickerOpen(false)}>Cancel</Button>
-            <Button onClick={addPickedPhotos} disabled={!pickerSel.size}>Add {pickerSel.size || ""}</Button>
+            <Button variant="outline" onClick={() => setPickerOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={addPickedPhotos} disabled={!pickerSel.size}>{t("add")} {pickerSel.size || ""}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
