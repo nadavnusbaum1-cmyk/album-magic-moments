@@ -22,6 +22,7 @@ const dict: Record<Lang, Record<string, string>> = {
     rename: "Rename",
     add: "Add",
     or: "or",
+    link_copied: "Link copied",
 
     // Language
     language: "Language",
@@ -245,7 +246,7 @@ const dict: Record<Lang, Record<string, string>> = {
     save: "שמירה", cancel: "ביטול", delete: "מחיקה", remove: "הסרה",
     refresh: "רענון", loading: "טוען…", saving: "שומר…", uploading: "מעלה…",
     saved: "נשמר", back: "חזרה", home: "בית", failed: "נכשל", yes: "כן", no: "לא",
-    rename: "שינוי שם", add: "הוספה", or: "או",
+    rename: "שינוי שם", add: "הוספה", or: "או", link_copied: "הקישור הועתק",
 
     language: "שפה", english: "English", hebrew: "עברית",
 

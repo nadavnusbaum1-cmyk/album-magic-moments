@@ -97,7 +97,7 @@ export default function EventAdmin() {
   const loadEvent = async () => {
     if (!id) return;
     const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
-    if (error || !data) { toast.error("Event not found"); navigate("/dashboard"); return; }
+    if (error || !data) { toast.error(t("event_not_found")); navigate("/dashboard"); return; }
     setEvent(data as Event);
   };
 
@@ -118,7 +118,7 @@ export default function EventAdmin() {
         setSelected(new Set());
       }
       setPhotosCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setLoadingPhotos(false); setLoadingMore(false); }
   };
 
@@ -133,7 +133,7 @@ export default function EventAdmin() {
       if (before) setReviewPhotos((p) => [...p, ...data.photos]);
       else { setReviewPhotos(data.photos); if (data.totals) setPhotosTotals(data.totals); }
       setReviewCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setReviewLoading(false); }
   };
 
@@ -144,7 +144,7 @@ export default function EventAdmin() {
       const r = await authedFetch("list-clusters", { method: "POST", body: JSON.stringify({ eventSlug: event.slug }) });
       const j = await r.json();
       if (r.ok) setClusters(j.clusters || []);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setClustersLoading(false); }
   };
 
@@ -157,7 +157,7 @@ export default function EventAdmin() {
 
   const upload = async () => {
     if (!files.length || !id) return;
-    if (!folderForUpload) { toast.error("Pick or name a folder for these photos"); return; }
+    if (!folderForUpload) { toast.error(t("pick_folder_first")); return; }
     localStorage.setItem(`folder:${id}`, folderChoice === NEW_FOLDER ? folderForUpload : folderChoice);
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
@@ -192,25 +192,25 @@ export default function EventAdmin() {
       done += batch.length;
       setProgress({ done, total: files.length, errors, skipped });
     }
-    if (skipped) toast.warning(`${skipped} HEIC file(s) skipped (couldn't convert).`);
-    if (errors) toast.error(`${errors} upload(s) failed.`);
+    if (skipped) toast.warning(t("heic_skipped", { n: skipped }));
+    if (errors) toast.error(t("uploads_failed", { n: errors }));
     const ok = done - errors - skipped;
-    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉 — face matching runs in the background.`);
+    if (ok > 0) toast.success(t("upload_success", { n: ok }));
     setFiles([]); setUploading(false);
     if (folderChoice === NEW_FOLDER) { setFolderChoice(folderForUpload); setNewFolderName(""); }
   };
 
   const deletePhotos = async (ids: string[], from: "all" | "review" = "all") => {
     if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} photo${ids.length === 1 ? "" : "s"}?`)) return;
+    if (!confirm(t("confirm_delete", { n: ids.length }))) return;
     try {
       const r = await authedFetch("delete-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Deleted ${j.deleted}`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("deleted_n", { n: j.deleted }));
       if (from === "all") { setPhotos((p) => p.filter((x) => !ids.includes(x.id))); setSelected(new Set()); }
       else setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const skipReviewPhotos = async (ids: string[]) => {
@@ -218,36 +218,36 @@ export default function EventAdmin() {
     try {
       const r = await authedFetch("skip-review-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Skipped ${ids.length}`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("skipped_n", { n: ids.length }));
       setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const setClusterCover = async (photoId: string) => {
     if (!editingCluster) return;
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, coverPhotoId: photoId }) });
-      toast.success("Cover updated");
+      toast.success(t("cover_updated"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const reindexPhoto = async (photoId: string) => {
     try {
       await authedInvoke("process-photo-now", { photoId });
-      toast.success("Re-indexing started");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+      toast.success(t("reindex_started"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const reindexAllReview = async () => {
     if (!reviewPhotos.length) return;
-    toast.info(`Re-indexing ${reviewPhotos.length} photo(s)…`);
+    toast.info(t("reindexing_n", { n: reviewPhotos.length }));
     let ok = 0;
     for (const p of reviewPhotos) {
       try { await authedInvoke("process-photo-now", { photoId: p.id }); ok++; } catch { /* ignore */ }
     }
-    toast.success(`Triggered re-index on ${ok} photo(s)`);
+    toast.success(t("reindex_triggered", { n: ok }));
     setTimeout(() => loadReview(), 2000);
   };
 
@@ -255,8 +255,8 @@ export default function EventAdmin() {
     if (!id) return;
     try {
       const data = await authedInvoke<{ event: Event }>("update-event", { eventId: id, ...patch });
-      setEvent(data.event); toast.success("Saved");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+      setEvent(data.event); toast.success(t("saved"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const uploadCover = async (file: File) => {
@@ -268,44 +268,44 @@ export default function EventAdmin() {
       fd.append("file", file);
       const r = await authedFetch("upload-cover", { method: "POST", body: fd });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
+      if (!r.ok) throw new Error(j.error || t("failed"));
       setEvent(j.event);
-      toast.success("Cover image uploaded");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed"); }
+      toast.success(t("cover_uploaded"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("upload_failed")); }
     finally { setCoverUploading(false); }
   };
 
 
   const reprocess = async () => {
     if (!id) return;
-    if (!confirm("Re-run face matching on ALL photos? This clears existing people groupings and rebuilds them. Can take a few minutes for large albums.")) return;
+    if (!confirm(t("reprocess_confirm"))) return;
     setReprocessing(true);
     try {
       const r = await authedFetch("reprocess-event", { method: "POST", body: JSON.stringify({ eventId: id, mode: "all" }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Reprocessed ${j.processed} of ${j.total} photos`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("reprocessed", { processed: j.processed, total: j.total }));
       if (tab === "all") loadPhotos();
       if (tab === "people") loadClusters();
       if (tab === "review") loadReview();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setReprocessing(false); }
   };
 
   const renameOrDeleteFolder = async (action: "rename" | "delete") => {
     if (!id || !folderDialog.from) return;
     const to = action === "delete" ? null : folderDialog.to.trim();
-    if (action === "rename" && !to) return toast.error("New folder name required");
-    if (action === "delete" && !confirm(`Move all photos out of folder "${folderDialog.from}"? (Photos are kept; just unfiled.)`)) return;
+    if (action === "rename" && !to) return toast.error(t("folder_rename_required"));
+    if (action === "delete" && !confirm(t("folder_unfile_confirm", { name: folderDialog.from }))) return;
     try {
       const r = await authedFetch("rename-source", { method: "POST", body: JSON.stringify({ eventId: id, from: folderDialog.from, to }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Updated ${j.updated} photo(s)`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("folder_updated", { n: j.updated }));
       setFolderDialog({ open: false, from: "", to: "" });
       if (filterSource === folderDialog.from) setFilterSource("all");
       loadPhotos();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const openClusterEditor = async (c: Cluster) => {
@@ -316,7 +316,7 @@ export default function EventAdmin() {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
       const j = await r.json();
       if (r.ok) setEditingClusterPhotos(j.photos || []);
-    } catch { toast.error("Failed to load"); }
+    } catch { toast.error(t("failed")); }
   };
 
   const removePhotosFromCluster = async (photoIds: string[]) => {
@@ -324,9 +324,9 @@ export default function EventAdmin() {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, removePhotoIds: photoIds }) });
       setEditingClusterPhotos((p) => p.filter((x) => !photoIds.includes(x.id)));
-      toast.success("Removed");
+      toast.success(t("removed"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const renameCluster = async (name: string) => {
@@ -334,16 +334,16 @@ export default function EventAdmin() {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, displayName: name || null }) });
       setEditingCluster({ ...editingCluster, display_name: name });
-      toast.success("Renamed");
+      toast.success(t("renamed"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const toggleClusterHidden = async (c: Cluster) => {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: c.id, hidden: !c.hidden }) });
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const openPicker = async () => {
@@ -354,7 +354,7 @@ export default function EventAdmin() {
       const data = await authedInvoke<{ photos: Photo[]; nextCursor: string | null }>("admin-list-photos", { eventId: id, limit: 60 });
       setPickerPhotos(data.photos);
       setPickerCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const loadMorePicker = async () => {
@@ -370,29 +370,29 @@ export default function EventAdmin() {
     if (!editingCluster || !pickerSel.size) return;
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, addPhotoIds: [...pickerSel] }) });
-      toast.success(`Added ${pickerSel.size} photo(s)`);
+      toast.success(t("added_n", { n: pickerSel.size }));
       setPickerOpen(false);
       openClusterEditor(editingCluster);
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
-  const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Link copied"); };
+  const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
 
   useEffect(() => {
     if (event && !waMessage) {
-      setWaMessage(`Hi! 📸 Photos from ${event.name} are ready. View the album: ${window.location.origin}/e/${event.slug}`);
+      setWaMessage(t("msg_default", { event: event.name, url: `${window.location.origin}/e/${event.slug}` }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event]);
+  }, [event, lang]);
 
   const sendWhatsApp = async () => {
     if (!event) return;
     const list = waNumbers.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-    if (list.length === 0) { toast.error("Add at least one phone number"); return; }
-    if (!waFrom.trim()) { toast.error("Enter your Twilio WhatsApp number"); return; }
-    if (!waMessage.trim()) { toast.error("Message can't be empty"); return; }
+    if (list.length === 0) { toast.error(t("add_number")); return; }
+    if (!waFrom.trim()) { toast.error(t("enter_twilio_number")); return; }
+    if (!waMessage.trim()) { toast.error(t("msg_empty")); return; }
     localStorage.setItem("wa:from", waFrom.trim());
     setWaSending(true);
     setWaResult(null);
@@ -402,9 +402,9 @@ export default function EventAdmin() {
         { eventId: event.id, from: waFrom.trim(), message: waMessage, numbers: list },
       );
       setWaResult(res);
-      toast.success(`Sent ${res.sent} · ${res.failed} failed · ${res.skipped} skipped`);
+      toast.success(t("sent_summary", { sent: res.sent, failed: res.failed, skipped: res.skipped }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Send failed");
+      toast.error(e instanceof Error ? e.message : t("send_failed"));
     } finally {
       setWaSending(false);
     }
@@ -419,7 +419,7 @@ export default function EventAdmin() {
     <div className="min-h-screen p-6" style={{ background: "var(--gradient-soft)" }}>
       <div className="max-w-5xl mx-auto pt-2">
         <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> All events
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" /> {t("all_events")}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
@@ -446,25 +446,25 @@ export default function EventAdmin() {
           <TabsContent value="upload">
             <Card className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Folder *</label>
-                <p className="text-xs text-muted-foreground">Group photos by photographer or source. You can filter by folder later.</p>
+                <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4" /> {t("folder")} *</label>
+                <p className="text-xs text-muted-foreground">{t("folder_hint")}</p>
                 <Select value={folderChoice} onValueChange={(v) => setFolderChoice(v)} disabled={uploading}>
-                  <SelectTrigger><SelectValue placeholder="Pick a folder…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("pick_folder")} /></SelectTrigger>
                   <SelectContent>
                     {folderOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    <SelectItem value={NEW_FOLDER}>+ New folder…</SelectItem>
+                    <SelectItem value={NEW_FOLDER}>{t("new_folder")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {folderChoice === NEW_FOLDER && (
-                  <Input autoFocus placeholder="New folder name (e.g. Photographer Sarah)" value={newFolderName}
+                  <Input autoFocus placeholder={t("new_folder_placeholder")} value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)} disabled={uploading} maxLength={60} />
                 )}
               </div>
-              <Input placeholder="Uploader name (optional)" value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
+              <Input placeholder={t("uploader_name_optional")} value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
               <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
                 <Upload className="w-8 h-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground text-center">
-                  {files.length ? `${files.length} file${files.length === 1 ? "" : "s"} ready` : "Tap to choose photos or videos"}
+                  {files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
@@ -472,12 +472,12 @@ export default function EventAdmin() {
 
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Uploading {progress.done}/{progress.total}
-                  {progress.errors ? ` · ${progress.errors} failed` : ""} {progress.skipped ? ` · ${progress.skipped} skipped` : ""}
+                  <Loader2 className="w-4 h-4 animate-spin" /> {t("upload_progress", { done: progress.done, total: progress.total })}
+                  {progress.errors ? ` · ${t("uploads_failed", { n: progress.errors })}` : ""} {progress.skipped ? ` · ${t("heic_skipped", { n: progress.skipped })}` : ""}
                 </div>
               )}
               <Button onClick={upload} disabled={!files.length || uploading || !folderForUpload} size="lg" className="w-full">
-                {uploading ? "Processing…" : `Upload ${files.length || ""} file(s)${folderForUpload ? ` to "${folderForUpload}"` : ""}`}
+                {uploading ? t("processing") : `${t("upload_files", { n: files.length || "" })}${folderForUpload ? ` ${t("upload_to", { folder: folderForUpload })}` : ""}`}
               </Button>
             </Card>
           </TabsContent>
@@ -486,23 +486,23 @@ export default function EventAdmin() {
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">{photosTotals.total || photos.length} photo{(photosTotals.total || photos.length) === 1 ? "" : "s"}</h2>
-                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{photosTotals.pending} still indexing</p>}
-                  {photosTotals.review > 0 && <p className="text-xs text-amber-600">{photosTotals.review} need review (no person detected)</p>}
+                  <h2 className="font-medium">{t("n_photos", { n: photosTotals.total || photos.length })}</h2>
+                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{t("still_indexing", { n: photosTotals.pending })}</p>}
+                  {photosTotals.review > 0 && <p className="text-xs text-amber-600">{t("need_review", { n: photosTotals.review })}</p>}
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {sources.length > 0 && (
                     <>
                       <Select value={filterSource} onValueChange={setFilterSource}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="All folders" /></SelectTrigger>
+                        <SelectTrigger className="w-48"><SelectValue placeholder={t("all_folders")} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All folders ({photosTotals.total})</SelectItem>
+                          <SelectItem value="all">{t("all_folders")} ({photosTotals.total})</SelectItem>
                           {sources.map((s) => <SelectItem key={s.label} value={s.label}>{s.label} ({s.count})</SelectItem>)}
                         </SelectContent>
                       </Select>
                       {filterSource !== "all" && (
                         <Button variant="ghost" size="sm" className="gap-1" onClick={() => setFolderDialog({ open: true, from: filterSource, to: filterSource })}>
-                          <Pencil className="w-3.5 h-3.5" /> Edit folder
+                          <Pencil className="w-3.5 h-3.5" /> {t("edit_folder")}
                         </Button>
                       )}
                     </>
@@ -511,26 +511,26 @@ export default function EventAdmin() {
                     <Button variant="outline" size="sm" className="gap-2"
                       onClick={() => selected.size === photos.length ? setSelected(new Set()) : setSelected(new Set(photos.map((p) => p.id)))}>
                       {selected.size === photos.length ? <Square className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
-                      {selected.size === photos.length ? "Clear" : "Select all"}
+                      {selected.size === photos.length ? t("clear") : t("select_all")}
                     </Button>
                   )}
                   {selected.size > 0 && (
                     <>
                       <Button variant="destructive" size="sm" className="gap-2" onClick={() => deletePhotos([...selected])}>
-                        <Trash2 className="w-4 h-4" /> Delete {selected.size}
+                        <Trash2 className="w-4 h-4" /> {t("delete")} {selected.size}
                       </Button>
                       <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
                         onClick={async () => {
                           const items = photos.filter((p) => selected.has(p.id) && p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
-                          if (!items.length) { toast.error("No images selected"); return; }
+                          if (!items.length) { toast.error(t("no_images_selected")); return; }
                           setZipping({ done: 0, total: items.length });
                           try {
-                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, t) => setZipping({ done: d, total: t }));
-                            toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-                          } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }
+                            await saveManyToGallery(items, `${event.slug}-selected.zip`, (d, tt) => setZipping({ done: d, total: tt }));
+                            toast.success(isMobile() ? t("saved_to_gallery") : t("download_ready"));
+                          } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("download_failed")); }
                           finally { setZipping(null); }
                         }}>
-                        {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download {selected.size}</>}
+                        {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> {t("download_n", { n: selected.size })}</>}
                       </Button>
                     </>
                   )}
@@ -538,30 +538,30 @@ export default function EventAdmin() {
                     <Button variant="outline" size="sm" className="gap-2" disabled={!!zipping}
                       onClick={async () => {
                         const items = photos.filter((p) => p.media_type !== "video").map((p, i) => ({ url: p.url, name: `${event.slug}-${i + 1}.jpg` }));
-                        if (!items.length) { toast.error("No images to download"); return; }
+                        if (!items.length) { toast.error(t("no_images_to_download")); return; }
                         setZipping({ done: 0, total: items.length });
                         try {
-                          await saveManyToGallery(items, `${event.slug}-photos.zip`, (d, t) => setZipping({ done: d, total: t }));
-                          toast.success(isMobile() ? "Saved to your gallery" : "Download ready");
-                        } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : "Download failed"); }
+                          await saveManyToGallery(items, `${event.slug}-photos.zip`, (d, tt) => setZipping({ done: d, total: tt }));
+                          toast.success(isMobile() ? t("saved_to_gallery") : t("download_ready"));
+                        } catch (error) { if (!isAbortError(error)) toast.error(error instanceof Error ? error.message : t("download_failed")); }
                         finally { setZipping(null); }
                       }}>
-                      {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> Download all</>}
+                      {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> {t("download_all")}</>}
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => loadPhotos()} disabled={loadingPhotos}>
-                    {loadingPhotos ? "…" : "Refresh"}
+                    {loadingPhotos ? "…" : t("refresh")}
                   </Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Re-run face matching
+                    {t("rerun_face_matching")}
                   </Button>
                 </div>
               </div>
               {loadingPhotos && photos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : photos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No photos yet.</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("no_photos_yet")}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -576,19 +576,19 @@ export default function EventAdmin() {
                           ) : (
                             <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                           )}
-                          <div className="absolute top-1 left-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
+                          <div className="absolute top-1 start-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
                           {p.media_type !== "video" && (
                             <button onClick={(e) => { e.stopPropagation(); updateEvent({ cover_photo_id: isCover ? null : p.id }); }}
-                              className={`absolute top-1 right-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
-                              title={isCover ? "Current cover" : "Set as cover"}>
+                              className={`absolute top-1 end-1 rounded-full p-1.5 shadow transition-opacity ${isCover ? "bg-amber-400 text-white opacity-100" : "bg-background/90 text-foreground opacity-0 group-hover:opacity-100"}`}
+                              title={isCover ? t("current_cover") : t("set_as_cover")}>
                               <Star className={`w-4 h-4 ${isCover ? "fill-current" : ""}`} />
                             </button>
                           )}
-                          <div className="absolute bottom-1 left-1 right-1 flex items-end justify-between gap-1 pointer-events-none">
+                          <div className="absolute bottom-1 start-1 end-1 flex items-end justify-between gap-1 pointer-events-none">
                             {p.source_label && <div className="bg-background/85 text-[10px] rounded-md px-1.5 py-0.5 truncate max-w-[60%]">{p.source_label}</div>}
-                            <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ml-auto"><Users className="w-3 h-3" />{p.face_count}</div>
+                            <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ms-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                           </div>
-                          {!p.processed && <span className="absolute top-7 right-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">indexing</span>}
+                          {!p.processed && <span className="absolute top-7 end-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">{t("indexing_label")}</span>}
                         </div>
                       );
                     })}
@@ -596,7 +596,7 @@ export default function EventAdmin() {
                   {photosCursor && (
                     <div className="text-center mt-6">
                       <Button variant="outline" onClick={() => loadPhotos(photosCursor)} disabled={loadingMore}>
-                        {loadingMore ? "Loading…" : "Load more"}
+                        {loadingMore ? t("loading") : t("load_more")}
                       </Button>
                     </div>
                   )}
@@ -609,32 +609,32 @@ export default function EventAdmin() {
             <Card className="p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">Photos needing review</h2>
-                  <p className="text-xs text-muted-foreground">No person was detected, or processing failed. Re-run indexing or delete unsuitable photos.</p>
+                  <h2 className="font-medium">{t("review_title")}</h2>
+                  <p className="text-xs text-muted-foreground">{t("review_desc")}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => loadReview()} disabled={reviewLoading}>{reviewLoading ? "…" : "Refresh"}</Button>
+                  <Button variant="outline" size="sm" onClick={() => loadReview()} disabled={reviewLoading}>{reviewLoading ? "…" : t("refresh")}</Button>
                   <Button variant="secondary" size="sm" className="gap-2" onClick={reindexAllReview} disabled={!reviewPhotos.length}>
-                    <RefreshCw className="w-4 h-4" /> Re-index all shown
+                    <RefreshCw className="w-4 h-4" /> {t("reindex_all")}
                   </Button>
                 </div>
               </div>
               {reviewLoading && reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">All photos are indexed with at least one person. 🎉</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("review_all_done")}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {reviewPhotos.map((p) => (
                       <div key={p.id} className="relative group rounded-xl overflow-hidden bg-muted aspect-square">
                         {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                        {p.processing_error && <div className="absolute top-1 left-1 right-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
+                        {p.processing_error && <div className="absolute top-1 start-1 end-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
                         <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
                           <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
-                            <RefreshCw className="w-3 h-3" /> Re-index
+                            <RefreshCw className="w-3 h-3" /> {t("reindex")}
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2" title="Skip — keep but hide from review" onClick={() => skipReviewPhotos([p.id])}>
+                          <Button size="sm" variant="outline" className="h-7 px-2" title={t("skip")} onClick={() => skipReviewPhotos([p.id])}>
                             <EyeOff className="w-3 h-3" />
                           </Button>
                           <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deletePhotos([p.id], "review")}>
@@ -647,7 +647,7 @@ export default function EventAdmin() {
                   {reviewCursor && (
                     <div className="text-center mt-6">
                       <Button variant="outline" onClick={() => loadReview(reviewCursor)} disabled={reviewLoading}>
-                        {reviewLoading ? "Loading…" : "Load more"}
+                        {reviewLoading ? t("loading") : t("load_more")}
                       </Button>
                     </div>
                   )}
@@ -659,31 +659,31 @@ export default function EventAdmin() {
           <TabsContent value="people">
             <Card className="p-6">
               <div className="flex items-center justify-between gap-2 mb-4">
-                <h2 className="font-medium">{clusters.length} {clusters.length === 1 ? "person" : "people"}</h2>
+                <h2 className="font-medium">{clusters.length === 1 ? t("n_person", { n: 1 }) : t("n_people", { n: clusters.length })}</h2>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : "Refresh"}</Button>
+                  <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : t("refresh")}</Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Re-run matching
+                    {t("rerun_matching")}
                   </Button>
                 </div>
               </div>
               {clustersLoading && clusters.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
               ) : clusters.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">No people detected yet. Upload photos and run face matching.</p>
+                <p className="text-muted-foreground text-sm py-8 text-center">{t("no_people_yet")}</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {clusters.map((c) => (
                     <div key={c.id} className={`relative group rounded-xl overflow-hidden bg-muted aspect-square cursor-pointer ${c.hidden ? "opacity-50" : ""}`} onClick={() => openClusterEditor(c)}>
-                      {c.cover_url ? <img src={c.cover_url} alt={c.display_name || "Person"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
+                      {c.cover_url ? <img src={c.cover_url} alt={c.display_name || ""} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Users className="w-8 h-8 text-muted-foreground" /></div>}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex items-end justify-between">
-                        <span className="text-white text-sm font-semibold truncate">{c.display_name || "Unnamed"}</span>
+                        <span className="text-white text-sm font-semibold truncate">{c.display_name || "—"}</span>
                         <span className="text-white/80 text-xs">{c.photo_count}</span>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); toggleClusterHidden(c); }}
-                        className="absolute top-1 right-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                        title={c.hidden ? "Show on public album" : "Hide from public album"}>
+                        className="absolute top-1 end-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        title={c.hidden ? t("show_on_public") : t("hide_from_public")}>
                         {c.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                       </button>
                     </div>
@@ -696,44 +696,40 @@ export default function EventAdmin() {
           <TabsContent value="share">
             <Card className="p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> Send album via WhatsApp</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Send the album link to guests through Twilio WhatsApp. Numbers must be in international format (e.g. <code>+14155550123</code>).
-                </p>
+                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> {t("share_title")}</h2>
+                <p className="text-xs text-muted-foreground mt-1">{t("share_desc")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Your Twilio WhatsApp number</label>
-                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886 (Twilio sandbox)" />
-                <p className="text-xs text-muted-foreground">
-                  Use your approved WhatsApp sender, or the Twilio sandbox number <code>+14155238886</code> for testing (recipients must join your sandbox first).
-                </p>
+                <label className="text-sm font-medium">{t("twilio_number")}</label>
+                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886" />
+                <p className="text-xs text-muted-foreground">{t("twilio_hint")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Recipient phone numbers</label>
+                <label className="text-sm font-medium">{t("recipient_numbers")}</label>
                 <Textarea
                   rows={5}
                   value={waNumbers}
                   onChange={(e) => setWaNumbers(e.target.value)}
-                  placeholder={"+14155550123\n+447700900123\n+33612345678"}
+                  placeholder={"+972501234567\n+14155550123"}
                 />
-                <p className="text-xs text-muted-foreground">One per line, or comma-separated. Up to 500.</p>
+                <p className="text-xs text-muted-foreground">{t("one_per_line")}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Message</label>
+                <label className="text-sm font-medium">{t("message")}</label>
                 <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
-                <p className="text-xs text-muted-foreground">{waMessage.length}/1500 characters</p>
+                <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
               </div>
 
               <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
-                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : <><Send className="w-4 h-4" /> Send WhatsApp messages</>}
+                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
               </Button>
 
               {waResult && (
                 <div className="text-sm border rounded-md p-3 bg-secondary/40">
-                  ✅ Sent: <b>{waResult.sent}</b> · ❌ Failed: <b>{waResult.failed}</b> · ⚠️ Skipped (invalid): <b>{waResult.skipped}</b>
+                  {t("sent_summary", { sent: waResult.sent, failed: waResult.failed, skipped: waResult.skipped })}
                 </div>
               )}
             </Card>
@@ -763,7 +759,7 @@ export default function EventAdmin() {
                 <label className="text-sm font-medium">{t("cover_image")}</label>
                 <p className="text-xs text-muted-foreground">{t("cover_image_hint")}</p>
                 {event.cover_image_url && (
-                  <img src={event.cover_image_url} alt="Cover preview" className="w-full max-w-sm aspect-video object-cover rounded-md border" />
+                  <img src={event.cover_image_url} alt={t("cover_preview")} className="w-full max-w-sm aspect-video object-cover rounded-md border" />
                 )}
                 <div className="flex flex-wrap gap-2 items-center">
                   <label className="inline-flex">
@@ -809,14 +805,14 @@ export default function EventAdmin() {
       {/* Folder edit dialog */}
       <Dialog open={folderDialog.open} onOpenChange={(o) => setFolderDialog((d) => ({ ...d, open: o }))}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit folder "{folderDialog.from}"</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("edit_folder_title", { name: folderDialog.from })}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <label className="text-sm font-medium">Rename to</label>
+            <label className="text-sm font-medium">{t("rename_to")}</label>
             <Input value={folderDialog.to} onChange={(e) => setFolderDialog((d) => ({ ...d, to: e.target.value }))} maxLength={60} />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="destructive" onClick={() => renameOrDeleteFolder("delete")}>Unfile all</Button>
-            <Button onClick={() => renameOrDeleteFolder("rename")} disabled={!folderDialog.to.trim() || folderDialog.to === folderDialog.from}>Rename</Button>
+            <Button variant="destructive" onClick={() => renameOrDeleteFolder("delete")}>{t("unfile_all")}</Button>
+            <Button onClick={() => renameOrDeleteFolder("rename")} disabled={!folderDialog.to.trim() || folderDialog.to === folderDialog.from}>{t("rename")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -824,27 +820,27 @@ export default function EventAdmin() {
       {/* Cluster editor */}
       <Dialog open={!!editingCluster} onOpenChange={(o) => !o && setEditingCluster(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Edit person</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("edit_person")}</DialogTitle></DialogHeader>
           {editingCluster && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Input defaultValue={editingCluster.display_name || ""} placeholder="Name (e.g. Sarah)"
+                <Input defaultValue={editingCluster.display_name || ""} placeholder={t("person_name_placeholder")}
                   onBlur={(e) => { if (e.target.value !== (editingCluster.display_name || "")) renameCluster(e.target.value); }} />
-                <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> Add photos</Button>
+                <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> {t("add_photos")}</Button>
               </div>
-              <div className="text-sm text-muted-foreground">{editingClusterPhotos.length} photo(s) in this person.</div>
+              <div className="text-sm text-muted-foreground">{t("n_photos_in_person", { n: editingClusterPhotos.length })}</div>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {editingClusterPhotos.map((p) => (
                   <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
                     {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                     {p.media_type !== "video" && (
                       <button onClick={() => setClusterCover(p.id)}
-                        className="absolute top-1 left-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title="Set as cover photo">
+                        className="absolute top-1 start-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title={t("set_cover_photo")}>
                         <Star className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button onClick={() => removePhotosFromCluster([p.id])}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove from this person">
+                      className="absolute top-1 end-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" title={t("remove_from_person")}>
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -858,7 +854,7 @@ export default function EventAdmin() {
       {/* Photo picker */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Add photos to this person</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("add_photos_to_person")}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {pickerPhotos.map((p) => {
               const sel = pickerSel.has(p.id);
@@ -866,19 +862,19 @@ export default function EventAdmin() {
                 <div key={p.id} className={`relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer ring-2 ${sel ? "ring-primary" : "ring-transparent"}`}
                   onClick={() => setPickerSel((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
                   {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                  {sel && <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
+                  {sel && <div className="absolute top-1 start-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
                 </div>
               );
             })}
           </div>
           {pickerCursor && (
             <div className="text-center mt-3">
-              <Button variant="outline" size="sm" onClick={loadMorePicker}>Load more</Button>
+              <Button variant="outline" size="sm" onClick={loadMorePicker}>{t("load_more")}</Button>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPickerOpen(false)}>Cancel</Button>
-            <Button onClick={addPickedPhotos} disabled={!pickerSel.size}>Add {pickerSel.size || ""}</Button>
+            <Button variant="outline" onClick={() => setPickerOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={addPickedPhotos} disabled={!pickerSel.size}>{t("add")} {pickerSel.size || ""}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
