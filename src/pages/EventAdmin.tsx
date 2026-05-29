@@ -97,7 +97,7 @@ export default function EventAdmin() {
   const loadEvent = async () => {
     if (!id) return;
     const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
-    if (error || !data) { toast.error("Event not found"); navigate("/dashboard"); return; }
+    if (error || !data) { toast.error(t("event_not_found")); navigate("/dashboard"); return; }
     setEvent(data as Event);
   };
 
@@ -118,7 +118,7 @@ export default function EventAdmin() {
         setSelected(new Set());
       }
       setPhotosCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setLoadingPhotos(false); setLoadingMore(false); }
   };
 
@@ -133,7 +133,7 @@ export default function EventAdmin() {
       if (before) setReviewPhotos((p) => [...p, ...data.photos]);
       else { setReviewPhotos(data.photos); if (data.totals) setPhotosTotals(data.totals); }
       setReviewCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setReviewLoading(false); }
   };
 
@@ -144,7 +144,7 @@ export default function EventAdmin() {
       const r = await authedFetch("list-clusters", { method: "POST", body: JSON.stringify({ eventSlug: event.slug }) });
       const j = await r.json();
       if (r.ok) setClusters(j.clusters || []);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setClustersLoading(false); }
   };
 
@@ -157,7 +157,7 @@ export default function EventAdmin() {
 
   const upload = async () => {
     if (!files.length || !id) return;
-    if (!folderForUpload) { toast.error("Pick or name a folder for these photos"); return; }
+    if (!folderForUpload) { toast.error(t("pick_folder_first")); return; }
     localStorage.setItem(`folder:${id}`, folderChoice === NEW_FOLDER ? folderForUpload : folderChoice);
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
@@ -192,25 +192,25 @@ export default function EventAdmin() {
       done += batch.length;
       setProgress({ done, total: files.length, errors, skipped });
     }
-    if (skipped) toast.warning(`${skipped} HEIC file(s) skipped (couldn't convert).`);
-    if (errors) toast.error(`${errors} upload(s) failed.`);
+    if (skipped) toast.warning(t("heic_skipped", { n: skipped }));
+    if (errors) toast.error(t("uploads_failed", { n: errors }));
     const ok = done - errors - skipped;
-    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"} 🎉 — face matching runs in the background.`);
+    if (ok > 0) toast.success(t("upload_success", { n: ok }));
     setFiles([]); setUploading(false);
     if (folderChoice === NEW_FOLDER) { setFolderChoice(folderForUpload); setNewFolderName(""); }
   };
 
   const deletePhotos = async (ids: string[], from: "all" | "review" = "all") => {
     if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} photo${ids.length === 1 ? "" : "s"}?`)) return;
+    if (!confirm(t("confirm_delete", { n: ids.length }))) return;
     try {
       const r = await authedFetch("delete-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Deleted ${j.deleted}`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("deleted_n", { n: j.deleted }));
       if (from === "all") { setPhotos((p) => p.filter((x) => !ids.includes(x.id))); setSelected(new Set()); }
       else setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const skipReviewPhotos = async (ids: string[]) => {
@@ -218,36 +218,36 @@ export default function EventAdmin() {
     try {
       const r = await authedFetch("skip-review-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Skipped ${ids.length}`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("skipped_n", { n: ids.length }));
       setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const setClusterCover = async (photoId: string) => {
     if (!editingCluster) return;
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, coverPhotoId: photoId }) });
-      toast.success("Cover updated");
+      toast.success(t("cover_updated"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const reindexPhoto = async (photoId: string) => {
     try {
       await authedInvoke("process-photo-now", { photoId });
-      toast.success("Re-indexing started");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+      toast.success(t("reindex_started"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const reindexAllReview = async () => {
     if (!reviewPhotos.length) return;
-    toast.info(`Re-indexing ${reviewPhotos.length} photo(s)…`);
+    toast.info(t("reindexing_n", { n: reviewPhotos.length }));
     let ok = 0;
     for (const p of reviewPhotos) {
       try { await authedInvoke("process-photo-now", { photoId: p.id }); ok++; } catch { /* ignore */ }
     }
-    toast.success(`Triggered re-index on ${ok} photo(s)`);
+    toast.success(t("reindex_triggered", { n: ok }));
     setTimeout(() => loadReview(), 2000);
   };
 
@@ -255,8 +255,8 @@ export default function EventAdmin() {
     if (!id) return;
     try {
       const data = await authedInvoke<{ event: Event }>("update-event", { eventId: id, ...patch });
-      setEvent(data.event); toast.success("Saved");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+      setEvent(data.event); toast.success(t("saved"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const uploadCover = async (file: File) => {
@@ -268,44 +268,44 @@ export default function EventAdmin() {
       fd.append("file", file);
       const r = await authedFetch("upload-cover", { method: "POST", body: fd });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
+      if (!r.ok) throw new Error(j.error || t("failed"));
       setEvent(j.event);
-      toast.success("Cover image uploaded");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed"); }
+      toast.success(t("cover_uploaded"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("upload_failed")); }
     finally { setCoverUploading(false); }
   };
 
 
   const reprocess = async () => {
     if (!id) return;
-    if (!confirm("Re-run face matching on ALL photos? This clears existing people groupings and rebuilds them. Can take a few minutes for large albums.")) return;
+    if (!confirm(t("reprocess_confirm"))) return;
     setReprocessing(true);
     try {
       const r = await authedFetch("reprocess-event", { method: "POST", body: JSON.stringify({ eventId: id, mode: "all" }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Reprocessed ${j.processed} of ${j.total} photos`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("reprocessed", { processed: j.processed, total: j.total }));
       if (tab === "all") loadPhotos();
       if (tab === "people") loadClusters();
       if (tab === "review") loadReview();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setReprocessing(false); }
   };
 
   const renameOrDeleteFolder = async (action: "rename" | "delete") => {
     if (!id || !folderDialog.from) return;
     const to = action === "delete" ? null : folderDialog.to.trim();
-    if (action === "rename" && !to) return toast.error("New folder name required");
-    if (action === "delete" && !confirm(`Move all photos out of folder "${folderDialog.from}"? (Photos are kept; just unfiled.)`)) return;
+    if (action === "rename" && !to) return toast.error(t("folder_rename_required"));
+    if (action === "delete" && !confirm(t("folder_unfile_confirm", { name: folderDialog.from }))) return;
     try {
       const r = await authedFetch("rename-source", { method: "POST", body: JSON.stringify({ eventId: id, from: folderDialog.from, to }) });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Failed");
-      toast.success(`Updated ${j.updated} photo(s)`);
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("folder_updated", { n: j.updated }));
       setFolderDialog({ open: false, from: "", to: "" });
       if (filterSource === folderDialog.from) setFilterSource("all");
       loadPhotos();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const openClusterEditor = async (c: Cluster) => {
@@ -316,7 +316,7 @@ export default function EventAdmin() {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } });
       const j = await r.json();
       if (r.ok) setEditingClusterPhotos(j.photos || []);
-    } catch { toast.error("Failed to load"); }
+    } catch { toast.error(t("failed")); }
   };
 
   const removePhotosFromCluster = async (photoIds: string[]) => {
@@ -324,9 +324,9 @@ export default function EventAdmin() {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, removePhotoIds: photoIds }) });
       setEditingClusterPhotos((p) => p.filter((x) => !photoIds.includes(x.id)));
-      toast.success("Removed");
+      toast.success(t("removed"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const renameCluster = async (name: string) => {
@@ -334,16 +334,16 @@ export default function EventAdmin() {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, displayName: name || null }) });
       setEditingCluster({ ...editingCluster, display_name: name });
-      toast.success("Renamed");
+      toast.success(t("renamed"));
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const toggleClusterHidden = async (c: Cluster) => {
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: c.id, hidden: !c.hidden }) });
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const openPicker = async () => {
@@ -354,7 +354,7 @@ export default function EventAdmin() {
       const data = await authedInvoke<{ photos: Photo[]; nextCursor: string | null }>("admin-list-photos", { eventId: id, limit: 60 });
       setPickerPhotos(data.photos);
       setPickerCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const loadMorePicker = async () => {
@@ -370,29 +370,29 @@ export default function EventAdmin() {
     if (!editingCluster || !pickerSel.size) return;
     try {
       await authedFetch("update-cluster", { method: "POST", body: JSON.stringify({ clusterId: editingCluster.id, addPhotoIds: [...pickerSel] }) });
-      toast.success(`Added ${pickerSel.size} photo(s)`);
+      toast.success(t("added_n", { n: pickerSel.size }));
       setPickerOpen(false);
       openClusterEditor(editingCluster);
       loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
-  const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Link copied"); };
+  const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
 
   useEffect(() => {
     if (event && !waMessage) {
-      setWaMessage(`Hi! 📸 Photos from ${event.name} are ready. View the album: ${window.location.origin}/e/${event.slug}`);
+      setWaMessage(t("msg_default", { event: event.name, url: `${window.location.origin}/e/${event.slug}` }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event]);
+  }, [event, lang]);
 
   const sendWhatsApp = async () => {
     if (!event) return;
     const list = waNumbers.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-    if (list.length === 0) { toast.error("Add at least one phone number"); return; }
-    if (!waFrom.trim()) { toast.error("Enter your Twilio WhatsApp number"); return; }
-    if (!waMessage.trim()) { toast.error("Message can't be empty"); return; }
+    if (list.length === 0) { toast.error(t("add_number")); return; }
+    if (!waFrom.trim()) { toast.error(t("enter_twilio_number")); return; }
+    if (!waMessage.trim()) { toast.error(t("msg_empty")); return; }
     localStorage.setItem("wa:from", waFrom.trim());
     setWaSending(true);
     setWaResult(null);
@@ -402,9 +402,9 @@ export default function EventAdmin() {
         { eventId: event.id, from: waFrom.trim(), message: waMessage, numbers: list },
       );
       setWaResult(res);
-      toast.success(`Sent ${res.sent} · ${res.failed} failed · ${res.skipped} skipped`);
+      toast.success(t("sent_summary", { sent: res.sent, failed: res.failed, skipped: res.skipped }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Send failed");
+      toast.error(e instanceof Error ? e.message : t("send_failed"));
     } finally {
       setWaSending(false);
     }
