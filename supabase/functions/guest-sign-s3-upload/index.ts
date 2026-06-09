@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
     const sourceLabel = uploader ? `Guest: ${uploader}` : "Guest uploads";
 
-    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string };
+    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string; takenAt: string | null };
     const plans: (Plan | { idx: number; skipped: true })[] = files.map((f, idx) => {
       const lower = (f.name || "").toLowerCase();
       if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
       }
       const mediaType = contentType.startsWith("video/") ? "video" : "image";
       const key = `event-photos/${event.id}/${id}.${ext}`;
-      return { idx, id, key, contentType, mediaType };
+      const takenAt = typeof f.takenAt === "string" && !isNaN(Date.parse(f.takenAt)) ? new Date(f.takenAt).toISOString() : null;
+      return { idx, id, key, contentType, mediaType, takenAt };
     });
 
     const realPlans = plans.filter((p): p is Plan => !("skipped" in p && p.skipped));
