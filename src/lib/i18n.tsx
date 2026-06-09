@@ -412,6 +412,10 @@ const dict: Record<Lang, Record<string, string>> = {
     extra_link_url: "כתובת",
     add_link: "הוסף קישור",
     more_from_event: "עוד מהאירוע",
+    redetect_capture_dates: "זהה מחדש תאריכי צילום",
+    redetect_hint: "קורא את ה-EXIF של כל תמונה וקובע את סדר הזמן הכרונולוגי. הפעל לאחר העלאות גדולות או לאירועים ישנים.",
+    redetect_running: "סורק… {done} מתוך {total}",
+    redetect_done: "סיום. עודכנו {updated} תמונות.",
 
     event_name: "שם האירוע",
     event_date: "תאריך האירוע",
