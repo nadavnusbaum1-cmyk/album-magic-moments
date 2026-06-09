@@ -165,21 +165,8 @@ const Album = () => {
             )}
           </>
         )}
-        {(data.event?.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).length > 0 && (
-          <div className="mt-10 max-w-md mx-auto">
-            <h3 className="font-serif text-xl text-center mb-3">{t("more_from_event")}</h3>
-            <div className="flex flex-col gap-2">
-              {(data.event?.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).map((l, i) => {
-                const label = (lang === "he" ? l.label_he : l.label_en) || l.label_en || l.label_he;
-                return (
-                  <a key={i} href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border hover:border-primary">
-                    <ExternalLink className="w-4 h-4" /> {label}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
+
+
       </main>
       <Lightbox items={data.photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={data.guest.name} />
     </div>
