@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.auto-merge-clusters]
 verify_jwt = false
+
+[functions.backfill-taken-at]
+verify_jwt = false
