@@ -69,13 +69,14 @@ export default function EventPublic() {
         if (idx >= files.length) return;
         const raw = files[idx];
         try {
+          const takenAt = isVideo(raw) ? null : await extractTakenAt(raw);
           const prepared = isVideo(raw) ? raw : await prepareImageForUpload(raw);
           const r = await authedFetch("guest-sign-s3-upload", {
             method: "POST",
             body: JSON.stringify({
               eventSlug: event.slug,
               uploadedBy: guestName.trim() || null,
-              files: [{ name: prepared.name, contentType: prepared.type || "image/jpeg" }],
+              files: [{ name: prepared.name, contentType: prepared.type || "image/jpeg", takenAt }],
             }),
           });
           const j = await r.json();
