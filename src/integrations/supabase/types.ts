@@ -104,6 +104,7 @@ export type Database = {
           cover_image_url: string | null
           cover_photo_id: string | null
           created_at: string
+          default_language: string | null
           event_date: string | null
           id: string
           is_published: boolean
@@ -119,6 +120,7 @@ export type Database = {
           cover_image_url?: string | null
           cover_photo_id?: string | null
           created_at?: string
+          default_language?: string | null
           event_date?: string | null
           id?: string
           is_published?: boolean
@@ -134,6 +136,7 @@ export type Database = {
           cover_image_url?: string | null
           cover_photo_id?: string | null
           created_at?: string
+          default_language?: string | null
           event_date?: string | null
           id?: string
           is_published?: boolean
