@@ -13,6 +13,7 @@ import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { prepareImageForUpload } from "@/lib/imageUtils";
+import { extractTakenAt } from "@/lib/exif";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
