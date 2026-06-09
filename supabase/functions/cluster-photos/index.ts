@@ -1,8 +1,12 @@
 // Public: list photos for a cluster (person folder). Returns event slug for back-nav.
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
-import { mapWithConcurrency, resolvePhotoUrl } from "../_shared/storage.ts";
 
 const PAGE_SIZE = 1000;
+
+function proxiedPhotoUrl(req: Request, photoId: string) {
+  const origin = new URL(req.url).origin;
+  return `${origin}/photo-proxy?id=${encodeURIComponent(photoId)}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -25,7 +29,7 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += PAGE_SIZE) {
       const { data: matches, error } = await supabase
         .from("cluster_photo_matches")
-        .select("photo_id, photos(storage_path, storage_provider, s3_key, content_type, media_type, created_at)")
+        .select("photo_id, photos(content_type, media_type, created_at)")
         .eq("cluster_id", clusterId)
         .order("created_at", { foreignTable: "photos", ascending: false })
         .range(from, from + PAGE_SIZE - 1);
@@ -39,15 +43,11 @@ Deno.serve(async (req) => {
       return p ? [{ id: m.photo_id, photo: p }] : [];
     });
 
-    const resolved = await mapWithConcurrency(photoRows, 8, async ({ id, photo }) => {
-      try {
-        return { id, url: await resolvePhotoUrl(photo), media_type: photo.media_type || "image" };
-      } catch (e) {
-        console.error("cluster-photos: failed to resolve photo", id, e);
-        return null;
-      }
-    });
-    const photos = resolved.filter(Boolean);
+    const photos = photoRows.map(({ id, photo }) => ({
+      id,
+      url: proxiedPhotoUrl(req, id),
+      media_type: photo.media_type || "image",
+    }));
 
     return json({ photos, count: photoRows.length, display_name: cluster.display_name || null, event_slug: eventSlug });
   } catch (e) {
