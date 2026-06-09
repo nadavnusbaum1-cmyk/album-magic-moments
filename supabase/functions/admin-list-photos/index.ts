@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
         processed: p.processed,
         processing_error: p.processing_error,
         created_at: p.created_at,
+        sort_at: (p as any).sort_at,
         uploaded_by: p.uploaded_by,
         media_type: p.media_type || "image",
         source_label: p.source_label,
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
     // First page only: include sources + lightweight totals (estimated, fast).
     let sources: { label: string; count: number }[] = [];
     let totals = { total: 0, processed: 0, pending: 0, review: 0 };
-    if (!before) {
+    if (!cursor) {
       const { data: srcRows } = await supabase.rpc("get_event_sources", { _event_id: eventId });
       sources = (srcRows || []).map((r: any) => ({ label: r.source_label as string, count: Number(r.count) }));
       // Counts (head:true is fast — uses index)
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
       totals = { total: total || 0, processed: processed || 0, pending: (total || 0) - (processed || 0), review: review || 0 };
     }
 
-    const nextCursor = items.length === pageSize ? items[items.length - 1].created_at : null;
+    const nextCursor = items.length === pageSize ? (items[items.length - 1] as any).sort_at : null;
     return json({ photos: items, sources, nextCursor, totals });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
