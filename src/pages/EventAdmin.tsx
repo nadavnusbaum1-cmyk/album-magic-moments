@@ -77,6 +77,8 @@ export default function EventAdmin() {
   const [waFrom, setWaFrom] = useState("");
   const [waNumbers, setWaNumbers] = useState("");
   const [waMessage, setWaMessage] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const prevShareUrlRef = useRef("");
   const [waSending, setWaSending] = useState(false);
   const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
 
