@@ -320,6 +320,7 @@ export type Database = {
           processing_error: string | null
           review_skipped: boolean
           s3_key: string | null
+          sort_at: string | null
           source: string
           source_label: string | null
           storage_path: string
@@ -338,6 +339,7 @@ export type Database = {
           processing_error?: string | null
           review_skipped?: boolean
           s3_key?: string | null
+          sort_at?: string | null
           source?: string
           source_label?: string | null
           storage_path: string
@@ -356,6 +358,7 @@ export type Database = {
           processing_error?: string | null
           review_skipped?: boolean
           s3_key?: string | null
+          sort_at?: string | null
           source?: string
           source_label?: string | null
           storage_path?: string
