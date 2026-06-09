@@ -484,11 +484,30 @@ export default function EventAdmin() {
 
           <TabsContent value="all">
             <Card className="p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">{t("stat_total")}</div>
+                  <div className="text-2xl font-semibold">{photosTotals.total || photos.length}</div>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">{t("stat_processed")}</div>
+                  <div className="text-2xl font-semibold text-emerald-600">{photosTotals.processed}</div>
+                  {photosTotals.total > 0 && (
+                    <div className="text-[11px] text-muted-foreground">{Math.round((photosTotals.processed / photosTotals.total) * 100)}%</div>
+                  )}
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">{t("stat_pending")}</div>
+                  <div className="text-2xl font-semibold text-amber-600">{photosTotals.pending}</div>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="text-xs text-muted-foreground">{t("stat_review")}</div>
+                  <div className="text-2xl font-semibold text-amber-600">{photosTotals.review}</div>
+                </div>
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
                   <h2 className="font-medium">{t("n_photos", { n: photosTotals.total || photos.length })}</h2>
-                  {photosTotals.pending > 0 && <p className="text-xs text-amber-600">{t("still_indexing", { n: photosTotals.pending })}</p>}
-                  {photosTotals.review > 0 && <p className="text-xs text-amber-600">{t("need_review", { n: photosTotals.review })}</p>}
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {sources.length > 0 && (
