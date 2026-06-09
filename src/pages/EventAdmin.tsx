@@ -84,6 +84,10 @@ export default function EventAdmin() {
   const [waSending, setWaSending] = useState(false);
   const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
 
+  // EXIF capture-date backfill
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStats, setBackfillStats] = useState({ scanned: 0, total: 0, updated: 0 });
+
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
 
   useEffect(() => {
