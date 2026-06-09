@@ -5,8 +5,8 @@ import { resolvePhotoUrl } from "../_shared/storage.ts";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { eventSlug, sourceLabel, before, limit } = await req.json() as {
-      eventSlug?: string; sourceLabel?: string; before?: string; limit?: number;
+    const { eventSlug, sourceLabel, before, after, limit } = await req.json() as {
+      eventSlug?: string; sourceLabel?: string; before?: string; after?: string; limit?: number;
     };
     if (!eventSlug) return json({ error: "eventSlug required" }, 400);
     const event = await eventBySlug(eventSlug);
@@ -16,12 +16,15 @@ Deno.serve(async (req) => {
     const supabase = svc();
     let q = supabase
       .from("photos")
-      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, uploaded_by, media_type, content_type, source_label")
+      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label")
       .eq("event_id", event.id)
-      .order("created_at", { ascending: false })
+      .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
-    if (before) q = q.lt("created_at", before);
+    // ASC pagination: continue after the last sort_at we showed.
+    // Accept legacy `before` param too (treat it as `after` for old clients).
+    const cursor = after || before;
+    if (cursor) q = q.gt("sort_at", cursor);
     const { data: photos, error } = await q;
     if (error) throw error;
 
@@ -31,6 +34,7 @@ Deno.serve(async (req) => {
       face_count: p.face_count,
       processed: p.processed,
       created_at: p.created_at,
+      sort_at: p.sort_at,
       uploaded_by: p.uploaded_by,
       media_type: p.media_type || "image",
       source_label: p.source_label,
@@ -38,13 +42,13 @@ Deno.serve(async (req) => {
 
     // Distinct source labels (only on first page request, to keep payload small)
     let sources: string[] = [];
-    if (!before) {
+    if (!cursor) {
       const { data: srcRows } = await supabase
         .from("photos").select("source_label").eq("event_id", event.id).not("source_label", "is", null).limit(1000);
       sources = Array.from(new Set((srcRows || []).map((p: any) => p.source_label).filter(Boolean))) as string[];
     }
 
-    const nextCursor = items.length === pageSize ? items[items.length - 1].created_at : null;
+    const nextCursor = items.length === pageSize ? items[items.length - 1].sort_at : null;
     return json({ photos: items, sources, nextCursor });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
