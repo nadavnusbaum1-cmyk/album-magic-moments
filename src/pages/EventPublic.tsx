@@ -259,6 +259,23 @@ export default function EventPublic() {
           </Card>
         )}
 
+        {(event.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).length > 0 && (
+          <Card className="max-w-md mx-auto mt-6 p-6 space-y-3">
+            <h3 className="font-serif text-xl">{t("more_from_event")}</h3>
+            <div className="flex flex-col gap-2">
+              {(event.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).map((l, i) => {
+                const label = (lang === "he" ? l.label_he : l.label_en) || l.label_en || l.label_he;
+                return (
+                  <a key={i} href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border hover:border-primary">
+                    <ExternalLink className="w-4 h-4" /> {label}
+                  </a>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+
         {event.show_people && clusters.length > 0 && (
           <section className="max-w-5xl mx-auto mt-12">
             <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1">{t("people_and_pets")}</h2>
