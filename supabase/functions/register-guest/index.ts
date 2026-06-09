@@ -54,30 +54,48 @@ Deno.serve(async (req) => {
       MaxFaces: 500,
     }).catch(() => ({ FaceMatches: [] }));
 
-    const matchedPhotoIds = new Set<string>();
-    let bestClusterId: string | null = null;
-    let bestSim = 0;
-
+    // Collect candidate photo IDs and cluster face IDs in one pass
+    const candidatePhotoIds = new Map<string, number>(); // photoId -> best similarity
+    const clusterFaceCandidates: { faceId: string; sim: number }[] = [];
     for (const m of search.FaceMatches || []) {
       const ext = m.Face?.ExternalImageId as string | undefined;
-      if (!ext) continue;
-      if (ext.startsWith("photo-")) {
+      const sim = m.Similarity || 0;
+      if (ext && ext.startsWith("photo-")) {
         const pid = ext.slice("photo-".length);
-        if (!matchedPhotoIds.has(pid)) {
-          // Verify photo belongs to this event
-          const { data: pr } = await supabase.from("photos").select("event_id").eq("id", pid).maybeSingle();
-          if (pr?.event_id === event.id) {
-            matchedPhotoIds.add(pid);
-            await supabase.from("photo_matches").insert({ guest_id: guest.id, photo_id: pid, similarity: m.Similarity, event_id: event.id });
-          }
-        }
+        const prev = candidatePhotoIds.get(pid) ?? 0;
+        if (sim > prev) candidatePhotoIds.set(pid, sim);
       }
-      const { data: cluster } = await supabase
-        .from("face_clusters").select("id, event_id")
-        .eq("representative_face_id", m.Face!.FaceId!).maybeSingle();
-      if (cluster && cluster.event_id === event.id && (m.Similarity || 0) > bestSim) {
-        bestSim = m.Similarity || 0;
-        bestClusterId = cluster.id;
+      if (m.Face?.FaceId) clusterFaceCandidates.push({ faceId: m.Face.FaceId, sim });
+    }
+
+    // Bulk-verify photos belong to this event in one query
+    const matchedPhotoIds = new Set<string>();
+    const matchInserts: { guest_id: string; photo_id: string; similarity: number; event_id: string }[] = [];
+    if (candidatePhotoIds.size > 0) {
+      const ids = Array.from(candidatePhotoIds.keys());
+      const { data: rows } = await supabase
+        .from("photos").select("id").eq("event_id", event.id).in("id", ids);
+      for (const r of rows || []) {
+        matchedPhotoIds.add(r.id);
+        matchInserts.push({ guest_id: guest.id, photo_id: r.id, similarity: candidatePhotoIds.get(r.id)!, event_id: event.id });
+      }
+      if (matchInserts.length) {
+        await supabase.from("photo_matches").insert(matchInserts);
+      }
+    }
+
+    // Bulk-find best cluster matching any of the candidate face IDs
+    let bestClusterId: string | null = null;
+    let bestSim = 0;
+    if (clusterFaceCandidates.length > 0) {
+      const faceIds = Array.from(new Set(clusterFaceCandidates.map((c) => c.faceId)));
+      const { data: clusters } = await supabase
+        .from("face_clusters").select("id, representative_face_id")
+        .eq("event_id", event.id).in("representative_face_id", faceIds);
+      const byFace = new Map((clusters || []).map((c) => [c.representative_face_id, c.id]));
+      for (const c of clusterFaceCandidates) {
+        const cid = byFace.get(c.faceId);
+        if (cid && c.sim > bestSim) { bestSim = c.sim; bestClusterId = cid; }
       }
     }
 

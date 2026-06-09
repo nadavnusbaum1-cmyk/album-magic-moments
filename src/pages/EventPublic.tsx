@@ -16,12 +16,12 @@ import { authedFetch, authedInvoke } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; media_type?: string };
 
 export default function EventPublic() {
-  const { t } = useI18n();
+  const { t, setDefaultLang } = useI18n();
   const { slug } = useParams();
   const isMobile = useIsMobile();
   const [event, setEvent] = useState<Event | null>(null);
@@ -106,6 +106,7 @@ export default function EventPublic() {
         const j = await r.json();
         if (!r.ok) { setNotFound(true); return; }
         setEvent(j.event);
+        if (j.event?.default_language) setDefaultLang(j.event.default_language as "he" | "en");
       } catch { setNotFound(true); }
     })();
   }, [slug]);
@@ -216,6 +217,13 @@ export default function EventPublic() {
             </div>
           </div>
           <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? t("doing_magic") : t("find_my_photos")}</Button>
+          {loading && (
+            <div className="space-y-2">
+              <IndeterminateBar />
+              <p className="text-xs text-center text-muted-foreground">{t("searching_photos")}</p>
+              <p className="text-[11px] text-center text-muted-foreground/70">{t("this_can_take")}</p>
+            </div>
+          )}
         </Card>
 
         {event.allow_guest_uploads && (
@@ -231,15 +239,11 @@ export default function EventPublic() {
               disabled={guestUploading}
               maxLength={60}
             />
-            <div className="flex gap-2">
-              <label htmlFor="guest-camera" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                <Camera className="w-4 h-4" /> {t("take_photo")}
-              </label>
-              <label htmlFor="guest-gallery" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <div>
+              <label htmlFor="guest-gallery" className={`w-full flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
                 <Upload className="w-4 h-4" /> {t("choose_files")}
               </label>
             </div>
-            <input id="guest-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             {guestUploading && (
               <div className="space-y-2">
@@ -308,6 +312,15 @@ export default function EventPublic() {
 
       </main>
       <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
+    </div>
+  );
+}
+
+function IndeterminateBar() {
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div className="absolute inset-y-0 w-1/3 rounded-full bg-primary animate-[indeterminate_1.4s_ease-in-out_infinite]" />
+      <style>{`@keyframes indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
     </div>
   );
 }

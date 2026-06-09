@@ -178,6 +178,16 @@ const dict: Record<Lang, Record<string, string>> = {
     allow_guest_desc: "Guests can add photos from the public album page",
     published_title: "Published",
     published_desc: "Public URL is live",
+    default_language: "Default language for guests",
+    default_language_hint: "Initial language shown to guests on the public album. They can still switch with the flag toggle.",
+    use_app_default: "Use app default",
+    stats_title: "Album stats",
+    stat_total: "Total photos",
+    stat_processed: "Successfully recognized",
+    stat_pending: "Still indexing",
+    stat_review: "Need review",
+    searching_photos: "Searching your photos…",
+    this_can_take: "This can take a moment for large albums",
 
     // Folder dialog
     edit_folder_title: 'Edit folder "{name}"',
@@ -390,6 +400,16 @@ const dict: Record<Lang, Record<string, string>> = {
     allow_guest_desc: "אורחים יכולים להוסיף תמונות מדף האלבום הציבורי",
     published_title: "פורסם",
     published_desc: "הקישור הציבורי פעיל",
+    default_language: "שפת ברירת מחדל לאורחים",
+    default_language_hint: "השפה שתוצג לאורחים בכניסה לאלבום הציבורי. ניתן לשנות עם בורר הדגלים.",
+    use_app_default: "ברירת מחדל של האפליקציה",
+    stats_title: "סטטיסטיקות אלבום",
+    stat_total: "סה״כ תמונות",
+    stat_processed: "זוהו בהצלחה",
+    stat_pending: "עדיין מעובדות",
+    stat_review: "דורשות בדיקה",
+    searching_photos: "מחפש את התמונות שלך…",
+    this_can_take: "באלבומים גדולים זה יכול לקחת רגע",
 
     edit_folder_title: 'עריכת תיקייה "{name}"',
     rename_to: "שנה שם ל-",
@@ -454,11 +474,13 @@ const dict: Record<Lang, Record<string, string>> = {
 type Ctx = {
   lang: Lang;
   setLang: (l: Lang) => void;
+  setDefaultLang: (l: Lang | null | undefined) => void;
   t: (k: string, vars?: Record<string, string | number>) => string;
   dir: "ltr" | "rtl";
 };
 const LangCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "app:lang";
+const EXPLICIT_KEY = "app:lang:explicit";
 
 function applyToDocument(l: Lang) {
   document.documentElement.lang = l;
@@ -480,6 +502,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = (l: Lang) => {
     localStorage.setItem(STORAGE_KEY, l);
+    localStorage.setItem(EXPLICIT_KEY, "1");
+    setLangState(l);
+  };
+
+  // Apply event default only if the user hasn't explicitly chosen a language
+  const setDefaultLang = (l: Lang | null | undefined) => {
+    if (!l || (l !== "he" && l !== "en")) return;
+    if (localStorage.getItem(EXPLICIT_KEY) === "1") return;
     setLangState(l);
   };
 
@@ -488,7 +518,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const dir: "ltr" | "rtl" = lang === "he" ? "rtl" : "ltr";
 
-  return <LangCtx.Provider value={{ lang, setLang, t, dir }}>{children}</LangCtx.Provider>;
+  return <LangCtx.Provider value={{ lang, setLang, setDefaultLang, t, dir }}>{children}</LangCtx.Provider>;
 }
 
 export function useI18n() {
