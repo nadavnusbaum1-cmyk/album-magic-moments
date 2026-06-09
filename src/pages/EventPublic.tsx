@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/imageUtils";
+import { extractTakenAt } from "@/lib/exif";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, authedInvoke } from "@/lib/auth";
