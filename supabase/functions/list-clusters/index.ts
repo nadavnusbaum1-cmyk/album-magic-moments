@@ -1,6 +1,10 @@
 // Public: list visible clusters for an event slug. Or host: include hidden if logged-in host.
 import { corsHeaders, eventBySlug, getUser, json, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+
+function proxiedPhotoUrl(req: Request, photoId: string) {
+  const origin = new URL(req.url).origin;
+  return `${origin}/photo-proxy?id=${encodeURIComponent(photoId)}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -21,7 +25,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     let q = supabase
       .from("face_clusters")
-      .select("id, representative_storage_path, representative_s3_key, photo_count, display_name, hidden")
+      .select("id, representative_photo_id, photo_count, display_name, hidden")
       .eq("event_id", event.id)
       .gt("photo_count", 0)
       .order("photo_count", { ascending: false })
@@ -32,23 +36,14 @@ Deno.serve(async (req) => {
 
     const items = await Promise.all((clusters || []).map(async (c) => {
       let cover_url: string | null = null;
-      try {
-        if (c.representative_s3_key || c.representative_storage_path) {
-          cover_url = await resolvePhotoUrl({
-            storage_provider: c.representative_s3_key ? "s3" : "supabase",
-            s3_key: c.representative_s3_key,
-            storage_path: c.representative_storage_path || "",
-          });
-        }
-      } catch { /* ignore */ }
+      if (c.representative_photo_id) cover_url = proxiedPhotoUrl(req, c.representative_photo_id);
       if (!cover_url) {
         const { data: cmRows } = await supabase
           .from("cluster_photo_matches")
-          .select("photos(storage_path, storage_provider, s3_key)")
+          .select("photo_id")
           .eq("cluster_id", c.id).limit(5);
-        const cand = (cmRows || []).find((r: any) => r.photos);
-        const p = cand ? (Array.isArray(cand.photos) ? cand.photos[0] : cand.photos) : null;
-        if (p) try { cover_url = await resolvePhotoUrl(p); } catch { /* ignore */ }
+        const cand = (cmRows || []).find((r: any) => r.photo_id);
+        if (cand?.photo_id) cover_url = proxiedPhotoUrl(req, cand.photo_id);
       }
       return { id: c.id, photo_count: c.photo_count, display_name: c.display_name, hidden: c.hidden, cover_url };
     }));
