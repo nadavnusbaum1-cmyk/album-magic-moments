@@ -170,21 +170,24 @@ export default function EventAdmin() {
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
-        try { return { ok: true as const, file: await prepareImageForUpload(f), original: f }; }
+        try {
+          const takenAt = await extractTakenAt(f);
+          return { ok: true as const, file: await prepareImageForUpload(f), original: f, takenAt };
+        }
         catch { return { ok: false as const, original: f }; }
       }));
-      const goodFiles = conv.filter((c) => c.ok).map((c) => c.file!);
+      const goodFiles = conv.filter((c) => c.ok) as Array<{ ok: true; file: File; original: File; takenAt: string | null }>;
       skipped += conv.length - goodFiles.length;
       if (goodFiles.length) {
         try {
           const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string }[] }>("sign-s3-upload", {
             eventId: id,
-            files: goodFiles.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })),
+            files: goodFiles.map((g) => ({ name: g.file.name, contentType: g.file.type || "image/jpeg", takenAt: g.takenAt })),
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: folderForUpload,
           });
           await Promise.all(data.uploads.map(async (u, idx) => {
-            const file = goodFiles[idx];
+            const file = goodFiles[idx].file;
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
