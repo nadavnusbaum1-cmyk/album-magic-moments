@@ -165,6 +165,14 @@ const dict: Record<Lang, Record<string, string>> = {
     share_link_label: "Link to share",
     share_link_hint: "Defaults to the album link. You can replace it with any external link (e.g. a Google Drive folder or external gallery).",
     reset_to_album_link: "Album link",
+    extra_links_title: "Additional links",
+    extra_links_hint: "Add extra links guests will see on the album page (e.g. a Google Drive folder with videos).",
+    extra_link_label_en: "Label (English)",
+    extra_link_label_he: "Label (Hebrew)",
+    extra_link_url: "URL",
+    add_link: "Add link",
+    remove: "Remove",
+    more_from_event: "More from this event",
 
     // Settings tab
     event_name: "Event name",
