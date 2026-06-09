@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
 
     const { eventId, files, uploadedBy, sourceLabel } = await req.json() as {
       eventId: string;
-      files: { name: string; contentType: string }[];
+      files: { name: string; contentType: string; takenAt?: string | null }[];
       uploadedBy?: string;
       sourceLabel?: string;
     };
