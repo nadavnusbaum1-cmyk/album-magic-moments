@@ -292,6 +292,31 @@ export default function EventAdmin() {
     finally { setReprocessing(false); }
   };
 
+  const [autoMerging, setAutoMerging] = useState(false);
+  const autoMergeClusters = async () => {
+    if (!id) return;
+    if (!confirm(t("merge_similar_confirm"))) return;
+    setAutoMerging(true);
+    let cursor: string | null = null;
+    let totalMerged = 0;
+    let totalProcessed = 0;
+    try {
+      // Run iteratively until done — function is paginated for time-safety.
+      while (true) {
+        const r = await authedFetch("auto-merge-clusters", { method: "POST", body: JSON.stringify({ eventId: id, cursor }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || t("failed"));
+        totalMerged += j.mergedGroups || 0;
+        totalProcessed += j.processed || 0;
+        cursor = j.nextCursor;
+        if (j.done) break;
+      }
+      toast.success(t("merge_similar_done", { merged: totalMerged, processed: totalProcessed }));
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setAutoMerging(false); }
+  };
+
   const renameOrDeleteFolder = async (action: "rename" | "delete") => {
     if (!id || !folderDialog.from) return;
     const to = action === "delete" ? null : folderDialog.to.trim();
