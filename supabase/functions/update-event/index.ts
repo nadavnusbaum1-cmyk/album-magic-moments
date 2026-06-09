@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
     if (!eventId) return json({ error: "eventId required" }, 400);
     const auth = await requireHost(req, eventId);
     if (auth.error) return json({ error: auth.error }, auth.status);
-    const allowed = ["name", "event_date", "cover_image_url", "cover_photo_id", "show_people", "show_all_photos", "is_published", "allow_guest_uploads"];
+    const allowed = ["name", "event_date", "cover_image_url", "cover_photo_id", "show_people", "show_all_photos", "is_published", "allow_guest_uploads", "default_language"];
     const update: Record<string, unknown> = {};
     for (const k of allowed) if (k in patch) update[k] = patch[k];
     if (!Object.keys(update).length) return json({ error: "Nothing to update" }, 400);
