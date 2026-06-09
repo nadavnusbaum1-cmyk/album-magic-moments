@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
         uploaded_by: uploader,
         media_type: p.mediaType,
         content_type: p.contentType,
+        taken_at: p.takenAt,
       }));
       const { error: insErr } = await supabase.from("photos").insert(rows);
       if (insErr) throw insErr;
