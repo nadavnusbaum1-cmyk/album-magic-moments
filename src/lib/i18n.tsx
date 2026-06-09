@@ -165,6 +165,13 @@ const dict: Record<Lang, Record<string, string>> = {
     share_link_label: "Link to share",
     share_link_hint: "Defaults to the album link. You can replace it with any external link (e.g. a Google Drive folder or external gallery).",
     reset_to_album_link: "Album link",
+    extra_links_title: "Additional links",
+    extra_links_hint: "Add extra links guests will see on the album page (e.g. a Google Drive folder with videos).",
+    extra_link_label_en: "Label (English)",
+    extra_link_label_he: "Label (Hebrew)",
+    extra_link_url: "URL",
+    add_link: "Add link",
+    more_from_event: "More from this event",
 
     // Settings tab
     event_name: "Event name",
@@ -394,6 +401,13 @@ const dict: Record<Lang, Record<string, string>> = {
     share_link_label: "קישור לשליחה",
     share_link_hint: "ברירת המחדל היא קישור האלבום. ניתן להחליף לכל קישור חיצוני (למשל תיקיית Google Drive או גלריה חיצונית).",
     reset_to_album_link: "קישור האלבום",
+    extra_links_title: "קישורים נוספים",
+    extra_links_hint: "הוסף קישורים שיוצגו לאורחים בעמוד האלבום (למשל תיקיית Google Drive עם סרטונים).",
+    extra_link_label_en: "תווית (אנגלית)",
+    extra_link_label_he: "תווית (עברית)",
+    extra_link_url: "כתובת",
+    add_link: "הוסף קישור",
+    more_from_event: "עוד מהאירוע",
 
     event_name: "שם האירוע",
     event_date: "תאריך האירוע",

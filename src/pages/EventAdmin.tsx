@@ -16,7 +16,8 @@ import { prepareImageForUpload } from "@/lib/imageUtils";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; default_language: string | null; };
+type ExtraLink = { label_en: string; label_he: string; url: string };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; default_language: string | null; extra_links?: ExtraLink[] | null; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; media_type?: string };
@@ -100,7 +101,7 @@ export default function EventAdmin() {
     if (!id) return;
     const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
     if (error || !data) { toast.error(t("event_not_found")); navigate("/dashboard"); return; }
-    setEvent(data as Event);
+    setEvent(data as unknown as Event);
   };
 
   const loadPhotos = async (before?: string) => {
@@ -792,6 +793,61 @@ export default function EventAdmin() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">{t("share_link_hint")}</p>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-medium">{t("extra_links_title")}</label>
+                <p className="text-xs text-muted-foreground">{t("extra_links_hint")}</p>
+                <div className="space-y-3">
+                  {(event.extra_links || []).map((lnk, idx) => (
+                    <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_1fr_2fr_auto] items-center border rounded-md p-2">
+                      <Input
+                        placeholder={t("extra_link_label_en")}
+                        value={lnk.label_en}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], label_en: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Input
+                        placeholder={t("extra_link_label_he")}
+                        value={lnk.label_he}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], label_he: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Input
+                        placeholder="https://..."
+                        dir="ltr"
+                        value={lnk.url}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], url: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => {
+                        const next = (event.extra_links || []).filter((_, i) => i !== idx);
+                        setEvent({ ...event, extra_links: next });
+                        updateEvent({ extra_links: next });
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => {
+                  const next = [...(event.extra_links || []), { label_en: "", label_he: "", url: "" }];
+                  setEvent({ ...event, extra_links: next });
+                }}>
+                  <Plus className="w-4 h-4" /> {t("add_link")}
+                </Button>
               </div>
 
               <div className="space-y-2">
