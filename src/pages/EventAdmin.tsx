@@ -408,11 +408,22 @@ export default function EventAdmin() {
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
 
   useEffect(() => {
-    if (event && !waMessage) {
-      setWaMessage(t("msg_default", { event: event.name, url: `${window.location.origin}/e/${event.slug}` }));
+    if (!event) return;
+    const defaultLink = `${window.location.origin}/e/${event.slug}`;
+    if (!shareUrl) {
+      setShareUrl(defaultLink);
+      prevShareUrlRef.current = defaultLink;
     }
+    const linkForMsg = shareUrl || defaultLink;
+    const newDefault = t("msg_default", { event: event.name, url: linkForMsg });
+    const prevDefault = t("msg_default", { event: event.name, url: prevShareUrlRef.current || defaultLink });
+    if (!waMessage || waMessage === prevDefault) {
+      setWaMessage(newDefault);
+    }
+    prevShareUrlRef.current = linkForMsg;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, lang]);
+  }, [event, lang, shareUrl]);
+
 
   const sendWhatsApp = async () => {
     if (!event) return;
