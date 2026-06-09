@@ -262,6 +262,34 @@ export default function EventAdmin() {
     setTimeout(() => loadReview(), 2000);
   };
 
+  const runBackfill = async () => {
+    if (!id || backfilling) return;
+    setBackfilling(true);
+    setBackfillStats({ scanned: 0, total: 0, updated: 0 });
+    try {
+      let totalUpdated = 0;
+      let totalScanned = 0;
+      // Loop until the server reports 0 remaining, or we hit a sane safety cap.
+      for (let i = 0; i < 50; i++) {
+        const r = await authedInvoke<{ scanned: number; updated: number; remaining: number }>(
+          "backfill-taken-at",
+          { eventId: id, batchSize: 20, maxItems: 800 },
+        );
+        totalUpdated += r.updated;
+        totalScanned += r.scanned;
+        setBackfillStats({ scanned: totalScanned, total: totalScanned + r.remaining, updated: totalUpdated });
+        if (!r.remaining || r.scanned === 0) break;
+      }
+      toast.success(t("redetect_done", { updated: totalUpdated }));
+      // Refresh visible photos so the new order shows up.
+      if (tab === "all") loadPhotos();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("failed"));
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const updateEvent = async (patch: Partial<Event>) => {
     if (!id) return;
     try {
