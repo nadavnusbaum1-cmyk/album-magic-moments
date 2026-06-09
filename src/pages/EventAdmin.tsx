@@ -101,7 +101,7 @@ export default function EventAdmin() {
     if (!id) return;
     const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
     if (error || !data) { toast.error(t("event_not_found")); navigate("/dashboard"); return; }
-    setEvent(data as Event);
+    setEvent(data as unknown as Event);
   };
 
   const loadPhotos = async (before?: string) => {
