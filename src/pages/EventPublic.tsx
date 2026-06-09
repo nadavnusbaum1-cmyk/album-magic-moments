@@ -14,6 +14,7 @@ import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, authedInvoke } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+import { ExternalLink } from "lucide-react";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; };
