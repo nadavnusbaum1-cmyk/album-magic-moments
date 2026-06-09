@@ -315,3 +315,12 @@ export default function EventPublic() {
     </div>
   );
 }
+
+function IndeterminateBar() {
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div className="absolute inset-y-0 w-1/3 rounded-full bg-primary animate-[indeterminate_1.4s_ease-in-out_infinite]" />
+      <style>{`@keyframes indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
+    </div>
+  );
+}
