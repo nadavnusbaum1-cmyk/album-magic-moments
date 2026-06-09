@@ -171,7 +171,6 @@ const dict: Record<Lang, Record<string, string>> = {
     extra_link_label_he: "Label (Hebrew)",
     extra_link_url: "URL",
     add_link: "Add link",
-    remove: "Remove",
     more_from_event: "More from this event",
 
     // Settings tab
