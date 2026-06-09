@@ -1,6 +1,8 @@
 // Public: list photos for a cluster (person folder). Returns event slug for back-nav.
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+import { mapWithConcurrency, resolvePhotoUrl } from "../_shared/storage.ts";
+
+const PAGE_SIZE = 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -19,22 +21,35 @@ Deno.serve(async (req) => {
       eventSlug = ev?.slug || null;
     }
 
-    const { data: matches } = await supabase
-      .from("cluster_photo_matches")
-      .select("photo_id, photos(storage_path, storage_provider, s3_key, content_type, media_type, created_at)")
-      .eq("cluster_id", clusterId)
-      .order("created_at", { foreignTable: "photos", ascending: false });
+    const allMatches: any[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data: matches, error } = await supabase
+        .from("cluster_photo_matches")
+        .select("photo_id, photos(storage_path, storage_provider, s3_key, content_type, media_type, created_at)")
+        .eq("cluster_id", clusterId)
+        .order("created_at", { foreignTable: "photos", ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      allMatches.push(...(matches || []));
+      if (!matches || matches.length < PAGE_SIZE) break;
+    }
 
-    const photos = await Promise.all((matches || []).flatMap((m: any) => {
+    const photoRows = allMatches.flatMap((m: any) => {
       const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
       return p ? [{ id: m.photo_id, photo: p }] : [];
-    }).map(async ({ id, photo }) => ({
-      id,
-      url: await resolvePhotoUrl(photo),
-      media_type: photo.media_type || "image",
-    })));
+    });
 
-    return json({ photos, count: photos.length, display_name: cluster.display_name || null, event_slug: eventSlug });
+    const resolved = await mapWithConcurrency(photoRows, 8, async ({ id, photo }) => {
+      try {
+        return { id, url: await resolvePhotoUrl(photo), media_type: photo.media_type || "image" };
+      } catch (e) {
+        console.error("cluster-photos: failed to resolve photo", id, e);
+        return null;
+      }
+    });
+    const photos = resolved.filter(Boolean);
+
+    return json({ photos, count: photoRows.length, display_name: cluster.display_name || null, event_slug: eventSlug });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }

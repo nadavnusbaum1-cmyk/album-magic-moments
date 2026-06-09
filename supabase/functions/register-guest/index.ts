@@ -3,6 +3,15 @@ import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
 import { ensureCollection, collectionFor, rekognition } from "../_shared/rekognition.ts";
 
 const MATCH_THRESHOLD = 75;
+const CLUSTER_EXPANSION_THRESHOLD = 85;
+const REKOG_MAX_BYTES = 5 * 1024 * 1024;
+const DB_PAGE_SIZE = 1000;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -18,8 +27,11 @@ Deno.serve(async (req) => {
     const COLLECTION = collectionFor(event.id);
     await ensureCollection(COLLECTION);
 
-    const base64 = selfieBase64.replace(/^data:image\/\w+;base64,/, "");
+    const base64 = selfieBase64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, "");
     const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    if (binary.byteLength > REKOG_MAX_BYTES) {
+      return json({ error: "Image is too large. Please choose a smaller photo." }, 400);
+    }
 
     const { data: guest, error: insertErr } = await supabase
       .from("guests")
@@ -89,35 +101,90 @@ Deno.serve(async (req) => {
       if (m.Face?.FaceId) clusterFaceCandidates.push({ faceId: m.Face.FaceId, sim });
     }
 
+    // For very large albums, Rekognition can return thousands of face hits and
+    // the direct `.in(photoIds)` lookup can exceed URL/request limits. Also,
+    // one person may be represented by a cluster that contains more photos than
+    // the Rekognition MaxFaces cap. Resolve matching clusters in chunks, then
+    // expand those clusters back into photo IDs before inserting guest matches.
+    const clusterScores = new Map<string, number>();
+    if (clusterFaceCandidates.length > 0) {
+      const simByFace = new Map<string, number>();
+      for (const c of clusterFaceCandidates) simByFace.set(c.faceId, Math.max(simByFace.get(c.faceId) || 0, c.sim));
+      const faceIds = Array.from(simByFace.keys());
+
+      for (const part of chunks(faceIds, 250)) {
+        const { data: matchRows, error } = await supabase
+          .from("cluster_photo_matches")
+          .select("cluster_id, face_id")
+          .eq("event_id", event.id)
+          .in("face_id", part);
+        if (error) throw error;
+        for (const r of matchRows || []) {
+          const score = simByFace.get(r.face_id) || 0;
+          if (score > (clusterScores.get(r.cluster_id) || 0)) clusterScores.set(r.cluster_id, score);
+        }
+      }
+
+      for (const part of chunks(faceIds, 250)) {
+        const { data: clusters, error } = await supabase
+          .from("face_clusters")
+          .select("id, representative_face_id")
+          .eq("event_id", event.id)
+          .in("representative_face_id", part);
+        if (error) throw error;
+        for (const c of clusters || []) {
+          const score = simByFace.get(c.representative_face_id) || 0;
+          if (score > (clusterScores.get(c.id) || 0)) clusterScores.set(c.id, score);
+        }
+      }
+
+      const clustersToExpand = Array.from(clusterScores.entries())
+        .filter(([, score]) => score >= CLUSTER_EXPANSION_THRESHOLD)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 80);
+      for (const part of chunks(clustersToExpand.map(([id]) => id), 100)) {
+        for (let from = 0; ; from += DB_PAGE_SIZE) {
+          const { data: rows, error } = await supabase
+            .from("cluster_photo_matches")
+            .select("cluster_id, photo_id")
+            .eq("event_id", event.id)
+            .in("cluster_id", part)
+            .range(from, from + DB_PAGE_SIZE - 1);
+          if (error) throw error;
+          for (const r of rows || []) {
+            const score = clusterScores.get(r.cluster_id) || MATCH_THRESHOLD;
+            candidatePhotoIds.set(r.photo_id, Math.max(candidatePhotoIds.get(r.photo_id) || 0, score));
+          }
+          if (!rows || rows.length < DB_PAGE_SIZE) break;
+        }
+      }
+    }
+
     // Bulk-verify photos belong to this event in one query
     const matchedPhotoIds = new Set<string>();
     const matchInserts: { guest_id: string; photo_id: string; similarity: number; event_id: string }[] = [];
     if (candidatePhotoIds.size > 0) {
       const ids = Array.from(candidatePhotoIds.keys());
-      const { data: rows } = await supabase
-        .from("photos").select("id").eq("event_id", event.id).in("id", ids);
-      for (const r of rows || []) {
-        matchedPhotoIds.add(r.id);
-        matchInserts.push({ guest_id: guest.id, photo_id: r.id, similarity: candidatePhotoIds.get(r.id)!, event_id: event.id });
+      for (const part of chunks(ids, 250)) {
+        const { data: rows, error } = await supabase
+          .from("photos").select("id").eq("event_id", event.id).in("id", part);
+        if (error) throw error;
+        for (const r of rows || []) {
+          matchedPhotoIds.add(r.id);
+          matchInserts.push({ guest_id: guest.id, photo_id: r.id, similarity: candidatePhotoIds.get(r.id)!, event_id: event.id });
+        }
       }
-      if (matchInserts.length) {
-        await supabase.from("photo_matches").insert(matchInserts);
+      for (const part of chunks(matchInserts, 500)) {
+        const { error } = await supabase.from("photo_matches").upsert(part, { onConflict: "guest_id,photo_id" });
+        if (error) throw error;
       }
     }
 
     // Bulk-find best cluster matching any of the candidate face IDs
     let bestClusterId: string | null = null;
     let bestSim = 0;
-    if (clusterFaceCandidates.length > 0) {
-      const faceIds = Array.from(new Set(clusterFaceCandidates.map((c) => c.faceId)));
-      const { data: clusters } = await supabase
-        .from("face_clusters").select("id, representative_face_id")
-        .eq("event_id", event.id).in("representative_face_id", faceIds);
-      const byFace = new Map((clusters || []).map((c) => [c.representative_face_id, c.id]));
-      for (const c of clusterFaceCandidates) {
-        const cid = byFace.get(c.faceId);
-        if (cid && c.sim > bestSim) { bestSim = c.sim; bestClusterId = cid; }
-      }
+    for (const [cid, sim] of clusterScores.entries()) {
+      if (sim > bestSim) { bestSim = sim; bestClusterId = cid; }
     }
 
     if (!bestClusterId) {
