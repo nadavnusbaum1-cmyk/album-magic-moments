@@ -239,15 +239,11 @@ export default function EventPublic() {
               disabled={guestUploading}
               maxLength={60}
             />
-            <div className="flex gap-2">
-              <label htmlFor="guest-camera" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                <Camera className="w-4 h-4" /> {t("take_photo")}
-              </label>
-              <label htmlFor="guest-gallery" className={`flex-1 flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <div>
+              <label htmlFor="guest-gallery" className={`w-full flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border cursor-pointer hover:border-primary ${guestUploading ? "opacity-50 pointer-events-none" : ""}`}>
                 <Upload className="w-4 h-4" /> {t("choose_files")}
               </label>
             </div>
-            <input id="guest-camera" type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
             {guestUploading && (
               <div className="space-y-2">
