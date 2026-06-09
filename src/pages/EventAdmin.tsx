@@ -779,10 +779,27 @@ export default function EventAdmin() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium">{t("share_link_label")}</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={shareUrl}
+                    onChange={(e) => setShareUrl(e.target.value)}
+                    placeholder={publicUrl}
+                    dir="ltr"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShareUrl(publicUrl)}>
+                    {t("reset_to_album_link")}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t("share_link_hint")}</p>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium">{t("message")}</label>
                 <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
                 <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
               </div>
+
 
               <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
                 {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
