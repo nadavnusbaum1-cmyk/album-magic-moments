@@ -766,6 +766,21 @@ export default function EventAdmin() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t("default_language")}</label>
+                <p className="text-xs text-muted-foreground">{t("default_language_hint")}</p>
+                <Select
+                  value={event.default_language ?? "__none__"}
+                  onValueChange={(v) => updateEvent({ default_language: v === "__none__" ? null : v })}
+                >
+                  <SelectTrigger className="w-full max-w-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t("use_app_default")}</SelectItem>
+                    <SelectItem value="en">{t("english")}</SelectItem>
+                    <SelectItem value="he">{t("hebrew")} (RTL)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2 border-t pt-5">
                 <label className="text-sm font-medium">{t("event_name")}</label>
                 <Input defaultValue={event.name} onBlur={(e) => e.target.value !== event.name && updateEvent({ name: e.target.value })} />
