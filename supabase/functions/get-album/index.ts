@@ -21,9 +21,9 @@ Deno.serve(async (req) => {
       .eq("magic_token", token).maybeSingle();
     if (!guest) return json({ error: "Album not found" }, 404);
 
-    let event: { name?: string; slug?: string } | null = null;
+    let event: { name?: string; slug?: string; extra_links?: any } | null = null;
     if (guest.event_id) {
-      const { data } = await supabase.from("events").select("name, slug").eq("id", guest.event_id).maybeSingle();
+      const { data } = await supabase.from("events").select("name, slug, extra_links").eq("id", guest.event_id).maybeSingle();
       event = data;
     }
 
