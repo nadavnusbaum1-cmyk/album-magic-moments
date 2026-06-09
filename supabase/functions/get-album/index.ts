@@ -12,6 +12,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const token = url.searchParams.get("token");
     const before = url.searchParams.get("before");
+    const after = url.searchParams.get("after");
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 80), 1), 200);
     if (!token) return json({ error: "token required" }, 400);
 
@@ -29,11 +30,12 @@ Deno.serve(async (req) => {
 
     let mq = supabase
       .from("photo_matches")
-      .select("photo_id, photos!inner(media_type, content_type, created_at)")
+      .select("photo_id, photos!inner(media_type, content_type, sort_at)")
       .eq("guest_id", guest.id)
-      .order("created_at", { foreignTable: "photos", ascending: false })
+      .order("sort_at", { foreignTable: "photos", ascending: true })
       .limit(limit);
-    if (before) mq = mq.filter("photos.created_at", "lt", before);
+    const cursor = after || before;
+    if (cursor) mq = mq.filter("photos.sort_at", "gt", cursor);
     const { data: matches } = await mq;
 
     const photos = (matches || []).flatMap((m: any) => {
@@ -43,10 +45,10 @@ Deno.serve(async (req) => {
         url: proxiedPhotoUrl(req, photoId),
         id: photoId,
         media_type: photo.media_type || "image",
-        created_at: photo.created_at,
+        sort_at: photo.sort_at,
       }));
 
-    const nextCursor = photos.length === limit ? photos[photos.length - 1].created_at : null;
+    const nextCursor = photos.length === limit ? photos[photos.length - 1].sort_at : null;
     return json({ guest: { name: guest.name }, event, photos, count: guest.photo_count || photos.length, nextCursor });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
