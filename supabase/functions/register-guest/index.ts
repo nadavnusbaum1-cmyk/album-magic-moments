@@ -47,22 +47,40 @@ Deno.serve(async (req) => {
     }
     const guestFaceId = faceRecord.Face.FaceId;
 
-    // Use SearchFacesByImage (not SearchFaces by FaceId) — the latter suffers from
-    // eventual-consistency on the face we just indexed and frequently returns 0 matches.
-    const search = await rekognition("SearchFacesByImage", {
+    // Aggregate matches from BOTH SearchFacesByImage (more reliable on large collections)
+    // AND SearchFaces by FaceId (gets results even when the input image quality is borderline).
+    // QualityFilter:NONE prevents AWS from silently dropping a borderline-quality selfie and returning 0.
+    const allMatches: any[] = [];
+    const searchByImage = await rekognition("SearchFacesByImage", {
       CollectionId: COLLECTION,
       Image: { Bytes: base64 },
       FaceMatchThreshold: MATCH_THRESHOLD,
-      MaxFaces: 1000,
-      QualityFilter: "AUTO",
-    });
+      MaxFaces: 4096,
+      QualityFilter: "NONE",
+    }).catch((e) => { console.error("SearchFacesByImage failed:", e); return { FaceMatches: [] }; });
+    allMatches.push(...(searchByImage.FaceMatches || []));
 
-    // Collect candidate photo IDs and cluster face IDs in one pass
+    // Wait briefly for indexing eventual-consistency, then also search by the FaceId we just got.
+    await new Promise((r) => setTimeout(r, 500));
+    const searchById = await rekognition("SearchFaces", {
+      CollectionId: COLLECTION,
+      FaceId: guestFaceId,
+      FaceMatchThreshold: MATCH_THRESHOLD,
+      MaxFaces: 4096,
+    }).catch((e) => { console.error("SearchFaces failed:", e); return { FaceMatches: [] }; });
+    allMatches.push(...(searchById.FaceMatches || []));
+
+    console.log(`register-guest: byImage=${(searchByImage.FaceMatches || []).length} byId=${(searchById.FaceMatches || []).length}`);
+
+    // Collect candidate photo IDs and cluster face IDs in one pass (dedup by best similarity)
     const candidatePhotoIds = new Map<string, number>(); // photoId -> best similarity
     const clusterFaceCandidates: { faceId: string; sim: number }[] = [];
-    for (const m of search.FaceMatches || []) {
+    const seenFaceIds = new Set<string>();
+    for (const m of allMatches) {
       const ext = m.Face?.ExternalImageId as string | undefined;
       const sim = m.Similarity || 0;
+      const fid = m.Face?.FaceId;
+      if (fid) { if (seenFaceIds.has(fid)) continue; seenFaceIds.add(fid); }
       if (ext && ext.startsWith("photo-")) {
         const pid = ext.slice("photo-".length);
         const prev = candidatePhotoIds.get(pid) ?? 0;
