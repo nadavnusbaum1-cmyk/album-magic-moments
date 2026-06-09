@@ -217,6 +217,13 @@ export default function EventPublic() {
             </div>
           </div>
           <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? t("doing_magic") : t("find_my_photos")}</Button>
+          {loading && (
+            <div className="space-y-2">
+              <IndeterminateBar />
+              <p className="text-xs text-center text-muted-foreground">{t("searching_photos")}</p>
+              <p className="text-[11px] text-center text-muted-foreground/70">{t("this_can_take")}</p>
+            </div>
+          )}
         </Card>
 
         {event.allow_guest_uploads && (
