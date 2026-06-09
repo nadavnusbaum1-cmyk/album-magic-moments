@@ -106,6 +106,7 @@ export type Database = {
           created_at: string
           default_language: string | null
           event_date: string | null
+          extra_links: Json
           id: string
           is_published: boolean
           name: string
@@ -122,6 +123,7 @@ export type Database = {
           created_at?: string
           default_language?: string | null
           event_date?: string | null
+          extra_links?: Json
           id?: string
           is_published?: boolean
           name: string
@@ -138,6 +140,7 @@ export type Database = {
           created_at?: string
           default_language?: string | null
           event_date?: string | null
+          extra_links?: Json
           id?: string
           is_published?: boolean
           name?: string
