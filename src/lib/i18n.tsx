@@ -454,11 +454,13 @@ const dict: Record<Lang, Record<string, string>> = {
 type Ctx = {
   lang: Lang;
   setLang: (l: Lang) => void;
+  setDefaultLang: (l: Lang | null | undefined) => void;
   t: (k: string, vars?: Record<string, string | number>) => string;
   dir: "ltr" | "rtl";
 };
 const LangCtx = createContext<Ctx | null>(null);
 const STORAGE_KEY = "app:lang";
+const EXPLICIT_KEY = "app:lang:explicit";
 
 function applyToDocument(l: Lang) {
   document.documentElement.lang = l;
@@ -480,8 +482,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLang = (l: Lang) => {
     localStorage.setItem(STORAGE_KEY, l);
+    localStorage.setItem(EXPLICIT_KEY, "1");
     setLangState(l);
   };
+
+  // Apply event default only if the user hasn't explicitly chosen a language
+  const setDefaultLang = (l: Lang | null | undefined) => {
+    if (!l || (l !== "he" && l !== "en")) return;
+    if (localStorage.getItem(EXPLICIT_KEY) === "1") return;
+    setLangState(l);
+  };
+
+  const t = (k: string, vars?: Record<string, string | number>) =>
+    format(dict[lang][k] ?? dict.en[k] ?? k, vars);
+
+  const dir: "ltr" | "rtl" = lang === "he" ? "rtl" : "ltr";
+
+  return <LangCtx.Provider value={{ lang, setLang, setDefaultLang, t, dir }}>{children}</LangCtx.Provider>;
+}
 
   const t = (k: string, vars?: Record<string, string | number>) =>
     format(dict[lang][k] ?? dict.en[k] ?? k, vars);
