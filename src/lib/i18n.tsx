@@ -162,6 +162,9 @@ const dict: Record<Lang, Record<string, string>> = {
     msg_default: "Hi! 📸 Photos from {event} are ready. View the album: {url}",
     send_failed: "Send failed",
     chars_count: "{n}/1500 characters",
+    share_link_label: "Link to share",
+    share_link_hint: "Defaults to the album link. You can replace it with any external link (e.g. a Google Drive folder or external gallery).",
+    reset_to_album_link: "Album link",
 
     // Settings tab
     event_name: "Event name",
@@ -388,6 +391,9 @@ const dict: Record<Lang, Record<string, string>> = {
     msg_default: "היי! 📸 התמונות מ-{event} מוכנות. צפה באלבום: {url}",
     send_failed: "השליחה נכשלה",
     chars_count: "{n}/1500 תווים",
+    share_link_label: "קישור לשליחה",
+    share_link_hint: "ברירת המחדל היא קישור האלבום. ניתן להחליף לכל קישור חיצוני (למשל תיקיית Google Drive או גלריה חיצונית).",
+    reset_to_album_link: "קישור האלבום",
 
     event_name: "שם האירוע",
     event_date: "תאריך האירוע",

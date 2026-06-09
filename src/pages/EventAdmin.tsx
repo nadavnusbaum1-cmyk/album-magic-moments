@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedInvoke, authedFetch } from "@/lib/auth";
@@ -77,6 +77,8 @@ export default function EventAdmin() {
   const [waFrom, setWaFrom] = useState("");
   const [waNumbers, setWaNumbers] = useState("");
   const [waMessage, setWaMessage] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const prevShareUrlRef = useRef("");
   const [waSending, setWaSending] = useState(false);
   const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
 
@@ -406,11 +408,22 @@ export default function EventAdmin() {
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
 
   useEffect(() => {
-    if (event && !waMessage) {
-      setWaMessage(t("msg_default", { event: event.name, url: `${window.location.origin}/e/${event.slug}` }));
+    if (!event) return;
+    const defaultLink = `${window.location.origin}/e/${event.slug}`;
+    if (!shareUrl) {
+      setShareUrl(defaultLink);
+      prevShareUrlRef.current = defaultLink;
     }
+    const linkForMsg = shareUrl || defaultLink;
+    const newDefault = t("msg_default", { event: event.name, url: linkForMsg });
+    const prevDefault = t("msg_default", { event: event.name, url: prevShareUrlRef.current || defaultLink });
+    if (!waMessage || waMessage === prevDefault) {
+      setWaMessage(newDefault);
+    }
+    prevShareUrlRef.current = linkForMsg;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, lang]);
+  }, [event, lang, shareUrl]);
+
 
   const sendWhatsApp = async () => {
     if (!event) return;
@@ -766,10 +779,27 @@ export default function EventAdmin() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium">{t("share_link_label")}</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={shareUrl}
+                    onChange={(e) => setShareUrl(e.target.value)}
+                    placeholder={publicUrl}
+                    dir="ltr"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShareUrl(publicUrl)}>
+                    {t("reset_to_album_link")}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">{t("share_link_hint")}</p>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium">{t("message")}</label>
                 <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
                 <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
               </div>
+
 
               <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
                 {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
