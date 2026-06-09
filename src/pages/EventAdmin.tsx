@@ -704,8 +704,12 @@ export default function EventAdmin() {
             <Card className="p-6">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <h2 className="font-medium">{clusters.length === 1 ? t("n_person", { n: 1 }) : t("n_people", { n: clusters.length })}</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : t("refresh")}</Button>
+                  <Button variant="secondary" size="sm" onClick={autoMergeClusters} disabled={autoMerging} className="gap-2">
+                    {autoMerging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                    {t("merge_similar")}
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     {t("rerun_matching")}
