@@ -21,7 +21,7 @@ type Cluster = { id: string; cover_url: string | null; photo_count: number; disp
 type Photo = { id: string; url: string; media_type?: string };
 
 export default function EventPublic() {
-  const { t } = useI18n();
+  const { t, setDefaultLang } = useI18n();
   const { slug } = useParams();
   const isMobile = useIsMobile();
   const [event, setEvent] = useState<Event | null>(null);
