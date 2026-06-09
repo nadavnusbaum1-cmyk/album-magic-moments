@@ -12,14 +12,14 @@ type ExtraLink = { label_en: string; label_he: string; url: string };
 
 interface AlbumData {
   guest: { name: string };
-  event?: { name?: string; slug?: string } | null;
+  event?: { name?: string; slug?: string; extra_links?: ExtraLink[] | null } | null;
   photos: { url: string; media_type?: string; created_at?: string }[];
   count: number;
   nextCursor: string | null;
 }
 
 const Album = () => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { token } = useParams();
   const [data, setData] = useState<AlbumData | null>(null);
   const [error, setError] = useState<string | null>(null);
