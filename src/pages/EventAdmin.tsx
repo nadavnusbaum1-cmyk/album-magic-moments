@@ -292,6 +292,31 @@ export default function EventAdmin() {
     finally { setReprocessing(false); }
   };
 
+  const [autoMerging, setAutoMerging] = useState(false);
+  const autoMergeClusters = async () => {
+    if (!id) return;
+    if (!confirm(t("merge_similar_confirm"))) return;
+    setAutoMerging(true);
+    let cursor: string | null = null;
+    let totalMerged = 0;
+    let totalProcessed = 0;
+    try {
+      // Run iteratively until done — function is paginated for time-safety.
+      while (true) {
+        const r = await authedFetch("auto-merge-clusters", { method: "POST", body: JSON.stringify({ eventId: id, cursor }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || t("failed"));
+        totalMerged += j.mergedGroups || 0;
+        totalProcessed += j.processed || 0;
+        cursor = j.nextCursor;
+        if (j.done) break;
+      }
+      toast.success(t("merge_similar_done", { merged: totalMerged, processed: totalProcessed }));
+      loadClusters();
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setAutoMerging(false); }
+  };
+
   const renameOrDeleteFolder = async (action: "rename" | "delete") => {
     if (!id || !folderDialog.from) return;
     const to = action === "delete" ? null : folderDialog.to.trim();
@@ -679,8 +704,12 @@ export default function EventAdmin() {
             <Card className="p-6">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <h2 className="font-medium">{clusters.length === 1 ? t("n_person", { n: 1 }) : t("n_people", { n: clusters.length })}</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={loadClusters} disabled={clustersLoading}>{clustersLoading ? "…" : t("refresh")}</Button>
+                  <Button variant="secondary" size="sm" onClick={autoMergeClusters} disabled={autoMerging} className="gap-2">
+                    {autoMerging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                    {t("merge_similar")}
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
                     {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     {t("rerun_matching")}
