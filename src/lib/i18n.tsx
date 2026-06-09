@@ -501,14 +501,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return <LangCtx.Provider value={{ lang, setLang, setDefaultLang, t, dir }}>{children}</LangCtx.Provider>;
 }
 
-  const t = (k: string, vars?: Record<string, string | number>) =>
-    format(dict[lang][k] ?? dict.en[k] ?? k, vars);
-
-  const dir: "ltr" | "rtl" = lang === "he" ? "rtl" : "ltr";
-
-  return <LangCtx.Provider value={{ lang, setLang, t, dir }}>{children}</LangCtx.Provider>;
-}
-
 export function useI18n() {
   const ctx = useContext(LangCtx);
   if (!ctx) throw new Error("useI18n must be used inside LanguageProvider");
