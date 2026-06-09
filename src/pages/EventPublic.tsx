@@ -16,7 +16,7 @@ import { authedFetch, authedInvoke } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; media_type?: string };
 
