@@ -178,6 +178,16 @@ const dict: Record<Lang, Record<string, string>> = {
     allow_guest_desc: "Guests can add photos from the public album page",
     published_title: "Published",
     published_desc: "Public URL is live",
+    default_language: "Default language for guests",
+    default_language_hint: "Initial language shown to guests on the public album. They can still switch with the flag toggle.",
+    use_app_default: "Use app default",
+    stats_title: "Album stats",
+    stat_total: "Total photos",
+    stat_processed: "Successfully recognized",
+    stat_pending: "Still indexing",
+    stat_review: "Need review",
+    searching_photos: "Searching your photos…",
+    this_can_take: "This can take a moment for large albums",
 
     // Folder dialog
     edit_folder_title: 'Edit folder "{name}"',
