@@ -47,12 +47,15 @@ Deno.serve(async (req) => {
     }
     const guestFaceId = faceRecord.Face.FaceId;
 
-    const search = await rekognition("SearchFaces", {
+    // Use SearchFacesByImage (not SearchFaces by FaceId) — the latter suffers from
+    // eventual-consistency on the face we just indexed and frequently returns 0 matches.
+    const search = await rekognition("SearchFacesByImage", {
       CollectionId: COLLECTION,
-      FaceId: guestFaceId,
+      Image: { Bytes: base64 },
       FaceMatchThreshold: MATCH_THRESHOLD,
-      MaxFaces: 500,
-    }).catch(() => ({ FaceMatches: [] }));
+      MaxFaces: 1000,
+      QualityFilter: "AUTO",
+    });
 
     // Collect candidate photo IDs and cluster face IDs in one pass
     const candidatePhotoIds = new Map<string, number>(); // photoId -> best similarity
