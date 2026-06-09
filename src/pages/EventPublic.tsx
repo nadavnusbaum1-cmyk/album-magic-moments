@@ -106,6 +106,7 @@ export default function EventPublic() {
         const j = await r.json();
         if (!r.ok) { setNotFound(true); return; }
         setEvent(j.event);
+        if (j.event?.default_language) setDefaultLang(j.event.default_language as "he" | "en");
       } catch { setNotFound(true); }
     })();
   }, [slug]);
