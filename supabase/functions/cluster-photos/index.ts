@@ -29,9 +29,9 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += PAGE_SIZE) {
       const { data: matches, error } = await supabase
         .from("cluster_photo_matches")
-        .select("photo_id, photos(content_type, media_type, created_at)")
+        .select("photo_id, photos(content_type, media_type, sort_at)")
         .eq("cluster_id", clusterId)
-        .order("created_at", { foreignTable: "photos", ascending: false })
+        .order("sort_at", { foreignTable: "photos", ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       allMatches.push(...(matches || []));

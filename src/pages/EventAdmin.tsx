@@ -13,6 +13,7 @@ import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { prepareImageForUpload } from "@/lib/imageUtils";
+import { extractTakenAt } from "@/lib/exif";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
@@ -82,6 +83,10 @@ export default function EventAdmin() {
   const prevShareUrlRef = useRef("");
   const [waSending, setWaSending] = useState(false);
   const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+
+  // EXIF capture-date backfill
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStats, setBackfillStats] = useState({ scanned: 0, total: 0, updated: 0 });
 
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
 
@@ -169,21 +174,24 @@ export default function EventAdmin() {
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const conv = await Promise.all(batch.map(async (f) => {
-        try { return { ok: true as const, file: await prepareImageForUpload(f), original: f }; }
+        try {
+          const takenAt = await extractTakenAt(f);
+          return { ok: true as const, file: await prepareImageForUpload(f), original: f, takenAt };
+        }
         catch { return { ok: false as const, original: f }; }
       }));
-      const goodFiles = conv.filter((c) => c.ok).map((c) => c.file!);
+      const goodFiles = conv.filter((c) => c.ok) as Array<{ ok: true; file: File; original: File; takenAt: string | null }>;
       skipped += conv.length - goodFiles.length;
       if (goodFiles.length) {
         try {
           const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string }[] }>("sign-s3-upload", {
             eventId: id,
-            files: goodFiles.map((f) => ({ name: f.name, contentType: f.type || "image/jpeg" })),
+            files: goodFiles.map((g) => ({ name: g.file.name, contentType: g.file.type || "image/jpeg", takenAt: g.takenAt })),
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: folderForUpload,
           });
           await Promise.all(data.uploads.map(async (u, idx) => {
-            const file = goodFiles[idx];
+            const file = goodFiles[idx].file;
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
@@ -252,6 +260,34 @@ export default function EventAdmin() {
     }
     toast.success(t("reindex_triggered", { n: ok }));
     setTimeout(() => loadReview(), 2000);
+  };
+
+  const runBackfill = async () => {
+    if (!id || backfilling) return;
+    setBackfilling(true);
+    setBackfillStats({ scanned: 0, total: 0, updated: 0 });
+    try {
+      let totalUpdated = 0;
+      let totalScanned = 0;
+      // Loop until the server reports 0 remaining, or we hit a sane safety cap.
+      for (let i = 0; i < 50; i++) {
+        const r = await authedInvoke<{ scanned: number; updated: number; remaining: number }>(
+          "backfill-taken-at",
+          { eventId: id, batchSize: 20, maxItems: 800 },
+        );
+        totalUpdated += r.updated;
+        totalScanned += r.scanned;
+        setBackfillStats({ scanned: totalScanned, total: totalScanned + r.remaining, updated: totalUpdated });
+        if (!r.remaining || r.scanned === 0) break;
+      }
+      toast.success(t("redetect_done", { updated: totalUpdated }));
+      // Refresh visible photos so the new order shows up.
+      if (tab === "all") loadPhotos();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("failed"));
+    } finally {
+      setBackfilling(false);
+    }
   };
 
   const updateEvent = async (patch: Partial<Event>) => {
@@ -944,6 +980,17 @@ export default function EventAdmin() {
                   setEvent({ ...event, extra_links: next });
                 }}>
                   <Plus className="w-4 h-4" /> {t("add_link")}
+                </Button>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-medium">{t("redetect_capture_dates")}</label>
+                <p className="text-xs text-muted-foreground">{t("redetect_hint")}</p>
+                <Button type="button" variant="outline" size="sm" className="gap-2" disabled={backfilling} onClick={runBackfill}>
+                  {backfilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {backfilling
+                    ? t("redetect_running", { done: backfillStats.scanned, total: backfillStats.total })
+                    : t("redetect_capture_dates")}
                 </Button>
               </div>
             </Card>

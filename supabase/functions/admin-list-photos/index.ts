@@ -5,8 +5,8 @@ import { resolvePhotoUrl, mapWithConcurrency } from "../_shared/storage.ts";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { eventId, sourceLabel, before, limit, review } = await req.json() as {
-      eventId?: string; sourceLabel?: string; before?: string; limit?: number; review?: boolean;
+    const { eventId, sourceLabel, before, after, limit, review } = await req.json() as {
+      eventId?: string; sourceLabel?: string; before?: string; after?: string; limit?: number; review?: boolean;
     };
     if (!eventId) return json({ error: "eventId required" }, 400);
     const auth = await requireHost(req, eventId);
@@ -15,9 +15,9 @@ Deno.serve(async (req) => {
     const pageSize = Math.min(Math.max(Number(limit) || 100, 1), 300);
     const supabase = svc();
     let q = supabase.from("photos")
-      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, uploaded_by, media_type, content_type, source_label, processing_error")
+      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label, processing_error")
       .eq("event_id", eventId)
-      .order("created_at", { ascending: false })
+      .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
     if (review) {
@@ -27,7 +27,8 @@ Deno.serve(async (req) => {
            .neq("media_type", "video")
            .or("and(processed.eq.true,face_count.eq.0),processing_error.not.is.null");
     }
-    if (before) q = q.lt("created_at", before);
+    const cursor = after || before;
+    if (cursor) q = q.gt("sort_at", cursor);
     const { data: photos, error } = await q;
     if (error) throw error;
 
@@ -45,6 +46,7 @@ Deno.serve(async (req) => {
         processed: p.processed,
         processing_error: p.processing_error,
         created_at: p.created_at,
+        sort_at: (p as any).sort_at,
         uploaded_by: p.uploaded_by,
         media_type: p.media_type || "image",
         source_label: p.source_label,
@@ -54,7 +56,7 @@ Deno.serve(async (req) => {
     // First page only: include sources + lightweight totals (estimated, fast).
     let sources: { label: string; count: number }[] = [];
     let totals = { total: 0, processed: 0, pending: 0, review: 0 };
-    if (!before) {
+    if (!cursor) {
       const { data: srcRows } = await supabase.rpc("get_event_sources", { _event_id: eventId });
       sources = (srcRows || []).map((r: any) => ({ label: r.source_label as string, count: Number(r.count) }));
       // Counts (head:true is fast — uses index)
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
       totals = { total: total || 0, processed: processed || 0, pending: (total || 0) - (processed || 0), review: review || 0 };
     }
 
-    const nextCursor = items.length === pageSize ? items[items.length - 1].created_at : null;
+    const nextCursor = items.length === pageSize ? (items[items.length - 1] as any).sort_at : null;
     return json({ photos: items, sources, nextCursor, totals });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);

@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
 
     const { eventId, files, uploadedBy, sourceLabel } = await req.json() as {
       eventId: string;
-      files: { name: string; contentType: string }[];
+      files: { name: string; contentType: string; takenAt?: string | null }[];
       uploadedBy?: string;
       sourceLabel?: string;
     };
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
     const source = (sourceLabel || "").trim().slice(0, 60) || null;
 
-    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string; skipped?: boolean };
+    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string; takenAt: string | null; skipped?: boolean };
     const plans: (Plan | { idx: number; skipped: true })[] = files.map((f, idx) => {
       const lower = (f.name || "").toLowerCase();
       if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
@@ -47,7 +47,8 @@ Deno.serve(async (req) => {
       }
       const mediaType = contentType.startsWith("video/") ? "video" : "image";
       const key = `event-photos/${eventId}/${id}.${ext}`;
-      return { idx, id, key, contentType, mediaType };
+      const takenAt = typeof f.takenAt === "string" && !isNaN(Date.parse(f.takenAt)) ? new Date(f.takenAt).toISOString() : null;
+      return { idx, id, key, contentType, mediaType, takenAt };
     });
 
     const realPlans = plans.filter((p): p is Plan => !("skipped" in p && p.skipped));
@@ -91,6 +92,7 @@ Deno.serve(async (req) => {
         uploaded_by: uploader,
         media_type: p.mediaType,
         content_type: p.contentType,
+        taken_at: p.takenAt,
       }));
       const { error: insErr } = await supabase.from("photos").insert(rows);
       if (insErr) throw insErr;
