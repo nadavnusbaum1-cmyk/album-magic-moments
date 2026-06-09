@@ -391,6 +391,9 @@ const dict: Record<Lang, Record<string, string>> = {
     msg_default: "היי! 📸 התמונות מ-{event} מוכנות. צפה באלבום: {url}",
     send_failed: "השליחה נכשלה",
     chars_count: "{n}/1500 תווים",
+    share_link_label: "קישור לשליחה",
+    share_link_hint: "ברירת המחדל היא קישור האלבום. ניתן להחליף לכל קישור חיצוני (למשל תיקיית Google Drive או גלריה חיצונית).",
+    reset_to_album_link: "קישור האלבום",
 
     event_name: "שם האירוע",
     event_date: "תאריך האירוע",
