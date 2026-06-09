@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
 
     const { eventSlug, files, uploadedBy } = await req.json() as {
       eventSlug: string;
-      files: { name: string; contentType: string }[];
+      files: { name: string; contentType: string; takenAt?: string | null }[];
       uploadedBy?: string;
     };
     if (!eventSlug) return json({ error: "eventSlug required" }, 400);
