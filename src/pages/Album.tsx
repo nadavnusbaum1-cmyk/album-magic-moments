@@ -1,23 +1,25 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X } from "lucide-react";
+import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 
+type ExtraLink = { label_en: string; label_he: string; url: string };
+
 interface AlbumData {
   guest: { name: string };
-  event?: { name?: string; slug?: string } | null;
+  event?: { name?: string; slug?: string; extra_links?: ExtraLink[] | null } | null;
   photos: { url: string; media_type?: string; created_at?: string }[];
   count: number;
   nextCursor: string | null;
 }
 
 const Album = () => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { token } = useParams();
   const [data, setData] = useState<AlbumData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +164,21 @@ const Album = () => {
               </div>
             )}
           </>
+        )}
+        {(data.event?.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).length > 0 && (
+          <div className="mt-10 max-w-md mx-auto">
+            <h3 className="font-serif text-xl text-center mb-3">{t("more_from_event")}</h3>
+            <div className="flex flex-col gap-2">
+              {(data.event?.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).map((l, i) => {
+                const label = (lang === "he" ? l.label_he : l.label_en) || l.label_en || l.label_he;
+                return (
+                  <a key={i} href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 text-sm py-3 px-3 rounded-xl bg-background border hover:border-primary">
+                    <ExternalLink className="w-4 h-4" /> {label}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
         )}
       </main>
       <Lightbox items={data.photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={data.guest.name} />
