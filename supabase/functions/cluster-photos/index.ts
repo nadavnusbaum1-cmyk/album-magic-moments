@@ -5,7 +5,7 @@ const PAGE_SIZE = 1000;
 
 function proxiedPhotoUrl(req: Request, photoId: string) {
   const origin = new URL(req.url).origin;
-  return `${origin}/photo-proxy?id=${encodeURIComponent(photoId)}`;
+  return `${origin}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
 }
 
 Deno.serve(async (req) => {

@@ -3,7 +3,7 @@ import { corsHeaders, eventBySlug, getUser, json, svc } from "../_shared/auth.ts
 
 function proxiedPhotoUrl(req: Request, photoId: string) {
   const origin = new URL(req.url).origin;
-  return `${origin}/photo-proxy?id=${encodeURIComponent(photoId)}`;
+  return `${origin}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
 }
 
 Deno.serve(async (req) => {
