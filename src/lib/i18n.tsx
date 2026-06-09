@@ -172,6 +172,10 @@ const dict: Record<Lang, Record<string, string>> = {
     extra_link_url: "URL",
     add_link: "Add link",
     more_from_event: "More from this event",
+    redetect_capture_dates: "Re-detect capture dates",
+    redetect_hint: "Reads each photo's EXIF and sets the chronological sort order. Run after large uploads or for older events.",
+    redetect_running: "Scanning… {done} of {total}",
+    redetect_done: "Done. Updated {updated} photos.",
 
     // Settings tab
     event_name: "Event name",
