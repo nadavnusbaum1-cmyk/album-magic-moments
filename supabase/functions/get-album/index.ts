@@ -29,11 +29,11 @@ Deno.serve(async (req) => {
 
     let mq = supabase
       .from("photo_matches")
-      .select("photo_id, photos(media_type, content_type, created_at)")
+      .select("photo_id, photos!inner(media_type, content_type, created_at)")
       .eq("guest_id", guest.id)
       .order("created_at", { foreignTable: "photos", ascending: false })
       .limit(limit);
-    if (before) mq = mq.lt("created_at", before);
+    if (before) mq = mq.filter("photos.created_at", "lt", before);
     const { data: matches } = await mq;
 
     const photos = (matches || []).flatMap((m: any) => {
