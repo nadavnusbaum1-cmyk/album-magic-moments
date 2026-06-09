@@ -891,6 +891,61 @@ export default function EventAdmin() {
                 <div><div className="font-medium text-sm">{t("published_title")}</div><p className="text-xs text-muted-foreground">{t("published_desc")}</p></div>
                 <Switch checked={event.is_published} onCheckedChange={(v) => updateEvent({ is_published: v })} />
               </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-medium">{t("extra_links_title")}</label>
+                <p className="text-xs text-muted-foreground">{t("extra_links_hint")}</p>
+                <div className="space-y-3">
+                  {(event.extra_links || []).map((lnk, idx) => (
+                    <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_1fr_2fr_auto] items-center border rounded-md p-2">
+                      <Input
+                        placeholder={t("extra_link_label_en")}
+                        value={lnk.label_en}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], label_en: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Input
+                        placeholder={t("extra_link_label_he")}
+                        value={lnk.label_he}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], label_he: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Input
+                        placeholder="https://..."
+                        dir="ltr"
+                        value={lnk.url}
+                        onChange={(e) => {
+                          const next = [...(event.extra_links || [])];
+                          next[idx] = { ...next[idx], url: e.target.value };
+                          setEvent({ ...event, extra_links: next });
+                        }}
+                        onBlur={() => updateEvent({ extra_links: event.extra_links || [] })}
+                      />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => {
+                        const next = (event.extra_links || []).filter((_, i) => i !== idx);
+                        setEvent({ ...event, extra_links: next });
+                        updateEvent({ extra_links: next });
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => {
+                  const next = [...(event.extra_links || []), { label_en: "", label_he: "", url: "" }];
+                  setEvent({ ...event, extra_links: next });
+                }}>
+                  <Plus className="w-4 h-4" /> {t("add_link")}
+                </Button>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
