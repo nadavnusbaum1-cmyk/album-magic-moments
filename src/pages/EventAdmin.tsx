@@ -950,6 +950,17 @@ export default function EventAdmin() {
                   <Plus className="w-4 h-4" /> {t("add_link")}
                 </Button>
               </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-medium">{t("redetect_capture_dates")}</label>
+                <p className="text-xs text-muted-foreground">{t("redetect_hint")}</p>
+                <Button type="button" variant="outline" size="sm" className="gap-2" disabled={backfilling} onClick={runBackfill}>
+                  {backfilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {backfilling
+                    ? t("redetect_running", { done: backfillStats.scanned, total: backfillStats.total })
+                    : t("redetect_capture_dates")}
+                </Button>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
