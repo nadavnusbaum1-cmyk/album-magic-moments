@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X } from "lucide-react";
+import { Heart, Download, Loader2, ArrowLeft, CheckSquare, Square, X, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+
+type ExtraLink = { label_en: string; label_he: string; url: string };
 
 interface AlbumData {
   guest: { name: string };
