@@ -16,7 +16,7 @@ import { prepareImageForUpload } from "@/lib/imageUtils";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; default_language: string | null; };
 type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; media_type?: string };
