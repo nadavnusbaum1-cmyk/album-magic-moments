@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Camera, Sparkles, Upload, Heart, Users, Loader2, Image as ImageIcon } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -139,7 +138,7 @@ export default function EventPublic() {
 
   const onSelfieFile = async (file: File) => {
     try {
-      const converted = await convertHeicIfNeeded(file);
+      const converted = await prepareImageForUpload(await convertHeicIfNeeded(file));
       const reader = new FileReader();
       reader.onload = () => setSelfie(reader.result as string);
       reader.readAsDataURL(converted);
@@ -150,10 +149,12 @@ export default function EventPublic() {
     if (!selfie || !event) return toast.error(t("please_add_selfie"));
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("register-guest", {
-        body: { name: `Guest-${Date.now().toString(36)}`, selfieBase64: selfie, eventSlug: event.slug },
+      const r = await authedFetch("register-guest", {
+        method: "POST",
+        body: JSON.stringify({ name: `Guest-${Date.now().toString(36)}`, selfieBase64: selfie, eventSlug: event.slug }),
       });
-      if (error) throw error;
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || t("something_wrong"));
       if (data.error) throw new Error(data.error);
       setResult({ token: data.token, photoCount: data.photoCount });
       toast.success(t("found_n_photos", { n: data.photoCount }));

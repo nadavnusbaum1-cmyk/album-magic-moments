@@ -1,6 +1,10 @@
 // Public: get an album by guest magic token (paginated).
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+
+function proxiedPhotoUrl(req: Request, photoId: string) {
+  const origin = new URL(req.url).origin;
+  return `${origin}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -25,23 +29,22 @@ Deno.serve(async (req) => {
 
     let mq = supabase
       .from("photo_matches")
-      .select("photo_id, photos(storage_path, storage_provider, s3_key, media_type, content_type, created_at)")
+      .select("photo_id, photos(media_type, content_type, created_at)")
       .eq("guest_id", guest.id)
       .order("created_at", { foreignTable: "photos", ascending: false })
       .limit(limit);
     if (before) mq = mq.lt("created_at", before);
     const { data: matches } = await mq;
 
-    const photos = await Promise.all(
-      (matches || []).flatMap((m: any) => {
+    const photos = (matches || []).flatMap((m: any) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
-        return p ? [p] : [];
-      }).map(async (p: any) => ({
-        url: await resolvePhotoUrl(p),
-        media_type: p.media_type || "image",
-        created_at: p.created_at,
-      })),
-    );
+        return p ? [{ photoId: m.photo_id, photo: p }] : [];
+      }).map(({ photoId, photo }: any) => ({
+        url: proxiedPhotoUrl(req, photoId),
+        id: photoId,
+        media_type: photo.media_type || "image",
+        created_at: photo.created_at,
+      }));
 
     const nextCursor = photos.length === limit ? photos[photos.length - 1].created_at : null;
     return json({ guest: { name: guest.name }, event, photos, count: guest.photo_count || photos.length, nextCursor });
