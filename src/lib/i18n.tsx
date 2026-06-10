@@ -74,7 +74,7 @@ const dict: Record<Lang, Record<string, string>> = {
     new_folder: "+ New folder…",
     new_folder_placeholder: "New folder name (e.g. Photographer Sarah)",
     uploader_name_optional: "Uploader name (optional)",
-    tap_to_choose: "Tap to choose photos or videos",
+    tap_to_choose: "Tap to choose photos",
     files_ready: "{n} file(s) ready",
     upload_files: "Upload {n} file(s)",
     upload_to: "to \"{folder}\"",
