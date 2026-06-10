@@ -913,6 +913,33 @@ export default function EventAdmin() {
                 <Input defaultValue={event.cover_image_url || ""} placeholder={t("paste_url")}
                   onBlur={(e) => e.target.value !== (event.cover_image_url || "") && updateEvent({ cover_image_url: e.target.value || null })} />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t("home_bg_image")}</label>
+                <p className="text-xs text-muted-foreground">{t("home_bg_image_hint")}</p>
+                {event.home_bg_url && (
+                  <img src={event.home_bg_url} alt={t("home_bg_image")} className="w-full max-w-sm aspect-video object-cover rounded-md border" />
+                )}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <label className="inline-flex">
+                    <Button type="button" variant="outline" size="sm" disabled={coverUploading} asChild>
+                      <span className="cursor-pointer gap-2 inline-flex items-center">
+                        {coverUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {t("upload_image")}
+                      </span>
+                    </Button>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f, "home_bg"); e.currentTarget.value = ""; }} />
+                  </label>
+                  {event.home_bg_url && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateEvent({ home_bg_url: null })}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <Input defaultValue={event.home_bg_url || ""} placeholder={t("paste_url")}
+                  onBlur={(e) => e.target.value !== (event.home_bg_url || "") && updateEvent({ home_bg_url: e.target.value || null })} />
+              </div>
+
               <div className="flex items-center justify-between border-t pt-4">
                 <div><div className="font-medium text-sm">{t("show_people_title")}</div><p className="text-xs text-muted-foreground">{t("show_people_desc")}</p></div>
                 <Switch checked={event.show_people} onCheckedChange={(v) => updateEvent({ show_people: v })} />
