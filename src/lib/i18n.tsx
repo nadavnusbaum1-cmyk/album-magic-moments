@@ -320,7 +320,7 @@ const dict: Record<Lang, Record<string, string>> = {
     new_folder: "+ תיקייה חדשה…",
     new_folder_placeholder: "שם התיקייה החדשה (למשל הצלם שרה)",
     uploader_name_optional: "שם המעלה (אופציונלי)",
-    tap_to_choose: "הקש לבחירת תמונות או סרטונים",
+    tap_to_choose: "הקש לבחירת תמונות",
     files_ready: "{n} קבצים מוכנים",
     upload_files: "העלה {n} קבצים",
     upload_to: 'לתיקייה "{folder}"',
