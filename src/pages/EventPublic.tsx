@@ -190,7 +190,17 @@ export default function EventPublic() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
+    <div
+      className="min-h-screen relative"
+      style={
+        event.home_bg_url
+          ? { backgroundImage: `url(${event.home_bg_url})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }
+          : { background: "var(--gradient-soft)" }
+      }
+    >
+      {event.home_bg_url && <div className="absolute inset-0 bg-background/70 backdrop-blur-sm pointer-events-none" aria-hidden />}
+      <div className="relative">
+
       <FloatingLanguageSwitcher />
       <header className="px-6 pt-12 pb-8 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-3">
