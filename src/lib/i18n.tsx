@@ -233,7 +233,7 @@ const dict: Record<Lang, Record<string, string>> = {
     found_n_photos: "Found {n} photos of you! 🎉",
     something_wrong: "Something went wrong",
     youre_in: "You're in! 💕",
-    found_n_photos_videos: "Found {n} photos & videos of you.",
+    found_n_photos_videos: "Found {n} photos of you.",
     view_my_album: "View My Album",
     share_your_photos: "Share your photos 📷",
     share_your_photos_desc: "Got pictures from the event? Add them to the album!",
