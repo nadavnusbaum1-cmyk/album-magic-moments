@@ -219,8 +219,8 @@ const dict: Record<Lang, Record<string, string>> = {
     // EventPublic
     event_not_found: "Event not found",
     go_home: "Go home",
-    find_your_photos: "Find your photos & videos",
-    find_desc: "Take a quick selfie so we can find every photo and video you appear in. Your selfie isn't added to the album.",
+    find_your_photos: "Find your photos",
+    find_desc: "Take a quick selfie so we can find every photo you appear in. Your selfie isn't added to the album.",
     selfie_label: "Selfie to find your photos 🔍",
     selfie_hint: "Used only to match your face — not uploaded to the album.",
     your_selfie: "Your selfie",
