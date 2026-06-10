@@ -298,12 +298,13 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
-  const uploadCover = async (file: File) => {
+  const uploadCover = async (file: File, kind: "cover" | "home_bg" = "cover") => {
     if (!id) return;
     setCoverUploading(true);
     try {
       const fd = new FormData();
       fd.append("eventId", id);
+      fd.append("kind", kind);
       fd.append("file", file);
       const r = await authedFetch("upload-cover", { method: "POST", body: fd });
       const j = await r.json();
@@ -313,6 +314,7 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : t("upload_failed")); }
     finally { setCoverUploading(false); }
   };
+
 
 
   const reprocess = async () => {
