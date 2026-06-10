@@ -1,9 +1,9 @@
 // Public: list visible clusters for an event slug. Or host: include hidden if logged-in host.
 import { corsHeaders, eventBySlug, getUser, json, svc } from "../_shared/auth.ts";
 
-function proxiedPhotoUrl(req: Request, photoId: string) {
-  const origin = new URL(req.url).origin;
-  return `${origin}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
+function proxiedPhotoUrl(_req: Request, photoId: string) {
+  const base = Deno.env.get("SUPABASE_URL")!;
+  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
 }
 
 Deno.serve(async (req) => {
