@@ -408,7 +408,7 @@ const dict: Record<Lang, Record<string, string>> = {
     share_link_hint: "ברירת המחדל היא קישור האלבום. ניתן להחליף לכל קישור חיצוני (למשל תיקיית Google Drive או גלריה חיצונית).",
     reset_to_album_link: "קישור האלבום",
     extra_links_title: "קישורים נוספים",
-    extra_links_hint: "הוסף קישורים שיוצגו לאורחים בעמוד האלבום (למשל תיקיית Google Drive עם סרטונים).",
+    extra_links_hint: "הוסף קישורים שיוצגו לאורחים בעמוד האלבום (למשל תיקיית Google Drive).",
     extra_link_label_en: "תווית (אנגלית)",
     extra_link_label_he: "תווית (עברית)",
     extra_link_url: "כתובת",
