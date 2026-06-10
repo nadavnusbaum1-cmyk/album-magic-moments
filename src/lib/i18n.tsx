@@ -423,6 +423,8 @@ const dict: Record<Lang, Record<string, string>> = {
     event_date: "תאריך האירוע",
     cover_image: "תמונת שער",
     cover_image_hint: "העלה תמונה, הדבק קישור, או בחר אחת מהתמונות עם סמל ה-⭐.",
+    home_bg_image: "רקע למסך הבית של האלבום",
+    home_bg_image_hint: "תמונת רקע אישית שתוצג במסך הבית של האלבום הציבורי. העלה תמונה או הדבק קישור.",
     upload_image: "העלאת תמונה",
     paste_url: "או הדבק קישור",
     cover_preview: "תצוגה מקדימה של הכריכה",
