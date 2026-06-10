@@ -348,7 +348,9 @@ export default function EventPublic() {
 
       </main>
       <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
+      </div>
     </div>
+
   );
 }
 
