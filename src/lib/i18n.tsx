@@ -182,6 +182,8 @@ const dict: Record<Lang, Record<string, string>> = {
     event_date: "Event date",
     cover_image: "Cover image",
     cover_image_hint: "Upload an image, paste a URL, or pick one of your photos with the ⭐ icon.",
+    home_bg_image: "Album home background",
+    home_bg_image_hint: "A personalized background shown on the public album home page. Upload an image or paste a URL.",
     upload_image: "Upload image",
     paste_url: "Or paste a URL",
     cover_preview: "Cover preview",
