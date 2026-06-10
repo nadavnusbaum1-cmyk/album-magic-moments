@@ -3,9 +3,9 @@ import { corsHeaders, json, svc } from "../_shared/auth.ts";
 
 const PAGE_SIZE = 1000;
 
-function proxiedPhotoUrl(req: Request, photoId: string) {
-  const origin = new URL(req.url).origin;
-  return `${origin}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
+function proxiedPhotoUrl(_req: Request, photoId: string) {
+  const base = Deno.env.get("SUPABASE_URL")!;
+  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
 }
 
 Deno.serve(async (req) => {
