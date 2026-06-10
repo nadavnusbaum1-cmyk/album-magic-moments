@@ -472,7 +472,7 @@ const dict: Record<Lang, Record<string, string>> = {
     found_n_photos: "מצאנו {n} תמונות שלך! 🎉",
     something_wrong: "משהו השתבש",
     youre_in: "נכנסת! 💕",
-    found_n_photos_videos: "מצאנו {n} תמונות וסרטונים שלך.",
+    found_n_photos_videos: "מצאנו {n} תמונות שלך.",
     view_my_album: "צפה באלבום שלי",
     share_your_photos: "שתף את התמונות שלך 📷",
     share_your_photos_desc: "יש לך תמונות מהאירוע? הוסף אותן לאלבום!",
