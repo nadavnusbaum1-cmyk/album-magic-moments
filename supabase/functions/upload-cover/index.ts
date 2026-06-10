@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
   try {
     const form = await req.formData();
     const eventId = String(form.get("eventId") || "");
+    const kind = String(form.get("kind") || "cover"); // "cover" | "home_bg"
     const file = form.get("file") as File | null;
     if (!eventId) return json({ error: "eventId required" }, 400);
     if (!file) return json({ error: "file required" }, 400);
@@ -21,7 +22,8 @@ Deno.serve(async (req) => {
 
     const supabase = svc();
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().slice(0, 5);
-    const path = `covers/${eventId}/${Date.now()}.${ext}`;
+    const folder = kind === "home_bg" ? "home-bg" : "covers";
+    const path = `${folder}/${eventId}/${Date.now()}.${ext}`;
     const bytes = new Uint8Array(await file.arrayBuffer());
 
     const { error: upErr } = await supabase.storage
@@ -32,15 +34,19 @@ Deno.serve(async (req) => {
     const { data: pub } = supabase.storage.from("event-photos").getPublicUrl(path);
     const publicUrl = pub.publicUrl;
 
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    patch[kind === "home_bg" ? "home_bg_url" : "cover_image_url"] = publicUrl;
+
     const { data: ev, error: evErr } = await supabase
       .from("events")
-      .update({ cover_image_url: publicUrl, updated_at: new Date().toISOString() })
+      .update(patch)
       .eq("id", eventId)
       .select()
       .single();
     if (evErr) throw evErr;
 
     return json({ url: publicUrl, event: ev });
+
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }

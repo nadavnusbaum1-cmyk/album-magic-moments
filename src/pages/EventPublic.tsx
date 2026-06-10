@@ -18,7 +18,7 @@ import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url?: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; media_type?: string };
 
@@ -190,7 +190,17 @@ export default function EventPublic() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
+    <div
+      className="min-h-screen relative"
+      style={
+        event.home_bg_url
+          ? { backgroundImage: `url(${event.home_bg_url})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }
+          : { background: "var(--gradient-soft)" }
+      }
+    >
+      {event.home_bg_url && <div className="absolute inset-0 bg-background/70 backdrop-blur-sm pointer-events-none" aria-hidden />}
+      <div className="relative">
+
       <FloatingLanguageSwitcher />
       <header className="px-6 pt-12 pb-8 text-center">
         <div className="inline-flex items-center gap-2 text-primary mb-3">
@@ -338,7 +348,9 @@ export default function EventPublic() {
 
       </main>
       <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
+      </div>
     </div>
+
   );
 }
 

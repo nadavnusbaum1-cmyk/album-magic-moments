@@ -107,6 +107,7 @@ export type Database = {
           default_language: string | null
           event_date: string | null
           extra_links: Json
+          home_bg_url: string | null
           id: string
           is_published: boolean
           name: string
@@ -124,6 +125,7 @@ export type Database = {
           default_language?: string | null
           event_date?: string | null
           extra_links?: Json
+          home_bg_url?: string | null
           id?: string
           is_published?: boolean
           name: string
@@ -141,6 +143,7 @@ export type Database = {
           default_language?: string | null
           event_date?: string | null
           extra_links?: Json
+          home_bg_url?: string | null
           id?: string
           is_published?: boolean
           name?: string
