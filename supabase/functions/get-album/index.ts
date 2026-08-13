@@ -28,27 +28,29 @@ Deno.serve(async (req) => {
       event = data;
     }
 
+    // Order by the match's own sort_at (denormalized from the photo's capture
+    // date) — reliable, unlike ordering the parent by an embedded column.
     let mq = supabase
       .from("photo_matches")
-      .select("photo_id, photos!inner(media_type, content_type, sort_at, deleted_at)")
+      .select("photo_id, sort_at, photos!inner(media_type, deleted_at)")
       .eq("guest_id", guest.id)
       .is("photos.deleted_at", null)
-      .order("sort_at", { foreignTable: "photos", ascending: true })
+      .order("sort_at", { ascending: true })
       .limit(limit);
     const cursor = after || before;
-    if (cursor) mq = mq.filter("photos.sort_at", "gt", cursor);
+    if (cursor) mq = mq.gt("sort_at", cursor);
     const { data: matches } = await mq;
 
     const photos = (matches || []).flatMap((m: any) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
-        return p ? [{ photoId: m.photo_id, photo: p }] : [];
-      }).map(({ photoId, photo }: any) => ({
+        return p ? [{ photoId: m.photo_id, sortAt: m.sort_at, mediaType: p.media_type }] : [];
+      }).map(({ photoId, sortAt, mediaType }: any) => ({
         url: proxiedPhotoUrl(photoId, "full"),
         thumbUrl: proxiedPhotoUrl(photoId, "thumb"),
         mediumUrl: proxiedPhotoUrl(photoId, "medium"),
         id: photoId,
-        media_type: photo.media_type || "image",
-        sort_at: photo.sort_at,
+        media_type: mediaType || "image",
+        sort_at: sortAt,
       }));
 
     const nextCursor = photos.length === limit ? photos[photos.length - 1].sort_at : null;

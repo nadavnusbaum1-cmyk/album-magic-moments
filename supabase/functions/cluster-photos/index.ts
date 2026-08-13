@@ -41,10 +41,10 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += PAGE_SIZE) {
       const { data: matches, error } = await supabase
         .from("cluster_photo_matches")
-        .select("photo_id, photos!inner(content_type, media_type, sort_at, deleted_at)")
+        .select("photo_id, sort_at, photos!inner(media_type, deleted_at)")
         .eq("cluster_id", clusterId)
         .is("photos.deleted_at", null)
-        .order("sort_at", { foreignTable: "photos", ascending: true })
+        .order("sort_at", { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       allMatches.push(...(matches || []));
