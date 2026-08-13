@@ -1,9 +1,9 @@
 // Public: get an album by guest magic token (paginated).
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
 
-function proxiedPhotoUrl(_req: Request, photoId: string) {
+function proxiedPhotoUrl(photoId: string, size: "thumb" | "medium" | "full" = "full") {
   const base = Deno.env.get("SUPABASE_URL")!;
-  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
+  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}&size=${size}`;
 }
 
 Deno.serve(async (req) => {
@@ -30,8 +30,9 @@ Deno.serve(async (req) => {
 
     let mq = supabase
       .from("photo_matches")
-      .select("photo_id, photos!inner(media_type, content_type, sort_at)")
+      .select("photo_id, photos!inner(media_type, content_type, sort_at, deleted_at)")
       .eq("guest_id", guest.id)
+      .is("photos.deleted_at", null)
       .order("sort_at", { foreignTable: "photos", ascending: true })
       .limit(limit);
     const cursor = after || before;
@@ -42,7 +43,9 @@ Deno.serve(async (req) => {
         const p = Array.isArray(m.photos) ? m.photos[0] : m.photos;
         return p ? [{ photoId: m.photo_id, photo: p }] : [];
       }).map(({ photoId, photo }: any) => ({
-        url: proxiedPhotoUrl(req, photoId),
+        url: proxiedPhotoUrl(photoId, "full"),
+        thumbUrl: proxiedPhotoUrl(photoId, "thumb"),
+        mediumUrl: proxiedPhotoUrl(photoId, "medium"),
         id: photoId,
         media_type: photo.media_type || "image",
         sort_at: photo.sort_at,

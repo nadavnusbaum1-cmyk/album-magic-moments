@@ -13,7 +13,7 @@ type ExtraLink = { label_en: string; label_he: string; url: string };
 interface AlbumData {
   guest: { name: string };
   event?: { name?: string; slug?: string; extra_links?: ExtraLink[] | null } | null;
-  photos: { url: string; media_type?: string; created_at?: string }[];
+  photos: { id?: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string; created_at?: string }[];
   count: number;
   nextCursor: string | null;
 }
@@ -136,7 +136,7 @@ const Album = () => {
                     {p.media_type === "video" ? (
                       <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                     ) : (
-                      <img src={p.url} alt={t("n_photo", { n: i + 1 })} className="w-full h-full object-cover" loading="lazy" />
+                      <img src={p.thumbUrl || p.url} alt={t("n_photo", { n: i + 1 })} className="w-full h-full object-cover" loading="lazy" />
                     )}
                   </button>
                   {selecting && (

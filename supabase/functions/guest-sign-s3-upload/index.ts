@@ -1,21 +1,16 @@
-// Public: guests upload photos to an event by slug.
-// Mirrors sign-s3-upload but does NOT require host auth.
+// Public: guests upload photos to an event by slug (no host auth).
+// Mirrors sign-s3-upload but sets source=guest_upload and applies the event's
+// moderation policy (guest_photos_auto_publish → approved | pending).
 import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
-
-const API_URL = "https://connector-gateway.lovable.dev";
-const ALLOWED = /^(image\/(jpeg|jpg|png|webp|gif)|video\/(mp4|quicktime|webm|x-m4v|x-matroska))$/i;
-const HEIC_RE = /\.(heic|heif)$/i;
+import { presignPut } from "../_shared/s3.ts";
+import { planUploads, isPlanItem, type FileInput } from "../_shared/uploadPlan.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY");
-    if (!LOVABLE_API_KEY || !AWS_S3_API_KEY) throw new Error("S3 connector not configured");
-
     const { eventSlug, files, uploadedBy } = await req.json() as {
       eventSlug: string;
-      files: { name: string; contentType: string; takenAt?: string | null }[];
+      files: FileInput[];
       uploadedBy?: string;
     };
     if (!eventSlug) return json({ error: "eventSlug required" }, 400);
@@ -25,65 +20,40 @@ Deno.serve(async (req) => {
     const event = await eventBySlug(eventSlug);
     if (!event || !event.is_published) return json({ error: "Event not found" }, 404);
 
-    // Re-fetch with allow_guest_uploads (eventBySlug doesn't select it)
     const supabase = svc();
-    const { data: full } = await supabase.from("events").select("id, allow_guest_uploads").eq("id", event.id).maybeSingle();
+    const { data: full } = await supabase
+      .from("events")
+      .select("id, allow_guest_uploads, guest_photos_auto_publish")
+      .eq("id", event.id)
+      .maybeSingle();
     if (!full?.allow_guest_uploads) return json({ error: "Guest uploads are disabled for this event" }, 403);
 
+    const moderationStatus = full.guest_photos_auto_publish === false ? "pending" : "approved";
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
     const sourceLabel = uploader ? `Guest: ${uploader}` : "Guest uploads";
 
-    type Plan = { idx: number; id: string; key: string; contentType: string; mediaType: string; takenAt: string | null };
-    const plans: (Plan | { idx: number; skipped: true })[] = files.map((f, idx) => {
-      const lower = (f.name || "").toLowerCase();
-      if (HEIC_RE.test(lower) || /^image\/(heic|heif)/i.test(f.contentType || "")) {
-        return { idx, skipped: true };
-      }
-      const id = crypto.randomUUID();
-      const ext = (lower.split(".").pop() || "jpg").slice(0, 5);
-      let contentType = f.contentType || "";
-      if (!contentType || !ALLOWED.test(contentType)) {
-        if (lower.endsWith(".mp4")) contentType = "video/mp4";
-        else if (lower.endsWith(".mov")) contentType = "video/quicktime";
-        else if (lower.endsWith(".webm")) contentType = "video/webm";
-        else if (lower.endsWith(".png")) contentType = "image/png";
-        else if (lower.endsWith(".webp")) contentType = "image/webp";
-        else contentType = "image/jpeg";
-      }
-      const mediaType = contentType.startsWith("video/") ? "video" : "image";
-      const key = `event-photos/${event.id}/${id}.${ext}`;
-      const takenAt = typeof f.takenAt === "string" && !isNaN(Date.parse(f.takenAt)) ? new Date(f.takenAt).toISOString() : null;
-      return { idx, id, key, contentType, mediaType, takenAt };
-    });
+    const planned = planUploads(event.id, files);
+    const items = planned.filter(isPlanItem);
 
-    const realPlans = plans.filter((p): p is Plan => !("skipped" in p && p.skipped));
-
-    const signOne = async (objectPath: string): Promise<string> => {
-      let lastStatus = 0;
-      for (let attempt = 0; attempt < 4; attempt++) {
-        const r = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=write`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": AWS_S3_API_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ object_path: objectPath }),
-        });
-        if (r.ok) { const { url } = await r.json(); return url as string; }
-        lastStatus = r.status;
-        if (r.status !== 429 && r.status < 500) break;
-        await new Promise((res) => setTimeout(res, 200 * Math.pow(2, attempt) + Math.random() * 150));
+    // Idempotency (same as host path).
+    const clientIds = items.map((p) => p.clientUploadId).filter(Boolean) as string[];
+    const existingByClientId = new Map<string, { id: string; key: string; content_type: string }>();
+    if (clientIds.length) {
+      const { data: existing } = await supabase
+        .from("photos")
+        .select("id, s3_key, content_type, client_upload_id")
+        .eq("event_id", event.id)
+        .in("client_upload_id", clientIds);
+      for (const r of existing || []) {
+        existingByClientId.set(r.client_upload_id, { id: r.id, key: r.s3_key, content_type: r.content_type });
       }
-      throw new Error(`Sign failed [${lastStatus}]`);
-    };
-    const signed = await Promise.all(realPlans.map(async (p) => {
-      const url = await signOne(p.key);
-      return { ...p, uploadUrl: url };
-    }));
+    }
 
-    if (signed.length) {
-      const rows = signed.map((p) => ({
+    const newRows: Record<string, unknown>[] = [];
+    const resolved = items.map((p) => {
+      const reuse = p.clientUploadId ? existingByClientId.get(p.clientUploadId) : undefined;
+      if (reuse) return { idx: p.idx, id: reuse.id, key: reuse.key, contentType: reuse.content_type };
+      newRows.push({
         id: p.id,
         event_id: event.id,
         storage_path: p.key,
@@ -91,25 +61,37 @@ Deno.serve(async (req) => {
         storage_provider: "s3",
         source: "guest_upload",
         source_label: sourceLabel,
-        processed: false,
+        upload_status: "pending",
+        processing_status: "queued",
+        moderation_status: moderationStatus,
         uploaded_by: uploader,
         media_type: p.mediaType,
         content_type: p.contentType,
+        mime_type: p.contentType,
+        file_size: p.fileSize,
         taken_at: p.takenAt,
-      }));
-      const { error: insErr } = await supabase.from("photos").insert(rows);
+        client_upload_id: p.clientUploadId,
+      });
+      return { idx: p.idx, id: p.id, key: p.key, contentType: p.contentType };
+    });
+
+    if (newRows.length) {
+      const { error: insErr } = await supabase.from("photos").insert(newRows);
       if (insErr) throw insErr;
     }
 
-    const results = plans.map((p) => {
-      if ("skipped" in p && p.skipped) {
-        return { photoId: "", uploadUrl: "", key: "", contentType: "", skipped: true, reason: "HEIC must be converted client-side" };
-      }
-      const s = signed.find((x) => x.idx === (p as Plan).idx)!;
-      return { photoId: s.id, uploadUrl: s.uploadUrl, key: s.key, contentType: s.contentType };
+    const uploadUrls = new Map<number, string>();
+    await Promise.all(resolved.map(async (r) => {
+      uploadUrls.set(r.idx, await presignPut(r.key));
+    }));
+
+    const uploads = planned.map((p) => {
+      if (!isPlanItem(p)) return { photoId: "", uploadUrl: "", key: "", contentType: "", skipped: true, reason: p.reason };
+      const r = resolved.find((x) => x.idx === p.idx)!;
+      return { photoId: r.id, uploadUrl: uploadUrls.get(p.idx)!, key: r.key, contentType: r.contentType };
     });
 
-    return json({ uploads: results });
+    return json({ uploads });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }

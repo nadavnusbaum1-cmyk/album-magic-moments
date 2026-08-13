@@ -3,9 +3,9 @@ import { corsHeaders, json, svc } from "../_shared/auth.ts";
 
 const PAGE_SIZE = 1000;
 
-function proxiedPhotoUrl(_req: Request, photoId: string) {
+function proxiedPhotoUrl(photoId: string, size: "thumb" | "medium" | "full" = "full") {
   const base = Deno.env.get("SUPABASE_URL")!;
-  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}`;
+  return `${base}/functions/v1/photo-proxy?id=${encodeURIComponent(photoId)}&size=${size}`;
 }
 
 Deno.serve(async (req) => {
@@ -29,8 +29,9 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += PAGE_SIZE) {
       const { data: matches, error } = await supabase
         .from("cluster_photo_matches")
-        .select("photo_id, photos(content_type, media_type, sort_at)")
+        .select("photo_id, photos!inner(content_type, media_type, sort_at, deleted_at)")
         .eq("cluster_id", clusterId)
+        .is("photos.deleted_at", null)
         .order("sort_at", { foreignTable: "photos", ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
@@ -45,7 +46,9 @@ Deno.serve(async (req) => {
 
     const photos = photoRows.map(({ id, photo }) => ({
       id,
-      url: proxiedPhotoUrl(req, id),
+      url: proxiedPhotoUrl(id, "full"),
+      thumbUrl: proxiedPhotoUrl(id, "thumb"),
+      mediumUrl: proxiedPhotoUrl(id, "medium"),
       media_type: photo.media_type || "image",
     }));
 

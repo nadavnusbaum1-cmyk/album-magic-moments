@@ -12,7 +12,7 @@ import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/image
 import { extractTakenAt } from "@/lib/exif";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
-import { authedFetch, authedInvoke } from "@/lib/auth";
+import { authedFetch } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
@@ -20,7 +20,7 @@ import { ExternalLink } from "lucide-react";
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url?: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
-type Photo = { id: string; url: string; media_type?: string };
+type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 
 export default function EventPublic() {
   const { t, setDefaultLang, lang } = useI18n();
@@ -62,6 +62,7 @@ export default function EventPublic() {
     const bumpErr = () => { errors++; bumpDone(); };
 
     const CONCURRENCY = 6;
+    const uploadedIds: string[] = [];
     let cursor = 0;
     const worker = async () => {
       while (true) {
@@ -76,7 +77,13 @@ export default function EventPublic() {
             body: JSON.stringify({
               eventSlug: event.slug,
               uploadedBy: guestName.trim() || null,
-              files: [{ name: prepared.name, contentType: prepared.type || "image/jpeg", takenAt }],
+              files: [{
+                name: prepared.name,
+                contentType: prepared.type || "image/jpeg",
+                takenAt,
+                size: prepared.size,
+                clientUploadId: `${raw.name}|${raw.size}|${raw.lastModified}`.slice(0, 128),
+              }],
             }),
           });
           const j = await r.json();
@@ -85,7 +92,7 @@ export default function EventPublic() {
           if (!u || u.skipped) { bumpErr(); continue; }
           const put = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": prepared.type || "image/jpeg" }, body: prepared });
           if (!put.ok) throw new Error(`put ${put.status}`);
-          authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
+          uploadedIds.push(u.photoId);
           bumpDone();
         } catch (e) {
           console.error(raw.name, e);
@@ -94,6 +101,12 @@ export default function EventPublic() {
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
+
+    // Verify uploads server-side (HEAD) + start processing. Works for guests
+    // (runs under service role) — replaces the old host-only process-photo-now.
+    if (uploadedIds.length) {
+      authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
+    }
 
     setGuestUploading(false);
     const ok = done - errors;
@@ -312,7 +325,7 @@ export default function EventPublic() {
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                   {allPhotos.map((p, i) => (
                     <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90">
-                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                     </button>
                   ))}
                 </div>

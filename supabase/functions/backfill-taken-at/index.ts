@@ -2,34 +2,15 @@
 // Streams photos in batches, fetches the first ~256 KB of each image via S3 Range request,
 // parses EXIF and updates the row. Safe to re-run.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
+import { presignGet } from "../_shared/s3.ts";
 // @ts-ignore - esm.sh
 import exifr from "https://esm.sh/exifr@7.1.3";
 
-const API_URL = "https://connector-gateway.lovable.dev";
 const RANGE_BYTES = 256 * 1024; // 256 KB is enough for EXIF block in most JPEGs
-
-async function signRead(key: string): Promise<string | null> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY");
-  if (!LOVABLE_API_KEY || !AWS_S3_API_KEY) return null;
-  const res = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=read`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": AWS_S3_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ object_path: key }),
-  });
-  if (!res.ok) return null;
-  const { url } = await res.json();
-  return url as string;
-}
 
 async function readTakenAt(key: string): Promise<string | null> {
   try {
-    const url = await signRead(key);
-    if (!url) return null;
+    const url = await presignGet(key, 300);
     const res = await fetch(url, { headers: { Range: `bytes=0-${RANGE_BYTES - 1}` } });
     if (!res.ok && res.status !== 206) return null;
     const buf = new Uint8Array(await res.arrayBuffer());

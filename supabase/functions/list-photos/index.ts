@@ -1,6 +1,6 @@
 // Public: list photos for an event (paginated). Filter by source optional.
 import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+import { resolvePhotoAssets } from "../_shared/storage.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -16,8 +16,13 @@ Deno.serve(async (req) => {
     const supabase = svc();
     let q = supabase
       .from("photos")
-      .select("id, storage_path, storage_provider, s3_key, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label")
+      .select("id, storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label")
       .eq("event_id", event.id)
+      // Public gallery: only confirmed, approved, non-deleted photos (no ghosts,
+      // no un-moderated guest uploads).
+      .eq("upload_status", "uploaded")
+      .eq("moderation_status", "approved")
+      .is("deleted_at", null)
       .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
@@ -28,17 +33,22 @@ Deno.serve(async (req) => {
     const { data: photos, error } = await q;
     if (error) throw error;
 
-    const items = await Promise.all((photos || []).map(async (p) => ({
-      id: p.id,
-      url: await resolvePhotoUrl(p),
-      face_count: p.face_count,
-      processed: p.processed,
-      created_at: p.created_at,
-      sort_at: p.sort_at,
-      uploaded_by: p.uploaded_by,
-      media_type: p.media_type || "image",
-      source_label: p.source_label,
-    })));
+    const items = await Promise.all((photos || []).map(async (p) => {
+      const assets = await resolvePhotoAssets(p);
+      return {
+        id: p.id,
+        url: assets.full,
+        thumbUrl: assets.thumb,
+        mediumUrl: assets.medium,
+        face_count: p.face_count,
+        processed: p.processed,
+        created_at: p.created_at,
+        sort_at: p.sort_at,
+        uploaded_by: p.uploaded_by,
+        media_type: p.media_type || "image",
+        source_label: p.source_label,
+      };
+    }));
 
     // Distinct source labels (only on first page request, to keep payload small)
     let sources: string[] = [];

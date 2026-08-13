@@ -8,7 +8,7 @@ import { Lightbox } from "@/components/Lightbox";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 
-type PhotoItem = { id: string; url: string; media_type?: string };
+type PhotoItem = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 
 const Person = () => {
   const { t } = useI18n();
@@ -111,7 +111,7 @@ const Person = () => {
                 {p.media_type === "video" ? (
                   <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                 ) : (
-                  <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 )}
               </button>
               {selecting && (

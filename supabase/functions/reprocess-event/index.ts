@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       await supabase.from("photo_matches").delete().eq("event_id", eventId);
       await supabase.from("face_clusters").delete().eq("event_id", eventId);
       await supabase.from("guests").update({ photo_count: 0 }).eq("event_id", eventId);
-      await supabase.from("photos").update({ processed: false, face_count: 0, processing_error: null }).eq("event_id", eventId);
+      await supabase.from("photos").update({ processed: false, processing_status: "queued", face_count: 0, processing_error: null }).eq("event_id", eventId);
 
       const collection = collectionFor(eventId);
       try { await rekognition("DeleteCollection", { CollectionId: collection }); } catch { /* ignore */ }
@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       .from("photos")
       .select("id, event_id, s3_key, storage_path, storage_provider, content_type, media_type")
       .eq("event_id", eventId)
+      .eq("upload_status", "uploaded")
       .eq("processed", false)
       .neq("media_type", "video")
       .order("created_at", { ascending: true })

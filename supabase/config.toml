@@ -1,4 +1,4 @@
-project_id = "tuanjmlepxdojysehytz"
+project_id = "hasuohhrpwqwiwmnftsc"
 
 [functions.register-guest]
 verify_jwt = false
@@ -73,4 +73,25 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.backfill-taken-at]
+verify_jwt = false
+
+# Served directly into <img> tags, which can't send an auth header — must be public.
+[functions.photo-proxy]
+verify_jwt = false
+
+# Storage & consistency foundation (own their auth internally):
+#   confirm-upload  — public-safe (only advances rows with a HEAD-verified object)
+#   delete-event    — requireHost
+#   cleanup-deleted — cron-secret gated
+#   reconcile-storage — requireHost or cron-secret
+[functions.confirm-upload]
+verify_jwt = false
+
+[functions.delete-event]
+verify_jwt = false
+
+[functions.cleanup-deleted]
+verify_jwt = false
+
+[functions.reconcile-storage]
 verify_jwt = false

@@ -1,10 +1,13 @@
-// Shared per-photo face processing — event-scoped.
+// Shared per-photo processing — event-scoped.
+// Steps: download original → generate thumbnail + medium renditions (uploaded to
+// S3) → run face indexing/matching on the MEDIUM rendition (guaranteed small, so
+// the old 5MB-original problem disappears) → drive processing_status state.
 import { rekognition, collectionFor } from "./rekognition.ts";
-
-const API_URL = "https://connector-gateway.lovable.dev";
+import { getObjectBytes } from "./s3.ts";
 
 export const MATCH_THRESHOLD = 80;
 export const CLUSTER_THRESHOLD = 80;
+const REKOGNITION_MAX_BYTES = 5 * 1024 * 1024;
 
 function looksProcessable(name: string): boolean {
   const lower = name.toLowerCase();
@@ -14,47 +17,6 @@ function looksProcessable(name: string): boolean {
 function isVideo(name: string, contentType?: string | null): boolean {
   if (contentType?.startsWith("video/")) return true;
   return /\.(mp4|mov|m4v|webm|avi|mkv)$/.test(name.toLowerCase());
-}
-
-async function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
-
-async function signReadOnce(key: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-  const AWS_S3_API_KEY = Deno.env.get("AWS_S3_API_KEY")!;
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(`${API_URL}/api/v1/sign_storage_url?provider=aws_s3&mode=read`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": AWS_S3_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ object_path: key }),
-    });
-    if (res.ok) { const { url } = await res.json(); return url as string; }
-    lastStatus = res.status;
-    if (res.status !== 429 && res.status < 500) break;
-    await sleep(200 * Math.pow(2, attempt) + Math.random() * 150);
-  }
-  throw new Error(`Sign read failed [${lastStatus}]`);
-}
-
-async function downloadFromS3(key: string): Promise<Uint8Array> {
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const url = await signReadOnce(key);
-      const fileRes = await fetch(url);
-      if (fileRes.ok) return new Uint8Array(await fileRes.arrayBuffer());
-      if (fileRes.status < 500 && fileRes.status !== 429) throw new Error(`Download failed [${fileRes.status}]`);
-      lastErr = new Error(`Download failed [${fileRes.status}]`);
-    } catch (e) {
-      lastErr = e;
-    }
-    await sleep(300 * Math.pow(2, attempt) + Math.random() * 200);
-  }
-  throw lastErr instanceof Error ? lastErr : new Error("S3 download failed");
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -79,85 +41,94 @@ export interface ProcessablePhoto {
   media_type?: string | null;
 }
 
-type FaceMatch = {
-  Face?: { FaceId?: string; ExternalImageId?: string };
-  Similarity?: number;
-};
+type FaceMatch = { Face?: { FaceId?: string; ExternalImageId?: string }; Similarity?: number };
+
+async function downloadOriginal(supabase: Supa, photo: ProcessablePhoto): Promise<Uint8Array> {
+  if (photo.storage_provider === "s3" && photo.s3_key) {
+    return await getObjectBytes(photo.s3_key);
+  }
+  const { data, error } = await supabase.storage.from("event-photos").download(photo.storage_path);
+  if (error) throw error;
+  return new Uint8Array(await data.arrayBuffer());
+}
 
 async function findBestCluster(supabase: Supa, eventId: string, matches: FaceMatch[]): Promise<string | null> {
   const ranked = matches
-    .map((m) => ({ faceId: m.Face?.FaceId, externalId: m.Face?.ExternalImageId, similarity: Number(m.Similarity || 0) }))
-    .filter((m): m is { faceId: string; externalId?: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
+    .map((m) => ({ faceId: m.Face?.FaceId, similarity: Number(m.Similarity || 0) }))
+    .filter((m): m is { faceId: string; similarity: number } => !!m.faceId && m.similarity >= CLUSTER_THRESHOLD)
     .sort((a, b) => b.similarity - a.similarity);
   if (!ranked.length) return null;
 
   const faceIds = [...new Set(ranked.map((m) => m.faceId))];
   const { data: matchRows } = await supabase
-    .from("cluster_photo_matches")
-    .select("cluster_id, face_id")
-    .eq("event_id", eventId)
-    .in("face_id", faceIds);
+    .from("cluster_photo_matches").select("cluster_id, face_id")
+    .eq("event_id", eventId).in("face_id", faceIds);
   const byFace = new Map((matchRows || []).map((r: any) => [r.face_id, r.cluster_id]));
-  for (const m of ranked) {
-    const c = byFace.get(m.faceId);
-    if (c) return c;
-  }
+  for (const m of ranked) { const c = byFace.get(m.faceId); if (c) return c; }
 
   const { data: clusters } = await supabase
-    .from("face_clusters")
-    .select("id, representative_face_id")
-    .eq("event_id", eventId)
-    .in("representative_face_id", faceIds);
+    .from("face_clusters").select("id, representative_face_id")
+    .eq("event_id", eventId).in("representative_face_id", faceIds);
   const byRep = new Map((clusters || []).map((c: any) => [c.representative_face_id, c.id]));
-  for (const m of ranked) {
-    const c = byRep.get(m.faceId);
-    if (c) return c;
-  }
+  for (const m of ranked) { const c = byRep.get(m.faceId); if (c) return c; }
   return null;
 }
 
 async function refreshClusterPhotoCount(supabase: Supa, clusterId: string) {
   const { count } = await supabase
-    .from("cluster_photo_matches")
-    .select("id", { count: "exact", head: true })
+    .from("cluster_photo_matches").select("id", { count: "exact", head: true })
     .eq("cluster_id", clusterId);
   await supabase.from("face_clusters").update({ photo_count: count || 0 }).eq("id", clusterId);
+}
+
+async function recomputeGuestCount(supabase: Supa, guestId: string) {
+  const { count } = await supabase
+    .from("photo_matches").select("id", { count: "exact", head: true })
+    .eq("guest_id", guestId);
+  await supabase.from("guests").update({ photo_count: count || 0 }).eq("id", guestId);
 }
 
 export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Promise<{ matches: number; faces: number }> {
   const ref = photo.s3_key || photo.storage_path;
   const eventId = photo.event_id;
   const COLLECTION = collectionFor(eventId);
+  const isS3 = photo.storage_provider === "s3" && !!photo.s3_key;
 
+  // Video / unsupported: displayable but no face processing or derivatives.
   if (photo.media_type === "video" || isVideo(ref, photo.content_type)) {
-    await supabase.from("photos").update({ processed: true, face_count: 0, media_type: "video", processing_error: null }).eq("id", photo.id);
+    await supabase.from("photos").update({
+      processing_status: "skipped", face_count: 0, media_type: "video", processing_error: null,
+    }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
-
   if (!looksProcessable(ref)) {
-    await supabase.from("photos").update({ processed: true, face_count: 0, processing_error: "Unsupported format (need JPEG/PNG)" }).eq("id", photo.id);
+    await supabase.from("photos").update({
+      processing_status: "skipped", face_count: 0, processing_error: "Unsupported format (need JPEG/PNG)",
+    }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
 
-  let bytes: Uint8Array;
-  if (photo.storage_provider === "s3" && photo.s3_key) {
-    bytes = await downloadFromS3(photo.s3_key);
-  } else {
-    const { data, error } = await supabase.storage.from("event-photos").download(photo.storage_path);
-    if (error) throw error;
-    bytes = new Uint8Array(await data.arrayBuffer());
-  }
+  const original = await downloadOriginal(supabase, photo);
 
-  if (bytes.byteLength > 5 * 1024 * 1024) {
-    await supabase.from("photos").update({ processed: true, face_count: 0, processing_error: "Too large for face recognition (max 5MB)" }).eq("id", photo.id);
+  // NOTE: thumbnail/medium renditions are temporarily NOT generated here.
+  // The Deno image-resize WASM libraries crash the Edge runtime, so grids fall
+  // back to the full image via `thumbUrl || url`. Client-side rendition
+  // generation (Canvas, no WASM) is the planned replacement.
+  await supabase.from("photos").update({ file_size: original.byteLength }).eq("id", photo.id);
+
+  // Face indexing runs on the uploaded image. The client shrinks images to fit
+  // Rekognition's 5MB inline cap before upload; anything still over is skipped.
+  if (original.byteLength > REKOGNITION_MAX_BYTES) {
+    await supabase.from("photos").update({
+      processing_status: "ready", face_count: 0,
+      processing_error: "Too large for face recognition (max 5MB)", processing_attempts: 0,
+    }).eq("id", photo.id);
     return { matches: 0, faces: 0 };
   }
-
-  const base64 = bytesToBase64(bytes);
 
   const indexResult = await rekognition("IndexFaces", {
     CollectionId: COLLECTION,
-    Image: { Bytes: base64 },
+    Image: { Bytes: bytesToBase64(original) },
     ExternalImageId: `photo-${photo.id}`,
     DetectionAttributes: [],
     MaxFaces: 20,
@@ -174,10 +145,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
     const bbox = fr.Face?.BoundingBox || null;
 
     const search = await rekognition("SearchFaces", {
-      CollectionId: COLLECTION,
-      FaceId: faceId,
-      FaceMatchThreshold: 70,
-      MaxFaces: 50,
+      CollectionId: COLLECTION, FaceId: faceId, FaceMatchThreshold: 70, MaxFaces: 50,
     }).catch(() => ({ FaceMatches: [] }));
     const matches = (search.FaceMatches || []) as FaceMatch[];
 
@@ -185,14 +153,14 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
       const ext = m.Face?.ExternalImageId;
       const similarity = Number(m.Similarity || 0);
       if (!ext || ext.startsWith("photo-") || ext.startsWith("cluster-")) continue;
-      if (similarity < MATCH_THRESHOLD) continue;
-      if (matchedGuests.has(ext)) continue;
-      // ext is guest_id — verify it belongs to this event
-      const { data: g } = await supabase.from("guests").select("id, photo_count, event_id").eq("id", ext).maybeSingle();
+      if (similarity < MATCH_THRESHOLD || matchedGuests.has(ext)) continue;
+      const { data: g } = await supabase.from("guests").select("id, event_id").eq("id", ext).maybeSingle();
       if (!g || g.event_id !== eventId) continue;
       matchedGuests.add(ext);
-      await supabase.from("photo_matches").insert({ guest_id: ext, photo_id: photo.id, similarity, event_id: eventId });
-      await supabase.from("guests").update({ photo_count: (g.photo_count || 0) + 1 }).eq("id", ext);
+      // Idempotent: unique(guest_id, photo_id) dedupes; count recomputed authoritatively.
+      await supabase.from("photo_matches")
+        .upsert({ guest_id: ext, photo_id: photo.id, similarity, event_id: eventId }, { onConflict: "guest_id,photo_id" });
+      await recomputeGuestCount(supabase, ext);
     }
 
     let clusterId = await findBestCluster(supabase, eventId, matches);
@@ -202,44 +170,38 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
         representative_face_id: faceId,
         representative_photo_id: photo.id,
         representative_storage_path: photo.storage_path,
-        representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
+        representative_s3_key: isS3 ? photo.s3_key : null,
         photo_count: 0,
       }).select().single();
       if (nc) clusterId = nc.id;
-    } else {
-      // Prefer a "solo" photo (only one face) as the cluster cover whenever possible.
-      // If this photo has only one face and the cluster's current representative is from
-      // a multi-face photo, swap the representative to this one.
-      if (faceRecords.length === 1) {
-        const { data: cl } = await supabase.from("face_clusters")
-          .select("representative_photo_id").eq("id", clusterId).maybeSingle();
-        const repId = cl?.representative_photo_id;
-        if (repId && repId !== photo.id) {
-          const { data: rep } = await supabase.from("photos").select("face_count").eq("id", repId).maybeSingle();
-          if (rep && (rep.face_count || 0) > 1) {
-            await supabase.from("face_clusters").update({
-              representative_photo_id: photo.id,
-              representative_storage_path: photo.storage_path,
-              representative_s3_key: photo.storage_provider === "s3" ? photo.s3_key : null,
-            }).eq("id", clusterId);
-          }
+    } else if (faceRecords.length === 1) {
+      // Prefer a solo shot as the cluster cover.
+      const { data: cl } = await supabase.from("face_clusters").select("representative_photo_id").eq("id", clusterId).maybeSingle();
+      const repId = cl?.representative_photo_id;
+      if (repId && repId !== photo.id) {
+        const { data: rep } = await supabase.from("photos").select("face_count").eq("id", repId).maybeSingle();
+        if (rep && (rep.face_count || 0) > 1) {
+          await supabase.from("face_clusters").update({
+            representative_photo_id: photo.id,
+            representative_storage_path: photo.storage_path,
+            representative_s3_key: isS3 ? photo.s3_key : null,
+          }).eq("id", clusterId);
         }
       }
     }
     if (clusterId && !matchedClusters.has(clusterId)) {
       matchedClusters.add(clusterId);
       await supabase.from("cluster_photo_matches").upsert({
-        cluster_id: clusterId,
-        photo_id: photo.id,
-        similarity: 100,
-        bounding_box: bbox,
-        face_id: faceId,
-        event_id: eventId,
+        cluster_id: clusterId, photo_id: photo.id, similarity: 100,
+        bounding_box: bbox, face_id: faceId, event_id: eventId,
       }, { onConflict: "cluster_id,photo_id" });
       await refreshClusterPhotoCount(supabase, clusterId);
     }
   }
 
-  await supabase.from("photos").update({ processed: true, face_count: faceRecords.length, processing_error: null }).eq("id", photo.id);
+  await supabase.from("photos").update({
+    processing_status: "ready", face_count: faceRecords.length,
+    processing_error: null, processing_attempts: 0,
+  }).eq("id", photo.id);
   return { matches: matchedGuests.size, faces: faceRecords.length };
 }

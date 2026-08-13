@@ -1,5 +1,5 @@
 import { corsHeaders, svc } from "../_shared/auth.ts";
-import { resolvePhotoUrl } from "../_shared/storage.ts";
+import { resolvePhotoAssets } from "../_shared/storage.ts";
 
 const allowedHost = (host: string) => {
   const supabaseHost = new URL(Deno.env.get("SUPABASE_URL")!).host;
@@ -12,18 +12,20 @@ Deno.serve(async (req) => {
   try {
     const params = new URL(req.url).searchParams;
     const photoId = params.get("id");
+    const size = (params.get("size") || "full") as "thumb" | "medium" | "full";
     let url = params.get("url");
 
     if (photoId) {
       const supabase = svc();
       const { data: photo, error } = await supabase
         .from("photos")
-        .select("storage_path, storage_provider, s3_key")
+        .select("storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, deleted_at")
         .eq("id", photoId)
         .maybeSingle();
       if (error) throw error;
-      if (!photo) return new Response("photo not found", { status: 404, headers: corsHeaders });
-      url = await resolvePhotoUrl(photo);
+      if (!photo || photo.deleted_at) return new Response("photo not found", { status: 404, headers: corsHeaders });
+      const assets = await resolvePhotoAssets(photo);
+      url = size === "thumb" ? assets.thumb : size === "medium" ? assets.medium : assets.full;
     }
 
     if (!url) return new Response("url or id required", { status: 400, headers: corsHeaders });

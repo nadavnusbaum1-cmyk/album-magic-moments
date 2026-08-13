@@ -142,3 +142,34 @@ export async function ensureCollection(collectionId: string) {
     throw e;
   }
 }
+
+// Remove indexed faces from a collection by FaceId (chunked to AWS's 4096 limit).
+// Used when a photo is deleted so stale faces stop polluting search/merge results.
+export async function deleteFaces(collectionId: string, faceIds: string[]): Promise<number> {
+  const ids = [...new Set(faceIds.filter(Boolean))];
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += 4000) {
+    const chunk = ids.slice(i, i + 4000);
+    try {
+      const r = await rekognition("DeleteFaces", { CollectionId: collectionId, FaceIds: chunk });
+      deleted += Array.isArray(r.DeletedFaces) ? r.DeletedFaces.length : chunk.length;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Collection already gone → its faces are gone too. Not an error for cleanup.
+      if (msg.includes("ResourceNotFoundException")) return deleted;
+      throw e;
+    }
+  }
+  return deleted;
+}
+
+// Delete an event's entire collection (event deletion / full reprocess reset).
+export async function deleteCollection(collectionId: string): Promise<void> {
+  try {
+    await rekognition("DeleteCollection", { CollectionId: collectionId });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes("ResourceNotFoundException")) throw e;
+  }
+  _ensuredCollections.delete(collectionId);
+}

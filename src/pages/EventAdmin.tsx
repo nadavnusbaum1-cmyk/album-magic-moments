@@ -19,9 +19,9 @@ import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; default_language: string | null; extra_links?: ExtraLink[] | null; };
-type Photo = { id: string; url: string; face_count: number; processed: boolean; processing_error?: string | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
+type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
-type ClusterPhoto = { id: string; url: string; media_type?: string };
+type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 type Source = { label: string; count: number };
 
 const NEW_FOLDER = "__new__";
@@ -184,20 +184,32 @@ export default function EventAdmin() {
       skipped += conv.length - goodFiles.length;
       if (goodFiles.length) {
         try {
-          const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string }[] }>("sign-s3-upload", {
+          const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string; skipped?: boolean }[] }>("sign-s3-upload", {
             eventId: id,
-            files: goodFiles.map((g) => ({ name: g.file.name, contentType: g.file.type || "image/jpeg", takenAt: g.takenAt })),
+            files: goodFiles.map((g) => ({
+              name: g.file.name,
+              contentType: g.file.type || "image/jpeg",
+              takenAt: g.takenAt,
+              size: g.file.size,
+              // Deterministic per source file → retries reuse the same row/object.
+              clientUploadId: `${g.original.name}|${g.original.size}|${g.original.lastModified}`.slice(0, 128),
+            })),
             uploadedBy: uploaderName.trim() || null,
             sourceLabel: folderForUpload,
           });
+          const uploadedIds: string[] = [];
           await Promise.all(data.uploads.map(async (u, idx) => {
+            if (u.skipped || !u.uploadUrl) { skipped++; return; }
             const file = goodFiles[idx].file;
             try {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
-              authedInvoke("process-photo-now", { photoId: u.photoId }).catch(() => {});
+              uploadedIds.push(u.photoId);
             } catch (e) { console.error(file.name, e); errors++; }
           }));
+          // Server-side verify (HEAD) + start processing. Replaces the old
+          // fire-and-forget process-photo-now (which couldn't verify the upload).
+          if (uploadedIds.length) authedInvoke("confirm-upload", { photoIds: uploadedIds }).catch(() => {});
         } catch (e) { errors += goodFiles.length; console.error(e); }
       }
       done += batch.length;
@@ -670,7 +682,7 @@ export default function EventAdmin() {
                           {p.media_type === "video" ? (
                             <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
                           ) : (
-                            <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                            <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                           )}
                           <div className="absolute top-1 start-1"><input type="checkbox" checked={sel} readOnly className="w-5 h-5 accent-primary" /></div>
                           {p.media_type !== "video" && (
@@ -724,7 +736,7 @@ export default function EventAdmin() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {reviewPhotos.map((p) => (
                       <div key={p.id} className="relative group rounded-xl overflow-hidden bg-muted aspect-square">
-                        {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                        {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                         {p.processing_error && <div className="absolute top-1 start-1 end-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
                         <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
                           <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
@@ -1057,7 +1069,7 @@ export default function EventAdmin() {
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {editingClusterPhotos.map((p) => (
                   <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden bg-muted">
-                    {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                    {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                     {p.media_type !== "video" && (
                       <button onClick={() => setClusterCover(p.id)}
                         className="absolute top-1 start-1 bg-background/90 hover:bg-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow" title={t("set_cover_photo")}>
@@ -1086,7 +1098,7 @@ export default function EventAdmin() {
               return (
                 <div key={p.id} className={`relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer ring-2 ${sel ? "ring-primary" : "ring-transparent"}`}
                   onClick={() => setPickerSel((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}>
-                  {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                  {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
                   {sel && <div className="absolute top-1 start-1 bg-primary text-primary-foreground rounded-full p-1"><CheckSquare className="w-4 h-4" /></div>}
                 </div>
               );

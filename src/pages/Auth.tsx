@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -45,13 +44,16 @@ export default function Auth() {
   const google = async () => {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/dashboard` });
-      if (result.error) throw new Error(result.error instanceof Error ? result.error.message : String(result.error));
-      if (result.redirected) return;
-      navigate("/dashboard");
+      // Native Supabase OAuth — redirects to Google, then back to /dashboard
+      // where the session is picked up automatically (detectSessionInUrl).
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+      // Browser redirects to Google now; nothing more to do here.
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("google_failed"));
-    } finally {
       setBusy(false);
     }
   };

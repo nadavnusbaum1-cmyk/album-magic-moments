@@ -3,7 +3,9 @@ import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { downloadOne, preloadDownloadFile, isAbortError, isMobile } from "@/lib/download";
 import { toast } from "sonner";
 
-export type LightboxItem = { url: string; media_type?: string };
+// `url` is the original (used for downloads); `mediumUrl` is an optimized
+// rendition shown in the viewer so we don't fetch full-size originals to display.
+export type LightboxItem = { url: string; mediumUrl?: string; media_type?: string };
 
 type Props = {
   items: LightboxItem[];
@@ -125,7 +127,7 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
         {current.media_type === "video" ? (
           <video src={current.url} className="max-w-[92vw] max-h-[88vh] object-contain" controls autoPlay playsInline />
         ) : (
-          <img src={current.url} alt="" className="max-w-[92vw] max-h-[88vh] object-contain" />
+          <img src={current.mediumUrl || current.url} alt="" className="max-w-[92vw] max-h-[88vh] object-contain" />
         )}
       </div>
 
