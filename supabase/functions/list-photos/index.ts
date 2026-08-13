@@ -2,6 +2,11 @@
 import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
 import { resolvePhotoAssets } from "../_shared/storage.ts";
 
+// Build a PostgREST in-list value from folder names, safely quoting/escaping.
+function pgList(values: string[]): string {
+  return "(" + values.map((v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",") + ")";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -26,6 +31,11 @@ Deno.serve(async (req) => {
       .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
+    // Hide folders the organizer chose not to share publicly.
+    const hidden = Array.isArray((event as { hidden_sources?: unknown }).hidden_sources)
+      ? ((event as { hidden_sources: string[] }).hidden_sources).filter((s) => typeof s === "string")
+      : [];
+    if (hidden.length) q = q.not("source_label", "in", pgList(hidden));
     // ASC pagination: continue after the last sort_at we showed.
     // Accept legacy `before` param too (treat it as `after` for old clients).
     const cursor = after || before;
@@ -55,7 +65,8 @@ Deno.serve(async (req) => {
     if (!cursor) {
       const { data: srcRows } = await supabase
         .from("photos").select("source_label").eq("event_id", event.id).not("source_label", "is", null).limit(1000);
-      sources = Array.from(new Set((srcRows || []).map((p: any) => p.source_label).filter(Boolean))) as string[];
+      sources = (Array.from(new Set((srcRows || []).map((p: any) => p.source_label).filter(Boolean))) as string[])
+        .filter((s) => !hidden.includes(s));
     }
 
     const nextCursor = items.length === pageSize ? items[items.length - 1].sort_at : null;

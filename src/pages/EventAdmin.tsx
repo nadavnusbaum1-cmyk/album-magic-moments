@@ -18,7 +18,7 @@ import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; default_language: string | null; extra_links?: ExtraLink[] | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; };
 type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
@@ -160,6 +160,7 @@ export default function EventAdmin() {
   useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource]);
   useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
   useEffect(() => { if (session && id && tab === "review") loadReview(); }, [session, id, tab]);
+  useEffect(() => { if (session && id && tab === "settings" && !sources.length) loadPhotos(); }, [session, id, tab]);
 
   const folderForUpload = folderChoice === NEW_FOLDER ? newFolderName.trim() : folderChoice.trim();
 
@@ -310,6 +311,15 @@ export default function EventAdmin() {
       const data = await authedInvoke<{ event: Event }>("update-event", { eventId: id, ...patch });
       setEvent(data.event); toast.success(t("saved"));
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+  };
+
+  // Show/hide a folder on the public album.
+  const toggleFolder = (label: string, shared: boolean) => {
+    if (!event) return;
+    const current = event.hidden_sources || [];
+    const next = shared ? current.filter((s) => s !== label) : [...new Set([...current, label])];
+    setEvent({ ...event, hidden_sources: next });
+    updateEvent({ hidden_sources: next });
   };
 
   const uploadCover = async (file: File, kind: "cover" | "home_bg" = "cover") => {
@@ -981,6 +991,26 @@ export default function EventAdmin() {
               <div className="flex items-center justify-between border-t pt-4">
                 <div><div className="font-medium text-sm">{t("published_title")}</div><p className="text-xs text-muted-foreground">{t("published_desc")}</p></div>
                 <Switch checked={event.is_published} onCheckedChange={(v) => updateEvent({ is_published: v })} />
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <div className="font-medium text-sm">{t("folder_sharing_title")}</div>
+                <p className="text-xs text-muted-foreground">{t("folder_sharing_desc")}</p>
+                {sources.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">{t("folder_sharing_empty")}</p>
+                ) : (
+                  <div className="space-y-1">
+                    {sources.map((s) => {
+                      const shared = !(event.hidden_sources || []).includes(s.label);
+                      return (
+                        <div key={s.label} className="flex items-center justify-between py-1">
+                          <div className="text-sm">{s.label} <span className="text-xs text-muted-foreground">({s.count})</span></div>
+                          <Switch checked={shared} onCheckedChange={(v) => toggleFolder(s.label, v)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 border-t pt-4">

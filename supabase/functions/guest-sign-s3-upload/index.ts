@@ -30,7 +30,9 @@ Deno.serve(async (req) => {
 
     const moderationStatus = full.guest_photos_auto_publish === false ? "pending" : "approved";
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
-    const sourceLabel = uploader ? `Guest: ${uploader}` : "Guest uploads";
+    // All guest uploads share one "Guest uploads" folder (name kept in uploaded_by)
+    // so the organizer can show/hide all guest photos with a single toggle.
+    const sourceLabel = "Guest uploads";
 
     const planned = planUploads(event.id, files);
     const items = planned.filter(isPlanItem);
