@@ -3,7 +3,10 @@ import { resolvePhotoAssets } from "../_shared/storage.ts";
 
 const allowedHost = (host: string) => {
   const supabaseHost = new URL(Deno.env.get("SUPABASE_URL")!).host;
-  return host === supabaseHost || host.endsWith(".amazonaws.com") || host === "s3.amazonaws.com";
+  const bucket = Deno.env.get("AWS_S3_BUCKET") || "";
+  // Only OUR bucket's S3 endpoints or the Supabase host — never a general
+  // proxy to arbitrary amazonaws.com objects.
+  return host === supabaseHost || (!!bucket && host.startsWith(`${bucket}.`) && host.endsWith(".amazonaws.com"));
 };
 
 Deno.serve(async (req) => {
@@ -46,6 +49,7 @@ Deno.serve(async (req) => {
     const headers = new Headers(corsHeaders);
     headers.set("Content-Type", upstream.headers.get("Content-Type") || "image/jpeg");
     headers.set("Cache-Control", "private, max-age=300");
+    headers.set("X-Robots-Tag", "noindex, nofollow");
     headers.set("Access-Control-Expose-Headers", "Content-Type, Content-Length, Content-Range, Accept-Ranges");
     const length = upstream.headers.get("Content-Length");
     if (length) headers.set("Content-Length", length);

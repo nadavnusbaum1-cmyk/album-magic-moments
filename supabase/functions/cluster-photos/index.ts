@@ -1,5 +1,5 @@
 // Public: list photos for a cluster (person folder). Returns event slug for back-nav.
-import { corsHeaders, json, svc } from "../_shared/auth.ts";
+import { corsHeaders, getUser, json, svc } from "../_shared/auth.ts";
 
 const PAGE_SIZE = 1000;
 
@@ -21,8 +21,20 @@ Deno.serve(async (req) => {
 
     let eventSlug: string | null = null;
     if (cluster.event_id) {
-      const { data: ev } = await supabase.from("events").select("slug").eq("id", cluster.event_id).maybeSingle();
-      eventSlug = ev?.slug || null;
+      const { data: ev } = await supabase.from("events")
+        .select("slug, is_published, people_gallery_visibility").eq("id", cluster.event_id).maybeSingle();
+      if (!ev || !ev.is_published) return json({ error: "Not found" }, 404);
+      eventSlug = ev.slug || null;
+      // Private people gallery: only the host may open a face folder.
+      if (ev.people_gallery_visibility === "private") {
+        const user = await getUser(req);
+        let isHost = false;
+        if (user) {
+          const { data } = await supabase.rpc("is_event_host", { _user_id: user.id, _event_id: cluster.event_id });
+          isHost = !!data;
+        }
+        if (!isHost) return json({ error: "This event's people gallery is private" }, 403);
+      }
     }
 
     const allMatches: any[] = [];

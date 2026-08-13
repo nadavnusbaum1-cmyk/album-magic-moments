@@ -18,7 +18,7 @@ import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; default_language: string | null; extra_links?: ExtraLink[] | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; default_language: string | null; extra_links?: ExtraLink[] | null; };
 type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
@@ -965,6 +965,10 @@ export default function EventAdmin() {
               <div className="flex items-center justify-between border-t pt-4">
                 <div><div className="font-medium text-sm">{t("show_people_title")}</div><p className="text-xs text-muted-foreground">{t("show_people_desc")}</p></div>
                 <Switch checked={event.show_people} onCheckedChange={(v) => updateEvent({ show_people: v })} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div><div className="font-medium text-sm">{t("people_public_title")}</div><p className="text-xs text-muted-foreground">{t("people_public_desc")}</p></div>
+                <Switch checked={event.people_gallery_visibility === "public"} onCheckedChange={(v) => updateEvent({ people_gallery_visibility: v ? "public" : "private" })} />
               </div>
               <div className="flex items-center justify-between">
                 <div><div className="font-medium text-sm">{t("show_all_photos_title")}</div><p className="text-xs text-muted-foreground">{t("show_all_photos_desc")}</p></div>

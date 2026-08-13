@@ -22,6 +22,12 @@ Deno.serve(async (req) => {
       isHost = !!data;
     }
 
+    // Per-event privacy: when the people gallery is private, only the host sees
+    // face folders (the main album stays link-public regardless).
+    if (!isHost && (event as { people_gallery_visibility?: string }).people_gallery_visibility === "private") {
+      return json({ clusters: [], isHost, peoplePrivate: true });
+    }
+
     const supabase = svc();
     let q = supabase
       .from("face_clusters")
