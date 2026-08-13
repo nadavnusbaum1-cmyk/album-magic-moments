@@ -112,6 +112,8 @@ export default function EventAdmin() {
 
   // Share / WhatsApp
   const [waFrom, setWaFrom] = useState("");
+  const [shortLink, setShortLink] = useState("");
+  const [shortening, setShortening] = useState(false);
   const [waNumbers, setWaNumbers] = useState("");
   const [waMessage, setWaMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
@@ -509,6 +511,19 @@ export default function EventAdmin() {
 
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
+  const uploadUrl = event ? `${window.location.origin}/u/${event.slug}` : "";
+  const shortenUploadLink = async () => {
+    if (!event) return;
+    setShortening(true);
+    try {
+      const j = await authedInvoke<{ short?: string }>("shorten-url", { eventId: event.id, url: uploadUrl });
+      if (!j.short) throw new Error(t("failed"));
+      setShortLink(j.short);
+      await navigator.clipboard.writeText(j.short).catch(() => {});
+      toast.success(t("short_link_copied"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setShortening(false); }
+  };
 
   useEffect(() => {
     if (!event) return;
@@ -890,6 +905,21 @@ export default function EventAdmin() {
               <div>
                 <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> {t("share_title")}</h2>
                 <p className="text-xs text-muted-foreground mt-1">{t("share_desc")}</p>
+              </div>
+
+              <div className="space-y-2 border rounded-lg p-3 bg-secondary/30">
+                <label className="text-sm font-medium">{t("guest_upload_link_title")}</label>
+                <p className="text-xs text-muted-foreground">{t("guest_upload_link_desc")}</p>
+                <div className="flex gap-2 flex-wrap">
+                  <Input value={shortLink || uploadUrl} readOnly dir="ltr" className="flex-1 min-w-[12rem]" />
+                  <Button type="button" variant="outline" size="sm"
+                    onClick={() => { navigator.clipboard.writeText(shortLink || uploadUrl); toast.success(t("link_copied")); }}>
+                    {t("copy")}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={shortenUploadLink} disabled={shortening || !!shortLink}>
+                    {shortening ? <Loader2 className="w-4 h-4 animate-spin" /> : t("shorten")}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">

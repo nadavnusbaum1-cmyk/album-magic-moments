@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.reconcile-storage]
 verify_jwt = false
+
+[functions.shorten-url]
+verify_jwt = false
