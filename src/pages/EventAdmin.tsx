@@ -28,6 +28,34 @@ type Source = { label: string; count: number };
 const isMediaFile = (f: File) =>
   /^(image|video)\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|m4v|webm)$/i.test(f.name);
 
+// Recursively collect files from a dragged entry (file or folder). Supports the
+// webkitGetAsEntry directory API so users can drag a whole folder onto the drop-zone.
+// deno-lint-ignore no-explicit-any
+async function readEntry(entry: any): Promise<File[]> {
+  if (!entry) return [];
+  if (entry.isFile) {
+    return await new Promise((resolve) => entry.file((f: File) => resolve([f]), () => resolve([])));
+  }
+  if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const readBatch = () => new Promise<any[]>((resolve) => reader.readEntries((es: any[]) => resolve(es || []), () => resolve([])));
+    const all: any[] = [];
+    let batch = await readBatch();
+    while (batch.length) { all.push(...batch); batch = await readBatch(); }
+    const nested = await Promise.all(all.map(readEntry));
+    return nested.flat();
+  }
+  return [];
+}
+
+async function filesFromDrop(dt: DataTransfer): Promise<File[]> {
+  const items = Array.from(dt.items || []);
+  // deno-lint-ignore no-explicit-any
+  const entries = items.map((it: any) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null)).filter(Boolean);
+  if (entries.length) return (await Promise.all(entries.map(readEntry))).flat();
+  return Array.from(dt.files || []); // fallback: plain files
+}
+
 const NEW_FOLDER = "__new__";
 
 export default function EventAdmin() {
@@ -580,11 +608,19 @@ export default function EventAdmin() {
                 )}
               </div>
               <Input placeholder={t("uploader_name_optional")} value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
-              <label htmlFor="files" className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
+              <label htmlFor="files"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  const dropped = (await filesFromDrop(e.dataTransfer)).filter(isMediaFile);
+                  if (dropped.length) setFiles(dropped);
+                }}
+                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
                 <Upload className="w-8 h-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground text-center">
                   {files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
+                {!files.length && <span className="text-xs text-muted-foreground/80 text-center">{t("drag_folder_hint")}</span>}
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
