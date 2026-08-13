@@ -520,6 +520,14 @@ export default function EventAdmin() {
               <button onClick={copyPublic} className="hover:text-primary"><Copy className="w-3 h-3" /></button>
             </div>
           </div>
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium hover:border-primary hover:text-primary"
+          >
+            <ExternalLink className="w-4 h-4" /> {t("view_public_page")}
+          </a>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>

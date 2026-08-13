@@ -245,6 +245,8 @@ const dict: Record<Lang, Record<string, string>> = {
     people_and_pets: "People & Pets",
     load_more_people: "Load more people ({n})",
     view_full_album: "View full album",
+    manage_event: "Manage event",
+    view_public_page: "View public page",
     all_photos: "All photos",
     couldnt_read_image: "Could not read that image",
 
@@ -484,6 +486,8 @@ const dict: Record<Lang, Record<string, string>> = {
     people_and_pets: "אנשים וחיות מחמד",
     load_more_people: "טען עוד אנשים ({n})",
     view_full_album: "צפה באלבום המלא",
+    manage_event: "ניהול האירוע",
+    view_public_page: "צפייה בדף הציבורי",
     all_photos: "כל התמונות",
     couldnt_read_image: "לא ניתן לקרוא את התמונה הזו",
 

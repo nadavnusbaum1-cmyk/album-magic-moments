@@ -2,7 +2,7 @@
 // Path: /e/:slug
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Camera, Sparkles, Upload, Heart, Users, Loader2, Image as ImageIcon } from "lucide-react";
+import { Camera, Sparkles, Upload, Heart, Users, Loader2, Image as ImageIcon, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,8 @@ import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/image
 import { extractTakenAt } from "@/lib/exif";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
-import { authedFetch } from "@/lib/auth";
+import { authedFetch, useSession } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
@@ -38,6 +39,8 @@ export default function EventPublic() {
   const [showFullAlbum, setShowFullAlbum] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [peopleVisible, setPeopleVisible] = useState(12);
+  const { session } = useSession();
+  const [isHost, setIsHost] = useState(false);
 
   // Guest upload state
   const [guestName, setGuestName] = useState("");
@@ -126,6 +129,15 @@ export default function EventPublic() {
       } catch { setNotFound(true); }
     })();
   }, [slug]);
+
+  // Show the owner a "Manage event" shortcut (server-verified; guests never see it).
+  useEffect(() => {
+    if (!session || !event?.id) { setIsHost(false); return; }
+    (async () => {
+      const { data } = await supabase.rpc("is_event_host", { _user_id: session.user.id, _event_id: event.id });
+      setIsHost(!!data);
+    })();
+  }, [session, event?.id]);
 
   useEffect(() => {
     if (!event) return;
@@ -361,6 +373,14 @@ export default function EventPublic() {
 
       </main>
       <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
+      {isHost && (
+        <Link
+          to={`/dashboard/event/${event.id}`}
+          className="fixed bottom-5 end-5 z-40 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2.5 text-sm font-medium shadow-lg hover:opacity-90"
+        >
+          <LayoutDashboard className="w-4 h-4" /> {t("manage_event")}
+        </Link>
+      )}
       </div>
     </div>
 
