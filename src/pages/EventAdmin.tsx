@@ -70,6 +70,8 @@ export default function EventAdmin() {
   // Upload
   const [files, setFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounter = useRef(0);
   const [uploaderName, setUploaderName] = useState("");
   const [folderChoice, setFolderChoice] = useState<string>("");
   const [newFolderName, setNewFolderName] = useState("");
@@ -609,18 +611,21 @@ export default function EventAdmin() {
               </div>
               <Input placeholder={t("uploader_name_optional")} value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
               <label htmlFor="files"
+                onDragEnter={(e) => { e.preventDefault(); dragCounter.current += 1; setDragActive(true); }}
                 onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => { e.preventDefault(); dragCounter.current -= 1; if (dragCounter.current <= 0) { dragCounter.current = 0; setDragActive(false); } }}
                 onDrop={async (e) => {
                   e.preventDefault();
+                  dragCounter.current = 0; setDragActive(false);
                   const dropped = (await filesFromDrop(e.dataTransfer)).filter(isMediaFile);
                   if (dropped.length) setFiles(dropped);
                 }}
-                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40">
-                <Upload className="w-8 h-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground text-center">
-                  {files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
+                className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all ${dragActive ? "border-primary bg-primary/10 ring-2 ring-primary/40 scale-[1.01]" : "border-border hover:border-primary bg-secondary/40"}`}>
+                <Upload className={`w-8 h-8 transition-colors ${dragActive ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`text-sm text-center transition-colors ${dragActive ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                  {dragActive ? t("drop_to_upload") : files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
-                {!files.length && <span className="text-xs text-muted-foreground/80 text-center">{t("drag_folder_hint")}</span>}
+                {!dragActive && !files.length && <span className="text-xs text-muted-foreground/80 text-center">{t("drag_folder_hint")}</span>}
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
