@@ -24,6 +24,10 @@ type Cluster = { id: string; cover_url: string | null; photo_count: number; disp
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 type Source = { label: string; count: number };
 
+// Keep only photos/videos when a whole folder is selected (skip .DS_Store, sidecars, etc.).
+const isMediaFile = (f: File) =>
+  /^(image|video)\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif|mp4|mov|m4v|webm)$/i.test(f.name);
+
 const NEW_FOLDER = "__new__";
 
 export default function EventAdmin() {
@@ -37,6 +41,7 @@ export default function EventAdmin() {
 
   // Upload
   const [files, setFiles] = useState<File[]>([]);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [uploaderName, setUploaderName] = useState("");
   const [folderChoice, setFolderChoice] = useState<string>("");
   const [newFolderName, setNewFolderName] = useState("");
@@ -161,6 +166,11 @@ export default function EventAdmin() {
   useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
   useEffect(() => { if (session && id && tab === "review") loadReview(); }, [session, id, tab]);
   useEffect(() => { if (session && id && tab === "settings" && !sources.length) loadPhotos(); }, [session, id, tab]);
+  // Enable folder selection on the folder input (non-standard attribute).
+  useEffect(() => {
+    const el = folderInputRef.current;
+    if (el) { el.setAttribute("webkitdirectory", ""); el.setAttribute("directory", ""); }
+  }, []);
 
   const folderForUpload = folderChoice === NEW_FOLDER ? newFolderName.trim() : folderChoice.trim();
 
@@ -578,6 +588,15 @@ export default function EventAdmin() {
                 <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
+
+              <div className="text-center -mt-1">
+                <button type="button" onClick={() => folderInputRef.current?.click()} disabled={uploading}
+                  className="text-sm text-muted-foreground hover:text-primary underline underline-offset-2 disabled:opacity-50">
+                  {t("or_select_folder")}
+                </button>
+                <input ref={folderInputRef} type="file" multiple className="hidden" disabled={uploading}
+                  onChange={(e) => { setFiles(Array.from(e.target.files || []).filter(isMediaFile)); e.currentTarget.value = ""; }} />
+              </div>
 
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
