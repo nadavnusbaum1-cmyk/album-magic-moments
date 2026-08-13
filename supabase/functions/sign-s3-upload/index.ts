@@ -3,7 +3,7 @@
 // calls confirm-upload which HEAD-verifies the object and advances the state.
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
 import { presignPut } from "../_shared/s3.ts";
-import { planUploads, isPlanItem, type FileInput } from "../_shared/uploadPlan.ts";
+import { planUploads, isPlanItem, derivativeKey, type FileInput } from "../_shared/uploadPlan.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -74,16 +74,22 @@ Deno.serve(async (req) => {
       if (insErr) throw insErr;
     }
 
-    // Presign PUT URLs in parallel.
-    const uploadUrls = new Map<number, string>();
+    // Presign PUT URLs for original + thumbnail + medium, in parallel.
+    const urls = new Map<number, { original: string; thumb: string; medium: string }>();
     await Promise.all(resolved.map(async (r) => {
-      uploadUrls.set(r.idx, await presignPut(r.key));
+      const [original, thumb, medium] = await Promise.all([
+        presignPut(r.key),
+        presignPut(derivativeKey(r.key, "thumb")),
+        presignPut(derivativeKey(r.key, "medium")),
+      ]);
+      urls.set(r.idx, { original, thumb, medium });
     }));
 
     const uploads = planned.map((p) => {
-      if (!isPlanItem(p)) return { photoId: "", uploadUrl: "", key: "", contentType: "", skipped: true, reason: p.reason };
+      if (!isPlanItem(p)) return { photoId: "", uploadUrl: "", thumbUploadUrl: "", mediumUploadUrl: "", key: "", contentType: "", skipped: true, reason: p.reason };
       const r = resolved.find((x) => x.idx === p.idx)!;
-      return { photoId: r.id, uploadUrl: uploadUrls.get(p.idx)!, key: r.key, contentType: r.contentType };
+      const u = urls.get(p.idx)!;
+      return { photoId: r.id, uploadUrl: u.original, thumbUploadUrl: u.thumb, mediumUploadUrl: u.medium, key: r.key, contentType: r.contentType };
     });
 
     return json({ uploads });

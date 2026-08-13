@@ -76,3 +76,11 @@ export function planUploads(eventId: string, files: FileInput[]): Planned[] {
 export function isPlanItem(p: Planned): p is PlanItem {
   return !("skipped" in p);
 }
+
+// Deterministic derivative keys next to the original, e.g.
+//   event-photos/{eventId}/{uuid}.jpg -> {uuid}_thumb.jpg / {uuid}_medium.jpg
+export function derivativeKey(key: string, suffix: "thumb" | "medium"): string {
+  const dot = key.lastIndexOf(".");
+  const base = dot >= 0 ? key.slice(0, dot) : key;
+  return `${base}_${suffix}.jpg`;
+}

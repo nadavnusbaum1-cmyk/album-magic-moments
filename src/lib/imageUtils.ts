@@ -133,6 +133,33 @@ export const prepareImageForUpload = async (file: File): Promise<File> => {
   return await compressJpegIfLarge(file);
 };
 
+// Generate a resized JPEG rendition (thumbnail / medium) for fast gallery loads.
+export async function makeRendition(file: File, maxSide: number, quality: number): Promise<Blob | null> {
+  if (isVideo(file)) return null;
+  return await shrinkOnce(file, maxSide, quality);
+}
+
+// Generate + upload thumbnail (~400px) and medium (~1600px) renditions to their
+// presigned S3 URLs. Best-effort: a failure is swallowed and the gallery simply
+// falls back to the original. Images only. Awaited so confirm-upload's HEAD can
+// detect the renditions and record their keys.
+export async function uploadRenditions(file: File, thumbUrl?: string, mediumUrl?: string): Promise<void> {
+  if (isVideo(file) || (!thumbUrl && !mediumUrl)) return;
+  const put = async (blob: Blob | null, url?: string) => {
+    if (!blob || !url) return;
+    try {
+      await fetch(url, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: blob });
+    } catch (e) {
+      console.warn("rendition upload failed", e);
+    }
+  };
+  const [thumb, medium] = await Promise.all([
+    thumbUrl ? makeRendition(file, 400, 0.72) : Promise.resolve(null),
+    mediumUrl ? makeRendition(file, 1600, 0.82) : Promise.resolve(null),
+  ]);
+  await Promise.all([put(thumb, thumbUrl), put(medium, mediumUrl)]);
+}
+
 // Last-ditch fallback: libheif-js (pure JS HEIC decoder, works in all browsers).
 // Loaded lazily from CDN to keep bundle small.
 async function decodeViaLibheif(file: File): Promise<File | null> {

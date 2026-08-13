@@ -1,7 +1,7 @@
 // Shared per-photo processing — event-scoped.
-// Steps: download original → generate thumbnail + medium renditions (uploaded to
-// S3) → run face indexing/matching on the MEDIUM rendition (guaranteed small, so
-// the old 5MB-original problem disappears) → drive processing_status state.
+// Thumbnail + medium renditions are generated client-side (Canvas) and uploaded
+// alongside the original. Here we just run face indexing/matching on the MEDIUM
+// rendition (small, always under Rekognition's 5MB cap) → drive processing_status.
 import { rekognition, collectionFor } from "./rekognition.ts";
 import { getObjectBytes } from "./s3.ts";
 
@@ -35,6 +35,7 @@ export interface ProcessablePhoto {
   id: string;
   event_id: string;
   s3_key: string | null;
+  s3_key_medium?: string | null;
   storage_path: string;
   storage_provider: string | null;
   content_type?: string | null;
@@ -42,15 +43,6 @@ export interface ProcessablePhoto {
 }
 
 type FaceMatch = { Face?: { FaceId?: string; ExternalImageId?: string }; Similarity?: number };
-
-async function downloadOriginal(supabase: Supa, photo: ProcessablePhoto): Promise<Uint8Array> {
-  if (photo.storage_provider === "s3" && photo.s3_key) {
-    return await getObjectBytes(photo.s3_key);
-  }
-  const { data, error } = await supabase.storage.from("event-photos").download(photo.storage_path);
-  if (error) throw error;
-  return new Uint8Array(await data.arrayBuffer());
-}
 
 async function findBestCluster(supabase: Supa, eventId: string, matches: FaceMatch[]): Promise<string | null> {
   const ranked = matches
@@ -108,17 +100,19 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
     return { matches: 0, faces: 0 };
   }
 
-  const original = await downloadOriginal(supabase, photo);
+  // Face indexing uses the MEDIUM rendition when available (small, always under
+  // Rekognition's 5MB cap); otherwise the original.
+  const faceKey = (isS3 && photo.s3_key_medium) ? photo.s3_key_medium : photo.s3_key;
+  let faceBytes: Uint8Array;
+  if (isS3 && faceKey) {
+    faceBytes = await getObjectBytes(faceKey);
+  } else {
+    const { data, error } = await supabase.storage.from("event-photos").download(photo.storage_path);
+    if (error) throw error;
+    faceBytes = new Uint8Array(await data.arrayBuffer());
+  }
 
-  // NOTE: thumbnail/medium renditions are temporarily NOT generated here.
-  // The Deno image-resize WASM libraries crash the Edge runtime, so grids fall
-  // back to the full image via `thumbUrl || url`. Client-side rendition
-  // generation (Canvas, no WASM) is the planned replacement.
-  await supabase.from("photos").update({ file_size: original.byteLength }).eq("id", photo.id);
-
-  // Face indexing runs on the uploaded image. The client shrinks images to fit
-  // Rekognition's 5MB inline cap before upload; anything still over is skipped.
-  if (original.byteLength > REKOGNITION_MAX_BYTES) {
+  if (faceBytes.byteLength > REKOGNITION_MAX_BYTES) {
     await supabase.from("photos").update({
       processing_status: "ready", face_count: 0,
       processing_error: "Too large for face recognition (max 5MB)", processing_attempts: 0,
@@ -128,7 +122,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
 
   const indexResult = await rekognition("IndexFaces", {
     CollectionId: COLLECTION,
-    Image: { Bytes: bytesToBase64(original) },
+    Image: { Bytes: bytesToBase64(faceBytes) },
     ExternalImageId: `photo-${photo.id}`,
     DetectionAttributes: [],
     MaxFaces: 20,

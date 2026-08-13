@@ -8,7 +8,7 @@ import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { headObject, deleteObjects } from "../_shared/s3.ts";
 import { ensureCollection, collectionFor } from "../_shared/rekognition.ts";
 import { processPhoto } from "../_shared/processPhoto.ts";
-import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "../_shared/uploadPlan.ts";
+import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, derivativeKey } from "../_shared/uploadPlan.ts";
 
 const INLINE_TIME_BUDGET_MS = 40_000;
 
@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data: photos } = await supabase
       .from("photos")
-      .select("id, event_id, s3_key, storage_path, storage_provider, content_type, media_type, upload_status")
+      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, content_type, media_type, upload_status")
       .in("id", photoIds);
     if (!photos?.length) return json({ confirmed: 0, results: [] });
 
@@ -61,12 +61,25 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Detect the client-uploaded thumbnail/medium (best-effort). Missing ones
+      // just fall back to the original via resolvePhotoAssets — never a broken tile.
+      const thumbKey = derivativeKey(p.s3_key, "thumb");
+      const mediumKey = derivativeKey(p.s3_key, "medium");
+      const [th, md] = await Promise.all([
+        headObject(thumbKey).catch(() => ({ exists: false })),
+        headObject(mediumKey).catch(() => ({ exists: false })),
+      ]);
+      const s3_key_thumbnail = th.exists ? thumbKey : null;
+      const s3_key_medium = md.exists ? mediumKey : null;
       await supabase.from("photos").update({
         upload_status: "uploaded",
         upload_confirmed_at: new Date().toISOString(),
         upload_error: null,
         file_size: head.size ?? null,
+        s3_key_thumbnail,
+        s3_key_medium,
       }).eq("id", p.id);
+      (p as { s3_key_medium?: string | null }).s3_key_medium = s3_key_medium; // inline processing uses the medium
       results.push({ id: p.id, status: "uploaded" });
       toProcess.push(p);
     }

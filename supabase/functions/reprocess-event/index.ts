@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     // Fetch photos to (re)process — image only.
     const { data: photos } = await supabase
       .from("photos")
-      .select("id, event_id, s3_key, storage_path, storage_provider, content_type, media_type")
+      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, content_type, media_type")
       .eq("event_id", eventId)
       .eq("upload_status", "uploaded")
       .eq("processed", false)

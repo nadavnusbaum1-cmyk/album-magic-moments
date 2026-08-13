@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { convertHeicIfNeeded, prepareImageForUpload, isVideo } from "@/lib/imageUtils";
+import { convertHeicIfNeeded, prepareImageForUpload, isVideo, uploadRenditions } from "@/lib/imageUtils";
 import { extractTakenAt } from "@/lib/exif";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
@@ -91,11 +91,12 @@ export default function EventPublic() {
           });
           const j = await r.json();
           if (!r.ok) throw new Error(j.error || "sign failed");
-          const u = (j.uploads || [])[0] as { photoId: string; uploadUrl: string; skipped?: boolean } | undefined;
+          const u = (j.uploads || [])[0] as { photoId: string; uploadUrl: string; thumbUploadUrl?: string; mediumUploadUrl?: string; skipped?: boolean } | undefined;
           if (!u || u.skipped) { bumpErr(); continue; }
           const put = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": prepared.type || "image/jpeg" }, body: prepared });
           if (!put.ok) throw new Error(`put ${put.status}`);
           uploadedIds.push(u.photoId);
+          await uploadRenditions(prepared, u.thumbUploadUrl, u.mediumUploadUrl);
           bumpDone();
         } catch (e) {
           console.error(raw.name, e);

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { prepareImageForUpload } from "@/lib/imageUtils";
+import { prepareImageForUpload, uploadRenditions } from "@/lib/imageUtils";
 import { extractTakenAt } from "@/lib/exif";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
@@ -184,7 +184,7 @@ export default function EventAdmin() {
       skipped += conv.length - goodFiles.length;
       if (goodFiles.length) {
         try {
-          const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string; skipped?: boolean }[] }>("sign-s3-upload", {
+          const data = await authedInvoke<{ uploads: { photoId: string; uploadUrl: string; thumbUploadUrl?: string; mediumUploadUrl?: string; skipped?: boolean }[] }>("sign-s3-upload", {
             eventId: id,
             files: goodFiles.map((g) => ({
               name: g.file.name,
@@ -205,6 +205,8 @@ export default function EventAdmin() {
               const r = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "image/jpeg" }, body: file });
               if (!r.ok) throw new Error(`${r.status}`);
               uploadedIds.push(u.photoId);
+              // Upload thumbnail + medium (awaited so confirm-upload can detect them).
+              await uploadRenditions(file, u.thumbUploadUrl, u.mediumUploadUrl);
             } catch (e) { console.error(file.name, e); errors++; }
           }));
           // Server-side verify (HEAD) + start processing. Replaces the old
