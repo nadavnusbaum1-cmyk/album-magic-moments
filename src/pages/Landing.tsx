@@ -9,9 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+import { landingContent } from "@/content/landing";
 
 export default function Landing() {
-  const { t } = useI18n();
+  const { lang } = useI18n();
+  // All landing copy lives in src/content/landing.ts (English + Hebrew side by side).
+  const t = (k: string) => landingContent[k]?.[lang] ?? landingContent[k]?.en ?? k;
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const trust = [

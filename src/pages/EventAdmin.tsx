@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { prepareImageForUpload, uploadRenditions } from "@/lib/imageUtils";
@@ -920,6 +921,21 @@ export default function EventAdmin() {
                     {shortening ? <Loader2 className="w-4 h-4 animate-spin" /> : t("shorten")}
                   </Button>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium">{t("qr_title")}</label>
+                  <p className="text-xs text-muted-foreground">{t("qr_desc")}</p>
+                </div>
+                <div className="qr-print mx-auto max-w-xs flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-white text-black p-6 text-center">
+                  <div className="font-serif text-2xl">{event.name}</div>
+                  <QRCodeSVG value={publicUrl} size={200} marginSize={2} bgColor="#ffffff" fgColor="#000000" />
+                  <div className="text-sm font-medium">{t("qr_scan_cta")}</div>
+                </div>
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+                  <Printer className="w-4 h-4" /> {t("qr_print")}
+                </Button>
               </div>
 
               <div className="space-y-2">

@@ -102,3 +102,19 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Print: show only the QR poster, full page. */
+@media print {
+  body * { visibility: hidden !important; }
+  .qr-print, .qr-print * { visibility: visible !important; }
+  .qr-print {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .qr-print svg { width: 60vmin !important; height: 60vmin !important; }
+}
