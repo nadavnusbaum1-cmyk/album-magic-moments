@@ -18,7 +18,7 @@ export const landingContent: Record<string, Bi> = {
 
   // ---------- Hero ----------
   hero_badge: { en: "Photos + AI + your guests", he: "תמונות + AI + האורחים שלכם" },
-  hero_title: { en: "Every photo from your event — found, shared, together.", he: "כל תמונה מהאירוע — נמצאת, משותפת, ביחד." },
+  hero_title: { en: "Every photo from your event — found, shared, together.", he: "כל התמונות מהאירוע — במקום אחד." },
   hero_subtitle: {
     en: "Professional photos, AI face-matching, and the snapshots your guests took — in one beautiful shared album. Guests snap a selfie to find their photos, then add the moments they captured.",
     he: "תמונות מקצועיות, זיהוי פנים חכם, והתמונות שהאורחים צילמו — באלבום משותף אחד ויפה. אורחים מצלמים סלפי כדי למצוא את התמונות שלהם, ואז מוסיפים את הרגעים שתיעדו.",
@@ -32,7 +32,7 @@ export const landingContent: Record<string, Bi> = {
   trust_unlimited: { en: "Unlimited guests", he: "אורחים ללא הגבלה" },
 
   // ---------- Three pillars ----------
-  pillars_title: { en: "One album, three ways to remember", he: "אלבום אחד, שלוש דרכים לזכור" },
+  pillars_title: { en: "One album, three ways to remember", he: "אלבום אחד, אינסוף דרכים לזכור" },
   pillars_subtitle: {
     en: "Professional photography, AI personalization, and guest-generated content — combined into one complete memory of your event.",
     he: "צילום מקצועי, התאמה אישית עם AI, ותוכן מהאורחים — משולבים לזיכרון שלם אחד מהאירוע.",
@@ -49,7 +49,7 @@ export const landingContent: Record<string, Bi> = {
   uc_subtitle: { en: "Any occasion, any size.", he: "כל אירוע, בכל גודל." },
   uc_wedding: { en: "Weddings", he: "חתונות" },
   uc_corporate: { en: "Corporate", he: "אירועי חברה" },
-  uc_race: { en: "Races & sports", he: "מרוצים וספורט" },
+  uc_race: { en: "Bar/Bat Mitzva", he: "בר/בת מצווה" },
   uc_school: { en: "Schools", he: "בתי ספר" },
   uc_party: { en: "Parties", he: "מסיבות" },
   uc_festival: { en: "Festivals", he: "פסטיבלים" },

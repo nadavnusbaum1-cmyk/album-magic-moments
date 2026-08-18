@@ -35,6 +35,16 @@ export async function requireHost(req: Request, eventId: string) {
   return { user, error: null, status: 200 as const };
 }
 
+export async function requireSuperAdmin(req: Request) {
+  const user = await getUser(req);
+  if (!user) return { error: "Unauthorized", status: 401 as const, user: null };
+  const supabase = svc();
+  const { data, error } = await supabase.rpc("has_role", { _user_id: user.id, _role: "super_admin" });
+  if (error) return { error: "Auth check failed", status: 500 as const, user };
+  if (!data) return { error: "Forbidden", status: 403 as const, user };
+  return { user, error: null, status: 200 as const };
+}
+
 export async function eventBySlug(slug: string) {
   const supabase = svc();
   const { data } = await supabase

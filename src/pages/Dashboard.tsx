@@ -5,7 +5,7 @@ import { useSession, authedInvoke } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
@@ -25,6 +25,13 @@ export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    supabase.rpc("has_role", { _user_id: session.user.id, _role: "super_admin" })
+      .then(({ data }) => setIsSuperAdmin(!!data));
+  }, [session]);
 
   useEffect(() => {
     if (!loading && !session) navigate("/auth");
@@ -72,9 +79,16 @@ export default function Dashboard() {
             <h1 className="text-3xl font-serif">{t("my_events")}</h1>
             <p className="text-sm text-muted-foreground">{session.user.email}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-            <LogOut className="w-4 h-4" /> {t("sign_out")}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <Button asChild variant="outline" size="sm" className="gap-2">
+                <Link to="/admin"><ShieldCheck className="w-4 h-4" /> Admin</Link>
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+              <LogOut className="w-4 h-4" /> {t("sign_out")}
+            </Button>
+          </div>
         </header>
 
         {showForm ? (

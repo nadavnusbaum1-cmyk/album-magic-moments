@@ -4,6 +4,7 @@
 import { corsHeaders, eventBySlug, json, svc } from "../_shared/auth.ts";
 import { presignPut } from "../_shared/s3.ts";
 import { planUploads, isPlanItem, derivativeKey, type FileInput } from "../_shared/uploadPlan.ts";
+import { getAccount } from "../_shared/plan.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -23,10 +24,22 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data: full } = await supabase
       .from("events")
-      .select("id, allow_guest_uploads, guest_photos_auto_publish")
+      .select("id, owner_id, allow_guest_uploads, guest_photos_auto_publish")
       .eq("id", event.id)
       .maybeSingle();
     if (!full?.allow_guest_uploads) return json({ error: "Guest uploads are disabled for this event" }, 403);
+
+    // Per-event photo quota (based on the event owner's plan).
+    if (full.owner_id) {
+      const account = await getAccount(full.owner_id);
+      if (account.photo_limit != null) {
+        const { count } = await supabase.from("photos").select("id", { count: "exact", head: true })
+          .eq("event_id", event.id).is("deleted_at", null);
+        if (files.length > account.photo_limit - (count || 0)) {
+          return json({ error: "This event has reached its photo limit.", code: "photo_limit" }, 403);
+        }
+      }
+    }
 
     const moderationStatus = full.guest_photos_auto_publish === false ? "pending" : "approved";
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;

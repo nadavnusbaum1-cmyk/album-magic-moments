@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import EventAdmin from "./pages/EventAdmin.tsx";
 import EventPublic from "./pages/EventPublic.tsx";
 import Upload from "./pages/Upload.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import { LanguageProvider } from "@/lib/i18n";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/event/:id" element={<EventAdmin />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="/e/:slug" element={<EventPublic />} />
             <Route path="/u/:slug" element={<Upload />} />
             <Route path="/album/:token" element={<Album />} />

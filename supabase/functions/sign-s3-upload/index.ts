@@ -4,6 +4,7 @@
 import { corsHeaders, json, requireHost, svc } from "../_shared/auth.ts";
 import { presignPut } from "../_shared/s3.ts";
 import { planUploads, isPlanItem, derivativeKey, type FileInput } from "../_shared/uploadPlan.ts";
+import { getAccount } from "../_shared/plan.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -22,6 +23,21 @@ Deno.serve(async (req) => {
     if (auth.error) return json({ error: auth.error }, auth.status);
 
     const supabase = svc();
+
+    // Per-event photo quota (based on the event owner's plan).
+    const { data: ev } = await supabase.from("events").select("owner_id").eq("id", eventId).maybeSingle();
+    if (ev?.owner_id) {
+      const account = await getAccount(ev.owner_id);
+      if (account.photo_limit != null) {
+        const { count } = await supabase.from("photos").select("id", { count: "exact", head: true })
+          .eq("event_id", eventId).is("deleted_at", null);
+        const remaining = account.photo_limit - (count || 0);
+        if (files.length > remaining) {
+          return json({ error: `Photo limit reached for this event (${count || 0}/${account.photo_limit}). Upgrade your plan for more.`, code: "photo_limit", remaining: Math.max(0, remaining) }, 403);
+        }
+      }
+    }
+
     const uploader = (uploadedBy || "").trim().slice(0, 60) || null;
     const source = (sourceLabel || "").trim().slice(0, 60) || null;
 
