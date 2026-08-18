@@ -1,3 +1,4 @@
+import { type MouseEvent } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -14,9 +15,26 @@ import EventPublic from "./pages/EventPublic.tsx";
 import Upload from "./pages/Upload.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
 import PlanSelection from "./pages/PlanSelection.tsx";
-import { LanguageProvider } from "@/lib/i18n";
+import Accessibility from "./pages/Accessibility.tsx";
+import { LanguageProvider, useI18n } from "@/lib/i18n";
+import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 
 const queryClient = new QueryClient();
+
+// "Skip to content" link — first thing keyboard/screen-reader users reach.
+function SkipLink() {
+  const { lang } = useI18n();
+  const jump = (e: MouseEvent) => {
+    e.preventDefault();
+    const el = (document.getElementById("main-content") || document.querySelector("main") || document.getElementById("root")) as HTMLElement | null;
+    if (el) { el.setAttribute("tabindex", "-1"); el.focus(); el.scrollIntoView(); }
+  };
+  return (
+    <a href="#main-content" className="skip-link" onClick={jump}>
+      {lang === "he" ? "דילוג לתוכן" : "Skip to content"}
+    </a>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,6 +43,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <SkipLink />
+          <AccessibilityWidget />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -32,6 +52,7 @@ const App = () => (
             <Route path="/dashboard/event/:id" element={<EventAdmin />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/plan" element={<PlanSelection />} />
+            <Route path="/accessibility" element={<Accessibility />} />
             <Route path="/e/:slug" element={<EventPublic />} />
             <Route path="/u/:slug" element={<Upload />} />
             <Route path="/album/:token" element={<Album />} />

@@ -226,7 +226,10 @@ export default function Landing() {
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary fill-current" /> {t("brand")}</div>
-          <div>© {t("footer_rights")}</div>
+          <div className="flex items-center gap-4">
+            <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
+            <span>© {t("footer_rights")}</span>
+          </div>
         </div>
       </footer>
     </div>

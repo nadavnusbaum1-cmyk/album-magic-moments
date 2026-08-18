@@ -103,6 +103,100 @@ All colors MUST be HSL.
   }
 }
 
+/* =============================================================================
+   Accessibility (נגישות) — IS 5568 / WCAG 2.0 AA
+   Focus indicator, skip link, and the visual modes toggled by the a11y widget.
+   ============================================================================= */
+
+/* Always-visible focus indicator for keyboard users. */
+:focus-visible {
+  outline: 3px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* "Skip to content" link — hidden until focused via keyboard. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  inset-inline-start: 8px;
+  z-index: 100;
+  transform: translateY(-150%);
+  transition: transform 0.15s ease;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: var(--shadow-card);
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* Grayscale mode. */
+html.a11y-grayscale { filter: grayscale(100%); }
+
+/* Invert / negative colors (re-invert media so photos look normal). */
+html.a11y-invert { filter: invert(100%) hue-rotate(180deg); }
+html.a11y-invert img,
+html.a11y-invert video,
+html.a11y-invert [style*="background-image"] { filter: invert(100%) hue-rotate(180deg); }
+
+/* High-contrast mode — override the design tokens for maximum legibility. */
+html.a11y-high-contrast {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 0%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 0%;
+  --popover-foreground: 0 0% 100%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 90%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --primary: 60 100% 50%;
+  --primary-foreground: 0 0% 0%;
+  --ring: 60 100% 50%;
+}
+html.a11y-high-contrast body { background: #000 !important; }
+html.a11y-high-contrast a { color: #ff0 !important; }
+
+/* Highlight links — underline and outline every link. */
+html.a11y-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+  font-weight: 600 !important;
+}
+
+/* Readable font — swap to a plain, high-legibility font with more spacing. */
+html.a11y-readable * {
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1.7 !important;
+}
+
+/* Stop animations (user choice via the widget). */
+html.a11y-no-motion *,
+html.a11y-no-motion *::before,
+html.a11y-no-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Respect the OS "reduce motion" setting automatically. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* Print: show only the QR poster, full page. */
 @media print {
   body * { visibility: hidden !important; }
