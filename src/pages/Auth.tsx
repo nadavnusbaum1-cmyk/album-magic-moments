@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Heart } from "lucide-react";
+import { Heart, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -21,13 +21,14 @@ export default function Auth() {
   const [eventDate, setEventDate] = useState("");
   const [marketing, setMarketing] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [verifyEmailSent, setVerifyEmailSent] = useState(false);
   const navigate = useNavigate();
 
   const submit = async () => {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
@@ -40,12 +41,28 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        // Email confirmation ON → no session yet; user must verify via email.
+        if (!data.session) { setVerifyEmailSent(true); return; }
         toast.success(t("account_created"));
+        navigate("/dashboard");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        navigate("/dashboard");
       }
-      navigate("/dashboard");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("auth_failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resend = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) throw error;
+      toast.success(t("email_resent"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("auth_failed"));
     } finally {
@@ -69,6 +86,24 @@ export default function Auth() {
       setBusy(false);
     }
   };
+
+  if (verifyEmailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
+        <FloatingLanguageSwitcher />
+        <HomeButton />
+        <Card className="max-w-md w-full p-8 space-y-4 text-center" style={{ boxShadow: "var(--shadow-soft)" }}>
+          <Mail className="w-8 h-8 text-primary mx-auto" />
+          <h1 className="text-2xl font-serif">{t("check_email_title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("check_email_desc", { email })}</p>
+          <Button variant="outline" onClick={resend} disabled={busy} className="w-full">{t("resend_email")}</Button>
+          <button onClick={() => { setVerifyEmailSent(false); setMode("signin"); }} className="text-xs text-muted-foreground hover:text-primary w-full">
+            {t("back_to_signin")}
+          </button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
