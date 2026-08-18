@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Camera, Sparkles, Users, Heart, QrCode, Upload, ArrowRight, Check,
+  Camera, Sparkles, Users, Heart, QrCode, Upload, ArrowRight, Check, X,
   ShieldCheck, Smartphone, FolderTree, Download, ChevronDown,
   PartyPopper, Building2, Medal, GraduationCap,
 } from "lucide-react";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
+import { plans as planTiers } from "@/content/plans";
 
 export default function Landing() {
   const { lang } = useI18n();
@@ -52,14 +53,6 @@ export default function Landing() {
     { quote: t("testi_1_quote"), role: t("testi_1_role") },
     { quote: t("testi_2_quote"), role: t("testi_2_role") },
     { quote: t("testi_3_quote"), role: t("testi_3_role") },
-  ];
-  const plans = [
-    { name: t("plan_starter_name"), price: t("plan_starter_price"), period: t("plan_starter_period"), desc: t("plan_starter_desc"),
-      features: [t("pf_one_event"), t("pf_unlimited_guests"), t("pf_face"), t("pf_guest_uploads")], featured: false },
-    { name: t("plan_event_name"), price: t("plan_event_price"), period: t("plan_event_period"), desc: t("plan_event_desc"),
-      features: [t("pf_everything_starter"), t("pf_downloads"), t("pf_folders"), t("pf_retention")], featured: true },
-    { name: t("plan_studio_name"), price: t("plan_studio_price"), period: t("plan_studio_period"), desc: t("plan_studio_desc"),
-      features: [t("pf_multi_events"), t("pf_branding"), t("pf_priority"), t("pf_custom")], featured: false },
   ];
   const faqs = [
     { q: t("faq_q1"), a: t("faq_a1") }, { q: t("faq_q2"), a: t("faq_a2") },
@@ -183,17 +176,23 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-5 py-16 md:py-24">
           <h2 className="font-serif text-3xl text-center mb-3">{t("pricing_title")}</h2>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10">{t("pricing_subtitle")}</p>
-          <div className="grid gap-5 md:grid-cols-3 items-start">
-            {plans.map((p) => (
-              <div key={p.name} className={`rounded-2xl border p-6 bg-background ${p.featured ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
-                {p.featured && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{t("most_popular")}</span>}
-                <h3 className="font-medium text-lg">{p.name}</h3>
-                <p className="text-xs text-muted-foreground mt-1 min-h-8">{p.desc}</p>
-                <div className="mt-4 flex items-end gap-1"><span className="font-serif text-3xl">{p.price}</span><span className="text-xs text-muted-foreground mb-1">{p.period}</span></div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 items-start">
+            {planTiers.map((p) => (
+              <div key={p.key} className={`rounded-2xl border p-6 bg-background ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
+                {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
+                <h3 className="font-medium text-lg">{p.name[lang]}</h3>
+                <div className="mt-4 flex items-end gap-2">
+                  <span className="font-serif text-3xl">{p.price[lang]}</span>
+                  {p.oldPrice && <span className="text-sm text-muted-foreground line-through mb-1.5">{p.oldPrice[lang]}</span>}
+                </div>
                 <ul className="mt-5 space-y-2">
-                  {p.features.map((f) => <li key={f} className="flex items-start gap-2 text-sm"><Check className="w-4 h-4 text-primary mt-0.5 shrink-0" /> {f}</li>)}
+                  {p.features.map((f, i) => (
+                    <li key={i} className={`flex items-start gap-2 text-sm ${f.included ? "" : "text-muted-foreground line-through"}`}>
+                      {f.included ? <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" /> : <X className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />} {f.text[lang]}
+                    </li>
+                  ))}
                 </ul>
-                <Button asChild className="w-full mt-6" variant={p.featured ? "default" : "outline"}><Link to="/auth?mode=signup">{t("get_started")}</Link></Button>
+                <Button asChild className="w-full mt-6" variant={p.badge ? "default" : "outline"}><Link to="/auth?mode=signup">{t("get_started")}</Link></Button>
               </div>
             ))}
           </div>

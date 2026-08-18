@@ -1,7 +1,7 @@
 // Plan selection / onboarding, shown after sign-up. Path: /plan
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedFetch } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+import { plans } from "@/content/plans";
 import { toast } from "sonner";
 
 export default function PlanSelection() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { session, loading } = useSession();
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
@@ -33,13 +34,6 @@ export default function PlanSelection() {
         if (typeof p?.marketing_opt_in === "boolean") setMarketing(p.marketing_opt_in);
       });
   }, [session]);
-
-  const plans = [
-    { key: "free", name: t("plan_free_name"), price: t("free_price"), photos: t("photos_up_to", { n: "50" }), events: t("one_event"), badge: null as string | null },
-    { key: "small", name: t("plan_small_name"), price: t("plan_small_price"), photos: t("photos_up_to", { n: "1,000" }), events: t("one_event"), badge: null },
-    { key: "wedding", name: t("plan_wedding_name"), price: t("plan_wedding_price"), photos: t("photos_up_to", { n: "10,000" }), events: t("one_event"), badge: t("most_popular") },
-    { key: "business", name: t("plan_business_name"), price: t("custom_price"), photos: t("unlimited_photos"), events: t("unlimited_events"), badge: null },
-  ];
 
   const choose = async (plan: string) => {
     setSubmitting(plan);
@@ -83,13 +77,19 @@ export default function PlanSelection() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-start">
           {plans.map((p) => (
             <div key={p.key} className={`rounded-2xl border p-6 bg-background flex flex-col ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
-              {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge}</span>}
-              <h3 className="font-medium text-lg">{p.name}</h3>
-              <div className="mt-3 mb-4 font-serif text-2xl">{p.price}</div>
+              {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
+              <h3 className="font-medium text-lg">{p.name[lang]}</h3>
+              <div className="mt-3 mb-4 flex items-end gap-2">
+                <span className="font-serif text-2xl">{p.price[lang]}</span>
+                {p.oldPrice && <span className="text-sm text-muted-foreground line-through mb-1">{p.oldPrice[lang]}</span>}
+              </div>
               <ul className="space-y-2 text-sm flex-1">
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary shrink-0" /> {p.photos}</li>
-                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary shrink-0" /> {p.events}</li>
-                <li className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary shrink-0" /> {t("feature_face_short")}</li>
+                {p.features.map((f, i) => (
+                  <li key={i} className={`flex items-center gap-2 ${f.included ? "" : "text-muted-foreground line-through"}`}>
+                    {f.included ? <Check className="w-4 h-4 text-primary shrink-0" /> : <X className="w-4 h-4 text-muted-foreground shrink-0" />}
+                    {f.text[lang]}
+                  </li>
+                ))}
               </ul>
               <Button className="w-full mt-5" variant={p.badge ? "default" : "outline"} disabled={!!submitting} onClick={() => choose(p.key)}>
                 {submitting === p.key ? <Loader2 className="w-4 h-4 animate-spin" /> : p.key === "free" ? t("start_free") : t("choose")}
