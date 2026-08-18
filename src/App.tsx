@@ -13,6 +13,7 @@ import EventAdmin from "./pages/EventAdmin.tsx";
 import EventPublic from "./pages/EventPublic.tsx";
 import Upload from "./pages/Upload.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
+import PlanSelection from "./pages/PlanSelection.tsx";
 import { LanguageProvider } from "@/lib/i18n";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/event/:id" element={<EventAdmin />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/plan" element={<PlanSelection />} />
             <Route path="/e/:slug" element={<EventPublic />} />
             <Route path="/u/:slug" element={<Upload />} />
             <Route path="/album/:token" element={<Album />} />

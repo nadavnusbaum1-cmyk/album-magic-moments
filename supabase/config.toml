@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.admin-set-plan]
 verify_jwt = false
+
+[functions.select-plan]
+verify_jwt = false

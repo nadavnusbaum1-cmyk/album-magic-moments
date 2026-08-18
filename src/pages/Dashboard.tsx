@@ -33,6 +33,16 @@ export default function Dashboard() {
       .then(({ data }) => setIsSuperAdmin(!!data));
   }, [session]);
 
+  // New users pick a plan first.
+  useEffect(() => {
+    if (!session) return;
+    supabase.from("profiles").select("onboarded").eq("id", session.user.id).maybeSingle()
+      .then(({ data }) => {
+        const p = data as unknown as { onboarded?: boolean } | null;
+        if (p && p.onboarded === false) navigate("/plan");
+      });
+  }, [session, navigate]);
+
   useEffect(() => {
     if (!loading && !session) navigate("/auth");
   }, [loading, session, navigate]);
