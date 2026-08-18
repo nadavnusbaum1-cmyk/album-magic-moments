@@ -10,10 +10,12 @@ import { toast } from "sonner";
 
 type UserRow = {
   id: string; email: string | null; display_name: string | null; created_at: string;
+  phone: string | null; event_date: string | null; marketing_opt_in: boolean;
   plan: string; plan_status: string; plan_requested: string | null;
   photo_limit: number | null; event_limit: number | null; is_super_admin: boolean;
   event_count: number; photo_count: number; storage_bytes: number;
 };
+const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 type Metrics = { users: number; events: number; photos: number; storage_bytes: number; pending: number; paid_active: number };
 
 const PLANS = ["free", "small", "wedding", "business"];
@@ -104,8 +106,12 @@ export default function AdminPanel() {
               <thead className="text-xs text-muted-foreground bg-secondary/40">
                 <tr className="text-start">
                   <th className="p-3 text-start font-medium">User</th>
+                  <th className="p-3 text-start font-medium">Phone</th>
+                  <th className="p-3 text-start font-medium">Created</th>
+                  <th className="p-3 text-start font-medium">Event date</th>
                   <th className="p-3 text-start font-medium">Plan</th>
                   <th className="p-3 text-start font-medium">Status</th>
+                  <th className="p-3 text-center font-medium">Subscribed</th>
                   <th className="p-3 text-end font-medium">Events</th>
                   <th className="p-3 text-end font-medium">Photos</th>
                   <th className="p-3 text-end font-medium">Storage</th>
@@ -120,6 +126,9 @@ export default function AdminPanel() {
                       {u.is_super_admin && <span className="text-[10px] uppercase tracking-wide text-primary">super admin</span>}
                       {u.plan_requested && <div className="text-xs text-amber-600">requested: {u.plan_requested}</div>}
                     </td>
+                    <td className="p-3 whitespace-nowrap">{u.phone || "—"}</td>
+                    <td className="p-3 whitespace-nowrap">{fmtDate(u.created_at)}</td>
+                    <td className="p-3 whitespace-nowrap">{fmtDate(u.event_date)}</td>
                     <td className="p-3">
                       <select value={u.plan} onChange={(e) => setPlan(u.id, { plan: e.target.value })}
                         className="border rounded-md px-2 py-1 bg-background text-sm">
@@ -130,6 +139,7 @@ export default function AdminPanel() {
                       </div>
                     </td>
                     <td className={`p-3 font-medium ${statusColor(u.plan_status)}`}>{u.plan_status}</td>
+                    <td className="p-3 text-center">{u.marketing_opt_in ? <span className="text-emerald-600">✓</span> : <span className="text-muted-foreground">—</span>}</td>
                     <td className="p-3 text-end">{u.event_count}</td>
                     <td className="p-3 text-end">{u.photo_count.toLocaleString()}</td>
                     <td className="p-3 text-end">{fmtBytes(u.storage_bytes)}</td>

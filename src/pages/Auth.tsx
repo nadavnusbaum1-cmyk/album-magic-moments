@@ -17,6 +17,9 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [marketing, setMarketing] = useState(true);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
@@ -26,7 +29,15 @@ export default function Auth() {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard`, data: { display_name: name || email.split("@")[0] } },
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              display_name: name || email.split("@")[0],
+              phone: phone.trim() || null,
+              event_date: eventDate || null,
+              marketing_opt_in: marketing,
+            },
+          },
         });
         if (error) throw error;
         toast.success(t("account_created"));
@@ -79,10 +90,24 @@ export default function Auth() {
         </div>
 
         {mode === "signup" && (
-          <Input placeholder={t("your_name")} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
+          <>
+            <Input placeholder={t("your_name")} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
+            <Input type="tel" placeholder={t("phone")} value={phone} onChange={(e) => setPhone(e.target.value)} disabled={busy} />
+            <div>
+              <label className="text-xs text-muted-foreground">{t("event_date_label")}</label>
+              <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={busy} />
+            </div>
+          </>
         )}
         <Input type="email" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />
         <Input type="password" placeholder={t("password")} value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+
+        {mode === "signup" && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="accent-primary w-4 h-4" disabled={busy} />
+            {t("marketing_opt_in_label")}
+          </label>
+        )}
 
         <Button onClick={submit} disabled={busy || !email || !password} className="w-full">
           {busy ? "…" : mode === "signin" ? t("sign_in") : t("create_account")}

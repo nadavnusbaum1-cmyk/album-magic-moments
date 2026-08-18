@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const authUsers = authData?.users || [];
 
     const { data: profiles } = await supabase.from("profiles")
-      .select("id, display_name, plan, plan_status, plan_requested, photo_limit, event_limit, plan_note, plan_updated_at");
+      .select("id, display_name, phone, event_date, marketing_opt_in, plan, plan_status, plan_requested, photo_limit, event_limit, plan_note, plan_updated_at");
     const profById = new Map((profiles || []).map((p: any) => [p.id, p]));
 
     const { data: roles } = await supabase.from("user_roles").select("user_id, role").eq("role", "super_admin");
@@ -29,6 +29,9 @@ Deno.serve(async (req) => {
         email: u.email || null,
         created_at: u.created_at,
         display_name: p.display_name || null,
+        phone: p.phone || null,
+        event_date: p.event_date || null,
+        marketing_opt_in: !!p.marketing_opt_in,
         plan: p.plan || "free",
         plan_status: p.plan_status || "active",
         plan_requested: p.plan_requested || null,

@@ -37,12 +37,12 @@ export const landingContent: Record<string, Bi> = {
     en: "Professional photography, AI personalization, and guest-generated content — combined into one complete memory of your event.",
     he: "צילום מקצועי, התאמה אישית עם AI, ותוכן מהאורחים — משולבים לזיכרון שלם אחד מהאירוע.",
   },
-  pillar_official_title: { en: "Official photos", he: "תמונות רשמיות" },
-  pillar_official_desc: { en: "Upload the photographer's photos in bulk — safely stored and beautifully presented.", he: "העלו את תמונות הצלם בכמות גדולה — נשמרות בבטחה ומוצגות יפה." },
+  pillar_official_title: { en: "Official photos", he: "תמונות מהצלמים" },
+  pillar_official_desc: { en: "Upload the photographer's photos in bulk — safely stored and beautifully presented.", he: "העלו את התמונות של כל הצלמים יחד — נשמרות בבטחה ומוצגות יפה." },
   pillar_personal_title: { en: "Find your photos", he: "מצאו את התמונות שלכם" },
   pillar_personal_desc: { en: "Guests upload a selfie and AI instantly finds every photo they appear in.", he: "אורחים מעלים סלפי וה-AI מוצא מיד כל תמונה שהם מופיעים בה." },
-  pillar_guest_title: { en: "Guest photos", he: "תמונות אורחים" },
-  pillar_guest_desc: { en: "Everyone adds the moments they captured — the album grows from every angle.", he: "כולם מוסיפים את הרגעים שתיעדו — האלבום גדל מכל זווית." },
+  pillar_guest_title: { en: "Guest photos", he: "תמונות מהאורחים" },
+  pillar_guest_desc: { en: "Everyone adds the moments they captured — the album grows from every angle.", he: "כולם מוסיפים את הרגעים שתיעדו — האלבום גדל מכל זווית ולכם יש עוד זכרונות." },
 
   // ---------- Use cases ----------
   uc_title: { en: "For every kind of event", he: "לכל סוג של אירוע" },
