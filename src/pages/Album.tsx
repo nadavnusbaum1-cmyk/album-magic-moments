@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { downloadOne, preloadDownloadFile, preloadDownloadFiles, saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { Lightbox } from "@/components/Lightbox";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
@@ -118,7 +119,10 @@ const Album = () => {
 
       <main className="px-4 pb-16 max-w-5xl mx-auto">
         {data.photos.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">{t("notify_new")}</div>
+          <div className="text-center py-16 text-muted-foreground">
+            <Mori expression="sleeping" size={96} className="mx-auto mb-3" />
+            <p>{t("notify_new")}</p>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

@@ -3,7 +3,8 @@
 // day-after thank-you message. Reuses the guest-upload backend.
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Camera, Heart, Loader2, CheckCircle2 } from "lucide-react";
+import { Camera, Loader2, CheckCircle2 } from "lucide-react";
+import { Mori } from "@/components/Mori";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -114,7 +115,7 @@ export default function Upload() {
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
       <FloatingLanguageSwitcher />
       <Card className="max-w-md w-full p-8 space-y-5 text-center" style={{ boxShadow: "var(--shadow-soft)" }}>
-        <Heart className="w-8 h-8 text-primary mx-auto fill-current" />
+        <Mori expression="phone" size={104} className="mx-auto" />
         <div>
           <h1 className="text-2xl font-serif">{event.name}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("upload_page_subtitle")}</p>

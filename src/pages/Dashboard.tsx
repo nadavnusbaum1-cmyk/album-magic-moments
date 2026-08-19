@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 
 type Event = {
@@ -118,7 +119,10 @@ export default function Dashboard() {
         {loadingEvents ? (
           <p className="text-muted-foreground text-center py-12">{t("loading")}</p>
         ) : events.length === 0 ? (
-          <Card className="p-12 text-center text-muted-foreground">{t("no_events")}</Card>
+          <Card className="p-12 text-center text-muted-foreground">
+            <Mori expression="sleeping" size={96} className="mx-auto mb-3" />
+            <p>{t("no_events")}</p>
+          </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {events.map((e) => (
