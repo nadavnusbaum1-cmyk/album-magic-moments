@@ -69,7 +69,7 @@ export default function Landing() {
       {/* Nav */}
       <header className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-          <BrandMark className="text-xl" />
+          <BrandMark avatar avatarSize={40} className="text-xl" />
           <div className="flex items-center gap-2">
             <a href="#pricing" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_pricing")}</a>
             <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_signin")}</Link>
@@ -129,6 +129,7 @@ export default function Landing() {
 
       {/* How it works */}
       <section id="how" className="max-w-6xl mx-auto px-5 py-16 md:py-24">
+        <Mori expression="searching" size={96} className="mx-auto mb-3" />
         <h2 className="font-serif text-3xl text-center mb-10">{t("how_title")}</h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((s, i) => (
@@ -147,6 +148,7 @@ export default function Landing() {
       {/* Feature deep-dive */}
       <section className="bg-secondary/40 border-y border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-16 md:py-24">
+          <Mori expression="phone" size={96} className="mx-auto mb-3" />
           <h2 className="font-serif text-3xl text-center mb-3">{t("feat_title")}</h2>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10">{t("feat_subtitle")}</p>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -221,6 +223,7 @@ export default function Landing() {
 
       {/* Final CTA */}
       <section className="max-w-3xl mx-auto px-5 py-20 text-center">
+        <Mori expression="celebrating" size={128} className="mx-auto mb-4" />
         <h2 className="font-serif text-3xl md:text-4xl">{t("final_title")}</h2>
         <p className="mt-4 text-muted-foreground">{t("final_subtitle")}</p>
         <div className="mt-8"><Button asChild size="lg" className="gap-2"><Link to="/auth?mode=signup">{t("get_started")} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Link></Button></div>
@@ -228,7 +231,7 @@ export default function Landing() {
 
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-          <BrandMark className="text-lg" />
+          <BrandMark avatar avatarSize={32} className="text-lg" />
           <div className="flex items-center gap-4">
             <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
             <span>© {t("footer_rights")}</span>
