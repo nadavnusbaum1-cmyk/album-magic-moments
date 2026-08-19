@@ -11,17 +11,17 @@ export type Bi = { en: string; he: string };
 
 export const landingContent: Record<string, Bi> = {
   // ---------- Nav / brand ----------
-  brand: { en: "Cheez", he: "Cheez" },
+  brand: { en: "HeyMori", he: "HeyMori" },
   nav_pricing: { en: "Pricing", he: "מחירים" },
   nav_signin: { en: "Sign in", he: "התחברות" },
   get_started: { en: "Get started", he: "בואו נתחיל" },
 
   // ---------- Hero ----------
-  hero_badge: { en: "Photos + AI + your guests", he: "תמונות + AI + האורחים שלכם" },
-  hero_title: { en: "Every photo from your event — found, shared, together.", he: "כל התמונות מהאירוע — במקום אחד." },
+  hero_badge: { en: "Meet Mori · your AI photo buddy", he: "הכירו את מורי · חברת הצילום החכמה שלכם" },
+  hero_title: { en: "HeyMori finds the photos you're in.", he: "מורי מוצאת בשבילכם את כל התמונות מהאירוע." },
   hero_subtitle: {
-    en: "Professional photos, AI face-matching, and the snapshots your guests took — in one beautiful shared album. Guests snap a selfie to find their photos, then add the moments they captured.",
-    he: "תמונות מקצועיות, זיהוי פנים חכם, והתמונות שהאורחים צילמו — באלבום משותף אחד ויפה. אורחים מצלמים סלפי כדי למצוא את התמונות שלהם, ואז מוסיפים את הרגעים שתיעדו.",
+    en: "Guests scan a QR code, send Mori a selfie, and Mori instantly finds every photo they appear in — then adds the moments they captured, too. No app, no scrolling, no hassle.",
+    he: "האורחים סורקים קוד QR, שולחים למורי סלפי, ומורי מוצאת מיד כל תמונה שהם מופיעים בה — ומוסיפה גם את הרגעים שהם צילמו. בלי אפליקציה, בלי גלילה אינסופית.",
   },
   hero_cta_secondary: { en: "How it works", he: "איך זה עובד" },
 
@@ -133,7 +133,7 @@ export const landingContent: Record<string, Bi> = {
   faq_a5: { en: "Share a link or QR code. Guests open it, take a selfie to find their photos, and can add their own.", he: "משתפים קישור או קוד QR. האורחים פותחים, מצלמים סלפי כדי למצוא את התמונות שלהם, ויכולים להוסיף תמונות משלהם." },
 
   // ---------- Final CTA + footer ----------
-  final_title: { en: "Create your shared event album", he: "צרו את אלבום האירוע המשותף" },
-  final_subtitle: { en: "Give every guest their photos — and let everyone add the moments they captured.", he: "תנו לכל אורח את התמונות שלו — ותנו לכולם להוסיף את הרגעים שתיעדו." },
+  final_title: { en: "Let Mori find everyone's photos", he: "תנו למורי למצוא לכולם את התמונות" },
+  final_subtitle: { en: "Give every guest the photos they're in — and let everyone add the moments they captured.", he: "תנו לכל אורח את התמונות שהוא מופיע בהן — ותנו לכולם להוסיף את הרגעים שצילמו." },
   footer_rights: { en: "All rights reserved.", he: "כל הזכויות שמורות." },
 };

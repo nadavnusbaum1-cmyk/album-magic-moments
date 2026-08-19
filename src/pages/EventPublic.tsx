@@ -15,6 +15,7 @@ import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, useSession } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
 
@@ -207,6 +208,7 @@ export default function EventPublic() {
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mx-auto" style={{ background: "var(--gradient-romantic)" }}>
           <Sparkles className="w-10 h-10 text-primary-foreground" />
         </div>
+        <Mori expression="celebrating" size={104} className="mx-auto -mt-2" />
         <h1 className="text-3xl font-serif">{t("youre_in")}</h1>
         <p className="text-muted-foreground">{t("found_n_photos_videos", { n: result.photoCount })}</p>
         <Link to={`/album/${result.token}`}><Button size="lg" className="w-full">{t("view_my_album")}</Button></Link>
@@ -229,6 +231,7 @@ export default function EventPublic() {
 
       <FloatingLanguageSwitcher />
       <header className="px-6 pt-12 pb-8 text-center">
+        <Mori expression="searching" size={128} className="mx-auto mb-2" />
         <div className="inline-flex items-center gap-2 text-primary mb-3">
           <Heart className="w-5 h-5 fill-current" />
           <span className="text-sm tracking-wide uppercase">{event.name}</span>

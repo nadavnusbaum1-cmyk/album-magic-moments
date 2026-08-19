@@ -16,7 +16,7 @@
 export type Loc = { en: string; he: string };
 
 export const coordinator = {
-  company: "Cheez", // ▶ set to your final site/brand name
+  company: "HeyMori", // ▶ set to your final site/brand name
   role: { en: "Accessibility Coordinator", he: "רכז/ת נגישות" } as Loc,
   email: "", // ▶ ADD a dedicated address, e.g. accessibility@yourdomain.co.il
   phone: "", // ▶ ADD a dedicated accessibility phone line

@@ -8,41 +8,50 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 30 30% 98%;
-    --foreground: 340 25% 15%;
+    /* HeyMori — soft lavender / purple / navy. */
+    --background: 255 45% 98%;
+    --foreground: 250 30% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 340 25% 15%;
+    --card-foreground: 250 30% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 340 25% 15%;
+    --popover-foreground: 250 30% 20%;
 
-    --primary: 340 65% 55%;
+    --primary: 256 55% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 340 80% 70%;
+    --primary-glow: 256 75% 76%;
 
-    --secondary: 30 25% 94%;
-    --secondary-foreground: 340 25% 20%;
+    --secondary: 255 45% 95%;
+    --secondary-foreground: 250 30% 25%;
 
-    --muted: 30 20% 95%;
-    --muted-foreground: 340 10% 45%;
+    --muted: 255 40% 96%;
+    --muted-foreground: 250 12% 46%;
 
-    --accent: 35 60% 88%;
-    --accent-foreground: 340 25% 20%;
+    --accent: 255 50% 93%;
+    --accent-foreground: 250 30% 25%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 75% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 20% 88%;
-    --input: 30 20% 90%;
-    --ring: 340 65% 55%;
+    --border: 255 30% 90%;
+    --input: 255 30% 90%;
+    --ring: 256 55% 60%;
 
-    --radius: 1rem;
+    --radius: 1.25rem;
 
-    --gradient-romantic: linear-gradient(135deg, hsl(340 65% 55%), hsl(15 75% 65%));
-    --gradient-soft: linear-gradient(180deg, hsl(30 30% 98%), hsl(35 50% 94%));
-    --shadow-soft: 0 10px 40px -10px hsl(340 65% 55% / 0.25);
-    --shadow-card: 0 4px 20px -4px hsl(340 30% 50% / 0.15);
+    /* Brand accents (exposed as bg-brand-* / text-brand-* via tailwind). */
+    --brand-navy: 250 30% 20%;
+    --brand-purple: 256 55% 60%;
+    --brand-lavender: 255 55% 92%;
+    --brand-pink: 340 70% 86%;
+    --brand-peach: 25 80% 88%;
+    --brand-cream: 30 60% 94%;
+
+    --gradient-romantic: linear-gradient(135deg, hsl(256 55% 62%), hsl(300 55% 72%));
+    --gradient-soft: linear-gradient(180deg, hsl(255 55% 98%), hsl(300 45% 95%));
+    --shadow-soft: 0 12px 40px -12px hsl(256 55% 55% / 0.28);
+    --shadow-card: 0 6px 22px -6px hsl(256 40% 50% / 0.16);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -55,33 +64,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 250 30% 10%;
+    --foreground: 255 40% 96%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 250 28% 13%;
+    --card-foreground: 255 40% 96%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 250 28% 13%;
+    --popover-foreground: 255 40% 96%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 256 65% 70%;
+    --primary-foreground: 250 30% 12%;
+    --primary-glow: 256 75% 78%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 250 22% 18%;
+    --secondary-foreground: 255 40% 96%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 250 20% 18%;
+    --muted-foreground: 255 15% 68%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 250 22% 20%;
+    --accent-foreground: 255 40% 96%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 250 20% 22%;
+    --input: 250 20% 22%;
+    --ring: 256 65% 70%;
+
+    --brand-navy: 255 40% 96%;
+    --brand-purple: 256 65% 70%;
+    --brand-lavender: 250 22% 20%;
+    --brand-pink: 340 45% 55%;
+    --brand-peach: 25 45% 55%;
+    --brand-cream: 30 25% 40%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -100,6 +117,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   }
 }
 

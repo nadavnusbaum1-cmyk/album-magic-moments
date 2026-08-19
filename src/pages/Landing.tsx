@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { BrandMark } from "@/components/BrandMark";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
 import { plans as planTiers } from "@/content/plans";
@@ -67,7 +69,7 @@ export default function Landing() {
       {/* Nav */}
       <header className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary fill-current" /><span className="font-serif text-xl">{t("brand")}</span></div>
+          <BrandMark className="text-xl" />
           <div className="flex items-center gap-2">
             <a href="#pricing" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_pricing")}</a>
             <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_signin")}</Link>
@@ -79,6 +81,7 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative overflow-hidden" style={{ background: "var(--gradient-soft)" }}>
         <div className="max-w-4xl mx-auto px-5 py-20 md:py-28 text-center">
+          <Mori expression="waving" size={128} className="mx-auto mb-4" />
           <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground mb-6"><Sparkles className="w-3.5 h-3.5 text-primary" /> {t("hero_badge")}</div>
           <h1 className="font-serif text-4xl md:text-6xl leading-tight">{t("hero_title")}</h1>
           <p className="mt-5 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">{t("hero_subtitle")}</p>
@@ -225,7 +228,7 @@ export default function Landing() {
 
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary fill-current" /> {t("brand")}</div>
+          <BrandMark className="text-lg" />
           <div className="flex items-center gap-4">
             <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
             <span>© {t("footer_rights")}</span>

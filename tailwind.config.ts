@@ -13,7 +13,22 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        // Brand type: Nunito (rounded, friendly). Headings use `font-serif` in
+        // existing markup — mapped here to Nunito too so nothing renders serif.
+        sans: ["Nunito", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["Nunito", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
+        // HeyMori brand accents (in addition to the semantic tokens below).
+        brand: {
+          navy: "hsl(var(--brand-navy))",
+          purple: "hsl(var(--brand-purple))",
+          lavender: "hsl(var(--brand-lavender))",
+          pink: "hsl(var(--brand-pink))",
+          peach: "hsl(var(--brand-peach))",
+          cream: "hsl(var(--brand-cream))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
