@@ -12,7 +12,7 @@ export type MoriExpression =
   | "celebrating" | "phone" | "photos" | "confused" | "sorry" | "sleeping";
 
 export function Mori({
-  expression = "smiling",
+  expression = "waving",
   size = 96,
   className = "",
   alt = "Mori",

@@ -120,7 +120,7 @@ const Album = () => {
       <main className="px-4 pb-16 max-w-5xl mx-auto">
         {data.photos.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <Mori expression="sleeping" size={96} className="mx-auto mb-3" />
+            <Mori expression="thinking" size={96} className="mx-auto mb-3" />
             <p>{t("notify_new")}</p>
           </div>
         ) : (

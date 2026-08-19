@@ -22,4 +22,14 @@ Expected filenames (map to `MoriExpression` in `src/components/Mori.tsx`):
 - `sorry.png`       — error / no results
 - `sleeping.png`    — loading / empty
 
-Already wired in: `waving` (landing), `searching` + `celebrating` (guest flow).
+## Currently in the app (transparent cutouts, 512×512)
+
+- `waving.png`      — landing hero
+- `searching.png`   — guest selfie screen (magnifying glass)
+- `celebrating.png` — "found you!" success screen
+- `phone.png`       — guest upload header (selfie pose)
+- `thinking.png`    — dashboard & album empty states
+
+To add more poses, drop `<expression>.png` here (transparent) and reference it
+via `<Mori expression="..." />`. To regenerate a cutout from a new render with a
+background, re-run `scratchpad/cutout.cjs` (flood-fills white + lavender card).

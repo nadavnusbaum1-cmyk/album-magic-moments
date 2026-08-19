@@ -120,7 +120,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground text-center py-12">{t("loading")}</p>
         ) : events.length === 0 ? (
           <Card className="p-12 text-center text-muted-foreground">
-            <Mori expression="sleeping" size={96} className="mx-auto mb-3" />
+            <Mori expression="thinking" size={96} className="mx-auto mb-3" />
             <p>{t("no_events")}</p>
           </Card>
         ) : (
