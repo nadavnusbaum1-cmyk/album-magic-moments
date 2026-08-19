@@ -16,6 +16,7 @@ import Upload from "./pages/Upload.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
 import PlanSelection from "./pages/PlanSelection.tsx";
 import Accessibility from "./pages/Accessibility.tsx";
+import Legal from "./pages/Legal.tsx";
 import { LanguageProvider, useI18n } from "@/lib/i18n";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 
@@ -53,6 +54,9 @@ const App = () => (
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/plan" element={<PlanSelection />} />
             <Route path="/accessibility" element={<Accessibility />} />
+            <Route path="/legal" element={<Legal />} />
+            <Route path="/terms" element={<Legal />} />
+            <Route path="/privacy" element={<Legal />} />
             <Route path="/e/:slug" element={<EventPublic />} />
             <Route path="/u/:slug" element={<Upload />} />
             <Route path="/album/:token" element={<Album />} />

@@ -232,7 +232,8 @@ export default function Landing() {
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <BrandMark avatar avatarSize={32} className="text-lg" />
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <Link to="/legal" className="hover:text-foreground underline">{lang === "he" ? "תנאי שימוש ופרטיות" : "Terms & Privacy"}</Link>
             <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
             <span>© {t("footer_rights")}</span>
           </div>
