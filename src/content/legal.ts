@@ -9,7 +9,7 @@
 //   It is not legal advice — have counsel review before relying on it.
 // =============================================================================
 
-export const SUPPORT_EMAIL = "[insert support email]"; // ▶ e.g. support@heymori.com
+export const SUPPORT_EMAIL = "info@heymori.co.il";
 export const lastUpdated = { en: "August 19, 2026", he: "19 באוגוסט 2026" };
 
 export const legal: { en: string; he: string } = {
