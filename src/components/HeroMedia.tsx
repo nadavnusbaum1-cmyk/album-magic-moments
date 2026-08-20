@@ -6,8 +6,8 @@
 import { useState } from "react";
 import { Mori } from "./Mori";
 
-const HERO_VIDEO = ""; // e.g. "/hero-demo.mp4"
-const HERO_POSTER = ""; // e.g. "/hero-poster.jpg"
+const HERO_VIDEO = "/hero-demo.mp4";
+const HERO_POSTER = "/hero-poster.jpg";
 
 export function HeroMedia() {
   const [failed, setFailed] = useState(false);
