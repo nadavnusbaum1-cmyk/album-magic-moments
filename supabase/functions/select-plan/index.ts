@@ -5,6 +5,7 @@
 // Also captures optional contact fields (useful for Google signups).
 import { corsHeaders, getUser, json, svc } from "../_shared/auth.ts";
 import { PLAN_LIMITS } from "../_shared/plan.ts";
+import { adminNewRequestEmail, planRequestedEmail, sendEmail } from "../_shared/email.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -39,6 +40,25 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
     if (error) throw error;
+
+    // Notify the user (and admin) when a paid plan is requested. Email is
+    // best-effort — never fail the request if it doesn't send.
+    if (status === "requested" && plan) {
+      try {
+        if (user.email) {
+          const t = planRequestedEmail(plan);
+          await sendEmail({ to: user.email, subject: t.subject, html: t.html });
+        }
+        const adminEmail = Deno.env.get("ADMIN_EMAIL");
+        if (adminEmail) {
+          const a = adminNewRequestEmail(user.email || user.id, plan);
+          await sendEmail({ to: adminEmail, subject: a.subject, html: a.html });
+        }
+      } catch (mailErr) {
+        console.error("[select-plan] email failed", mailErr);
+      }
+    }
+
     return json({ ok: true, status });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);

@@ -1,6 +1,7 @@
 // Super-admin: set a user's plan / status / limits (approve, change plan, suspend).
 import { corsHeaders, json, requireSuperAdmin, svc } from "../_shared/auth.ts";
 import { PLAN_LIMITS } from "../_shared/plan.ts";
+import { planApprovedEmail, sendEmail } from "../_shared/email.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -35,6 +36,24 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data, error } = await supabase.from("profiles").update(update).eq("id", userId).select().maybeSingle();
     if (error) throw error;
+
+    // Email the user when this action approves/activates a paid plan (Approve or
+    // Activate in the admin panel). Best-effort — never fail the action on email.
+    const activated = plan_status === "active" || (!!plan && plan_status !== "suspended");
+    const effectivePlan = (data?.plan as string | undefined);
+    if (activated && effectivePlan && effectivePlan !== "free") {
+      try {
+        const { data: u } = await supabase.auth.admin.getUserById(userId);
+        const email = u?.user?.email;
+        if (email) {
+          const t = planApprovedEmail(effectivePlan);
+          await sendEmail({ to: email, subject: t.subject, html: t.html });
+        }
+      } catch (mailErr) {
+        console.error("[admin-set-plan] email failed", mailErr);
+      }
+    }
+
     return json({ ok: true, profile: data });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
