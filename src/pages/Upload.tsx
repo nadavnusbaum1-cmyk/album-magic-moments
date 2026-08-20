@@ -2,9 +2,10 @@
 // Single-purpose "add the photos you took" screen — meant to be shared in a
 // day-after thank-you message. Reuses the guest-upload backend.
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Camera, Loader2, CheckCircle2 } from "lucide-react";
 import { Mori } from "@/components/Mori";
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -112,8 +113,9 @@ export default function Upload() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: "var(--gradient-soft)" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6" style={{ background: "var(--gradient-soft)" }}>
       <FloatingLanguageSwitcher />
+      <Link to="/" aria-label="HeyMori"><BrandMark avatar avatarSize={34} className="text-xl" /></Link>
       <Card className="max-w-md w-full p-8 space-y-5 text-center" style={{ boxShadow: "var(--shadow-soft)" }}>
         <Mori expression="phone" size={104} className="mx-auto" />
         <div>

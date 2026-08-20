@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 const T = {
   he: {
     greeting: "היי נועה! מצאתי 47 תמונות שלך 🎉",
-    download: "הורדת הכל",
+    download: "הורד הכל",
     steps: [
       { t: "קישור לאלבום", d: "מקבלים קישור לאלבום" },
       { t: "שליחת סלפי", d: "מורי מזהה רק את התמונות שלך" },
@@ -18,7 +18,7 @@ const T = {
     greeting: "Hi Sarah! I found 47 photos of you 🎉",
     download: "Download all",
     steps: [
-      { t: "Scan the QR", d: "Scan the code at the event" },
+      { t: "Click the link", d: "All photos in one place" },
       { t: "Send a selfie", d: "Mori learns your face" },
       { t: "Get your photos", d: "All your photos, instantly" },
     ],
