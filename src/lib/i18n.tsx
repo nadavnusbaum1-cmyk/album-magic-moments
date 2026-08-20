@@ -30,8 +30,10 @@ const dict: Record<Lang, Record<string, string>> = {
     hebrew: "עברית",
 
     // Auth
-    auth_title: "Host sign in",
-    auth_subtitle: "Manage your events & albums",
+    auth_title: "Hey, welcome back 👋",
+    auth_subtitle: "Sign in and let's pick up where you left off.",
+    auth_title_signup: "Hi, I'm Mori — nice to meet you 👋",
+    auth_subtitle_signup: "Let's set up your first event album together.",
     continue_google: "Continue with Google",
     your_name: "Your name",
     // NOTE: The landing-page keys below are no longer used — landing copy moved to
@@ -432,8 +434,10 @@ const dict: Record<Lang, Record<string, string>> = {
 
     language: "שפה", english: "English", hebrew: "עברית",
 
-    auth_title: "כניסת מארח",
-    auth_subtitle: "ניהול האירועים והאלבומים שלך",
+    auth_title: "היי, טוב לראות אתכם שוב 👋",
+    auth_subtitle: "התחברו ונמשיך מאיפה שהפסקתם.",
+    auth_title_signup: "היי, אני מורי — נעים להכיר 👋",
+    auth_subtitle_signup: "בואו נקים יחד את אלבום האירוע הראשון שלכם.",
     continue_google: "המשך עם Google",
     your_name: "השם שלך",
     brand: "HeyMori",
@@ -837,7 +841,7 @@ function format(template: string, vars?: Record<string, string | number>): strin
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
-    return saved === "he" || saved === "en" ? saved : "en";
+    return saved === "he" || saved === "en" ? saved : "he";
   });
 
   useEffect(() => { applyToDocument(lang); }, [lang]);

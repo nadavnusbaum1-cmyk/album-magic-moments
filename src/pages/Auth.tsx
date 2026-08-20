@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Heart, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 
 export default function Auth() {
@@ -111,9 +112,9 @@ export default function Auth() {
       <HomeButton />
       <Card className="max-w-md w-full p-8 space-y-5" style={{ boxShadow: "var(--shadow-soft)" }}>
         <div className="text-center">
-          <Heart className="w-8 h-8 text-primary mx-auto fill-current" />
-          <h1 className="text-2xl font-serif mt-2">{t("auth_title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("auth_subtitle")}</p>
+          <Mori expression="waving" size={96} className="mx-auto" />
+          <h1 className="text-2xl font-serif mt-1">{mode === "signin" ? t("auth_title") : t("auth_title_signup")}</h1>
+          <p className="text-sm text-muted-foreground">{mode === "signin" ? t("auth_subtitle") : t("auth_subtitle_signup")}</p>
         </div>
 
         <Button onClick={google} disabled={busy} variant="outline" className="w-full">

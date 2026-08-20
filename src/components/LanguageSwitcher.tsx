@@ -26,7 +26,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
 
 export function FloatingLanguageSwitcher() {
   return (
-    <div className="fixed top-3 end-3 z-50">
+    <div className="fixed top-3 right-3 z-50">
       <LanguageSwitcher />
     </div>
   );
