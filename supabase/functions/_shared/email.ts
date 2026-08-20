@@ -10,13 +10,15 @@
 const FROM = () => Deno.env.get("EMAIL_FROM") || "HeyMori <onboarding@resend.dev>";
 const APP = () => (Deno.env.get("APP_URL") || "https://heymori.co.il").replace(/\/$/, "");
 
-export async function sendEmail(opts: { to: string | string[]; subject: string; html: string }) {
+export async function sendEmail(opts: { to: string | string[]; subject: string; html: string; replyTo?: string }) {
   const key = Deno.env.get("RESEND_API_KEY");
   if (!key) { console.warn("[email] RESEND_API_KEY not set — skipping send:", opts.subject); return { skipped: true }; }
+  const payload: Record<string, unknown> = { from: FROM(), to: opts.to, subject: opts.subject, html: opts.html };
+  if (opts.replyTo) payload.reply_to = opts.replyTo;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM(), to: opts.to, subject: opts.subject, html: opts.html }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const body = await res.text();

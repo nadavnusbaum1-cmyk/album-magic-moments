@@ -99,6 +99,9 @@ verify_jwt = false
 [functions.shorten-url]
 verify_jwt = false
 
+[functions.contact]
+verify_jwt = false
+
 [functions.admin-list-users]
 verify_jwt = false
 

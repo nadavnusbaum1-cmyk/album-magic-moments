@@ -11,12 +11,13 @@ import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BrandMark } from "@/components/BrandMark";
 import { Mori } from "@/components/Mori";
 import { HeroMockup } from "@/components/HeroMockup";
+import { ContactForm } from "@/components/ContactForm";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
 import { plans as planTiers } from "@/content/plans";
 
 export default function Landing() {
-  const { lang } = useI18n();
+  const { lang, t: tr } = useI18n();
   // All landing copy lives in src/content/landing.ts (English + Hebrew side by side).
   const t = (k: string) => landingContent[k]?.[lang] ?? landingContent[k]?.en ?? k;
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -246,10 +247,20 @@ export default function Landing() {
         <div className="mt-8"><Button asChild size="lg" className="gap-2"><Link to="/auth?mode=signup">{t("get_started")} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Link></Button></div>
       </section>
 
+      {/* Contact */}
+      <section id="contact" className="bg-secondary/40 border-y border-border/60">
+        <div className="max-w-3xl mx-auto px-5 py-16 md:py-20 text-center">
+          <h2 className="font-serif text-3xl mb-2">{tr("contact_title")}</h2>
+          <p className="text-muted-foreground mb-8">{tr("contact_subtitle")}</p>
+          <ContactForm />
+        </div>
+      </section>
+
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <BrandMark avatar avatarSize={32} className="text-lg" />
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <a href="#contact" className="hover:text-foreground underline">{tr("contact_link")}</a>
             <Link to="/legal" className="hover:text-foreground underline">{lang === "he" ? "תנאי שימוש ופרטיות" : "Terms & Privacy"}</Link>
             <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
             <span>© {t("footer_rights")}</span>

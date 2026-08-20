@@ -146,6 +146,15 @@ const dict: Record<Lang, Record<string, string>> = {
     auth_failed: "Auth failed",
     google_failed: "Google sign-in failed",
 
+    // Contact
+    contact_title: "Get in touch",
+    contact_subtitle: "Questions about HeyMori? We'd love to help.",
+    contact_msg_placeholder: "How can we help?",
+    contact_send: "Send message",
+    contact_sent: "Thanks! We'll get back to you soon 💜",
+    contact_fail: "Couldn't send — please try again.",
+    contact_link: "Contact",
+
     // Dashboard
     my_events: "My Events",
     sign_out: "Sign out",
@@ -547,6 +556,14 @@ const dict: Record<Lang, Record<string, string>> = {
     account_created: "החשבון נוצר — נכנסת!",
     auth_failed: "ההתחברות נכשלה",
     google_failed: "ההתחברות עם Google נכשלה",
+
+    contact_title: "דברו איתנו",
+    contact_subtitle: "יש שאלה על HeyMori? נשמח לעזור.",
+    contact_msg_placeholder: "איך נוכל לעזור?",
+    contact_send: "שליחת הודעה",
+    contact_sent: "תודה! נחזור אליכם בקרוב 💜",
+    contact_fail: "השליחה נכשלה — נסו שוב.",
+    contact_link: "צור קשר",
 
     my_events: "האירועים שלי",
     sign_out: "התנתקות",
