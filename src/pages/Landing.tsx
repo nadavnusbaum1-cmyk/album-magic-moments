@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BrandMark } from "@/components/BrandMark";
 import { Mori } from "@/components/Mori";
+import { HeroMedia } from "@/components/HeroMedia";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
 import { plans as planTiers } from "@/content/plans";
@@ -80,18 +81,31 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden" style={{ background: "var(--gradient-soft)" }}>
-        <div className="max-w-4xl mx-auto px-5 py-20 md:py-28 text-center">
-          <Mori expression="waving" size={128} className="mx-auto mb-4" />
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground mb-6"><Sparkles className="w-3.5 h-3.5 text-primary" /> {t("hero_badge")}</div>
+        <div className="max-w-5xl mx-auto px-5 pt-16 pb-14 md:pt-20 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground mb-6">
+            <Mori expression="waving" size={22} /> {t("hero_badge")}
+          </div>
+          {/* H1 */}
           <h1 className="font-serif text-4xl md:text-6xl leading-tight">{t("hero_title")}</h1>
-          <p className="mt-5 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">{t("hero_subtitle")}</p>
+          {/* H2 */}
+          <p className="mt-5 text-base md:text-xl text-muted-foreground max-w-2xl mx-auto">{t("hero_subtitle")}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="gap-2"><Link to="/auth?mode=signup">{t("get_started")} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Link></Button>
             <Button asChild size="lg" variant="outline"><a href="#how">{t("hero_cta_secondary")}</a></Button>
           </div>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+
+          {/* Demo video */}
+          <div className="mt-12 md:mt-14">
+            <HeroMedia />
+          </div>
+
+          {/* Value props */}
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
             {trust.map((x) => (
-              <span key={x.label} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><x.icon className="w-4 h-4 text-primary" /> {x.label}</span>
+              <div key={x.label} className="flex flex-col items-center gap-2 rounded-2xl border border-border/60 bg-background/70 px-3 py-4">
+                <span className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"><x.icon className="w-5 h-5 text-primary" /></span>
+                <span className="text-sm font-medium">{x.label}</span>
+              </div>
             ))}
           </div>
         </div>
