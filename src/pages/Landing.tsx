@@ -129,8 +129,9 @@ export default function Landing() {
 
       {/* How it works */}
       <section id="how" className="max-w-6xl mx-auto px-5 py-16 md:py-24">
-        <Mori expression="searching" size={96} className="mx-auto mb-3" />
-        <h2 className="font-serif text-3xl text-center mb-10">{t("how_title")}</h2>
+        <h2 className="font-serif text-3xl text-center mb-10 flex items-center justify-center gap-3">
+          <Mori expression="searching" size={52} /> {t("how_title")}
+        </h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((s, i) => (
             <div key={s.title} className="text-center">
@@ -148,8 +149,9 @@ export default function Landing() {
       {/* Feature deep-dive */}
       <section className="bg-secondary/40 border-y border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-16 md:py-24">
-          <Mori expression="phone" size={96} className="mx-auto mb-3" />
-          <h2 className="font-serif text-3xl text-center mb-3">{t("feat_title")}</h2>
+          <h2 className="font-serif text-3xl text-center mb-3 flex items-center justify-center gap-3">
+            <Mori expression="phone" size={52} className="shrink-0" /> {t("feat_title")}
+          </h2>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10">{t("feat_subtitle")}</p>
           <div className="grid gap-5 sm:grid-cols-2">
             {features.map((f) => (
@@ -223,8 +225,9 @@ export default function Landing() {
 
       {/* Final CTA */}
       <section className="max-w-3xl mx-auto px-5 py-20 text-center">
-        <Mori expression="celebrating" size={128} className="mx-auto mb-4" />
-        <h2 className="font-serif text-3xl md:text-4xl">{t("final_title")}</h2>
+        <h2 className="font-serif text-3xl md:text-4xl flex items-center justify-center gap-3">
+          <Mori expression="celebrating" size={64} className="shrink-0" /> {t("final_title")}
+        </h2>
         <p className="mt-4 text-muted-foreground">{t("final_subtitle")}</p>
         <div className="mt-8"><Button asChild size="lg" className="gap-2"><Link to="/auth?mode=signup">{t("get_started")} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Link></Button></div>
       </section>

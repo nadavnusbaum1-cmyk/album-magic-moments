@@ -261,6 +261,9 @@ export default function EventPublic() {
             </div>
           </div>
           <Button onClick={submit} disabled={loading} size="lg" className="w-full">{loading ? t("doing_magic") : t("find_my_photos")}</Button>
+          <p className="text-[11px] text-center text-muted-foreground/70">
+            <Link to="/legal" className="underline hover:text-primary">{t("privacy_policy")}</Link>
+          </p>
           {loading && (
             <div className="space-y-2">
               <IndeterminateBar />

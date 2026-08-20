@@ -31,7 +31,7 @@ export function Mori({
       height={size}
       alt={alt}
       onError={() => setFailed(true)}
-      className={`inline-block select-none ${className}`}
+      className={`block select-none ${className}`}
       style={{ width: size, height: size, objectFit: "contain" }}
       draggable={false}
     />
