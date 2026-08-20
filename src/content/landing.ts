@@ -17,11 +17,11 @@ export const landingContent: Record<string, Bi> = {
   get_started: { en: "Get started", he: "בואו נתחיל" },
 
   // ---------- Hero ----------
-  hero_badge: { en: "Meet Mori · your AI photo buddy", he: "הכירו את מורי · חברת הצילום החכמה שלכם" },
-  hero_title: { en: "HeyMori finds the photos you're in.", he: "מורי מוצאת בשבילכם את כל התמונות מהאירוע." },
+  hero_badge: { en: "Meet Mori · your AI photo buddy", he: "הכירו את מורי · החברה שתשדרג לכם את האירוע" },
+  hero_title: { en: "HeyMori finds the photos you're in.", he: "מורי מוצאת בשבילכם את כל התמונות מהאירוע באלבום משותף אחד." },
   hero_subtitle: {
     en: "Guests scan a QR code, send Mori a selfie, and Mori instantly finds every photo they appear in — then adds the moments they captured, too. No app, no scrolling, no hassle.",
-    he: "האורחים סורקים קוד QR, שולחים למורי סלפי, ומורי מוצאת מיד כל תמונה שהם מופיעים בה — ומוסיפה גם את הרגעים שהם צילמו. בלי אפליקציה, בלי גלילה אינסופית.",
+    he: "האורחים נכנסים לקישור, שולחים למורי סלפי, ומורי מוצאת מיד כל תמונה שהם מופיעים בה — ומוסיפה גם את הרגעים שהם צילמו. בלי אפליקציה, ובלי גלילה אינסופית.",
   },
   hero_cta_secondary: { en: "How it works", he: "איך זה עובד" },
 
@@ -35,14 +35,14 @@ export const landingContent: Record<string, Bi> = {
   pillars_title: { en: "One album, three ways to remember", he: "אלבום אחד, אינסוף דרכים לזכור" },
   pillars_subtitle: {
     en: "Professional photography, AI personalization, and guest-generated content — combined into one complete memory of your event.",
-    he: "צילום מקצועי, התאמה אישית עם AI, ותוכן מהאורחים — משולבים לזיכרון שלם אחד מהאירוע.",
+    he: "צילום מקצועי, התאמה אישית עם AI, ואיסוף תמונות מהאורחים - משולבים לזיכרון שלם אחד מהאירוע.",
   },
   pillar_official_title: { en: "Official photos", he: "תמונות מהצלמים" },
-  pillar_official_desc: { en: "Upload the photographer's photos in bulk — safely stored and beautifully presented.", he: "העלו את התמונות של כל הצלמים יחד — נשמרות בבטחה ומוצגות יפה." },
-  pillar_personal_title: { en: "Find your photos", he: "מצאו את התמונות שלכם" },
+  pillar_official_desc: { en: "Upload the photographer's photos in bulk — safely stored and beautifully presented.", he: "העלו את התמונות של כל הצלמים יחד - נשמרות בבטחה ומוצגות יפה." },
+  pillar_personal_title: { en: "Find your photos", he: "זיהוי פנים חכם" },
   pillar_personal_desc: { en: "Guests upload a selfie and AI instantly finds every photo they appear in.", he: "אורחים מעלים סלפי וה-AI מוצא מיד כל תמונה שהם מופיעים בה." },
   pillar_guest_title: { en: "Guest photos", he: "תמונות מהאורחים" },
-  pillar_guest_desc: { en: "Everyone adds the moments they captured — the album grows from every angle.", he: "כולם מוסיפים את הרגעים שתיעדו — האלבום גדל מכל זווית ולכם יש עוד זכרונות." },
+  pillar_guest_desc: { en: "Everyone adds the moments they captured — the album grows from every angle.", he: "כולם מוסיפים את הרגעים שתיעדו - האלבום גדל מכל זווית ולכם יש עוד זכרונות." },
 
   // ---------- Use cases ----------
   uc_title: { en: "For every kind of event", he: "לכל סוג של אירוע" },
@@ -63,7 +63,7 @@ export const landingContent: Record<string, Bi> = {
   step3_title: { en: "Share a link or QR", he: "שיתוף קישור או QR" },
   step3_desc: { en: "Guests open the album instantly.", he: "האורחים פותחים את האלבום מיד." },
   step4_title: { en: "Guests find & add", he: "אורחים מוצאים ומוסיפים" },
-  step4_desc: { en: "Selfie to find their photos, and upload their own.", he: "סלפי כדי למצוא תמונות, והעלאת תמונות משלהם." },
+  step4_desc: { en: "Selfie to find their photos, and upload their own.", he: "עושים סלפי ומקבלים את כל התמונות." },
 
   // ---------- Feature deep-dive ----------
   feat_title: { en: "Everything you need to share the memories", he: "כל מה שצריך כדי לשתף את הזיכרונות" },
@@ -73,24 +73,24 @@ export const landingContent: Record<string, Bi> = {
   },
   feat_face_title: { en: "AI face matching", he: "התאמת פנים עם AI" },
   feat_face_desc: { en: "Guests take a selfie and instantly get every photo they appear in.", he: "אורחים מצלמים סלפי ומקבלים מיד כל תמונה שהם מופיעים בה." },
-  feat_guest_title: { en: "Guest uploads", he: "העלאות אורחים" },
+  feat_guest_title: { en: "Guest uploads", he: "העלאת תמונות מהאורחים" },
   feat_guest_desc: { en: "Everyone contributes the moments they captured, right from their phone.", he: "כולם מוסיפים את הרגעים שתיעדו, ישירות מהטלפון." },
   feat_folder_title: { en: "Folders & sharing control", he: "תיקיות ושליטה בשיתוף" },
   feat_folder_desc: { en: "Organize photos into folders and choose exactly what's shared publicly.", he: "ארגנו תמונות בתיקיות ובחרו בדיוק מה משותף בציבור." },
-  feat_download_title: { en: "Easy downloads", he: "הורדות בקלות" },
+  feat_download_title: { en: "Easy downloads", he: "הורדה בקלות" },
   feat_download_desc: { en: "Guests view and download their photos in full quality — no app required.", he: "אורחים צופים ומורידים את התמונות באיכות מלאה — ללא אפליקציה." },
 
   // ---------- Testimonials (PLACEHOLDER — replace with real quotes) ----------
   testi_title: { en: "Loved by hosts and photographers", he: "אהוב על מארגנים וצלמים" },
   testi_1_quote: { en: "Guests found their photos in seconds — everyone was blown away.", he: "האורחים מצאו את התמונות שלהם בשניות — כולם התלהבו." },
-  testi_1_role: { en: "Wedding photographer", he: "צלם חתונות" },
+  testi_1_role: { en: "Wedding photographer", he: "ליאור, כלה" },
   testi_2_quote: { en: "The guest uploads made our album feel complete, from every angle.", he: "העלאות האורחים גרמו לאלבום להרגיש שלם, מכל זווית." },
   testi_2_role: { en: "Event organizer", he: "מפיק אירועים" },
-  testi_3_quote: { en: "Setup took minutes and the QR link made sharing effortless.", he: "ההקמה לקחה דקות והקישור עם ה-QR הפך את השיתוף לפשוט." },
+  testi_3_quote: { en: "Setup took minutes and the QR link made sharing effortless.", he: "ההקמה לקחה דקות והקישור עם הפך את השיתוף לפשוט ואישי." },
   testi_3_role: { en: "Bride", he: "כלה" },
 
   // ---------- Pricing (PLACEHOLDER prices — set your real ones) ----------
-  pricing_title: { en: "Simple pricing", he: "מחיר פשוט" },
+  pricing_title: { en: "Simple pricing", he: "לא משלמים עד שלא בטוחים" },
   pricing_subtitle: { en: "Start free. Pay when you're ready to share.", he: "מתחילים בחינם. משלמים כשמוכנים לשתף." },
   most_popular: { en: "Most popular", he: "הכי פופולרי" },
   pricing_note: { en: "Prices shown are examples — final pricing coming soon.", he: "המחירים המוצגים הם לדוגמה — תמחור סופי בקרוב." },

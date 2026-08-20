@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BrandMark } from "@/components/BrandMark";
 import { Mori } from "@/components/Mori";
-import { HeroMedia } from "@/components/HeroMedia";
+import { HeroMockup } from "@/components/HeroMockup";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
 import { plans as planTiers } from "@/content/plans";
@@ -94,9 +94,9 @@ export default function Landing() {
             <Button asChild size="lg" variant="outline"><a href="#how">{t("hero_cta_secondary")}</a></Button>
           </div>
 
-          {/* Demo video */}
+          {/* Demo — self-explanatory UI mockup */}
           <div className="mt-12 md:mt-14">
-            <HeroMedia />
+            <HeroMockup />
           </div>
 
           {/* Value props */}
