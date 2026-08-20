@@ -183,16 +183,16 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-5 py-16 md:py-24">
           <h2 className="font-serif text-3xl text-center mb-3">{t("pricing_title")}</h2>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-10">{t("pricing_subtitle")}</p>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 items-start">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 items-stretch">
             {planTiers.map((p) => (
-              <div key={p.key} className={`rounded-2xl border p-6 bg-background ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
+              <div key={p.key} className={`rounded-2xl border p-6 bg-background flex flex-col ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
                 {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
                 <h3 className="font-medium text-lg">{p.name[lang]}</h3>
                 <div className="mt-4 flex items-end gap-2">
                   <span className="font-serif text-3xl">{p.price[lang]}</span>
                   {p.oldPrice && <span className="text-sm text-muted-foreground line-through mb-1.5">{p.oldPrice[lang]}</span>}
                 </div>
-                <ul className="mt-5 space-y-2">
+                <ul className="mt-5 space-y-2 flex-1">
                   {p.features.map((f, i) => (
                     <li key={i} className={`flex items-start gap-2 text-sm ${f.included ? "" : "text-muted-foreground line-through"}`}>
                       {f.included ? <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" /> : <X className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />} {f.text[lang]}

@@ -74,7 +74,7 @@ export default function PlanSelection() {
           </label>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-start">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-stretch">
           {plans.map((p) => (
             <div key={p.key} className={`rounded-2xl border p-6 bg-background flex flex-col ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
               {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
