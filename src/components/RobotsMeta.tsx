@@ -19,7 +19,8 @@ function setMeta(name: string, content: string) {
 export function RobotsMeta() {
   const { pathname } = useLocation();
   useEffect(() => {
-    const value = INDEXABLE.has(pathname) ? "index, follow" : "noindex, nofollow";
+    const indexable = INDEXABLE.has(pathname) || pathname === "/blog" || pathname.startsWith("/blog/");
+    const value = indexable ? "index, follow" : "noindex, nofollow";
     setMeta("robots", value);
     setMeta("googlebot", value);
   }, [pathname]);

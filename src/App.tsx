@@ -18,6 +18,8 @@ import PlanSelection from "./pages/PlanSelection.tsx";
 import Accessibility from "./pages/Accessibility.tsx";
 import Legal from "./pages/Legal.tsx";
 import Contact from "./pages/Contact.tsx";
+import Blog from "./pages/Blog.tsx";
+import BlogPost from "./pages/BlogPost.tsx";
 import { LanguageProvider, useI18n } from "@/lib/i18n";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 import { RobotsMeta } from "@/components/RobotsMeta";
@@ -59,6 +61,8 @@ const App = () => (
             <Route path="/accessibility" element={<Accessibility />} />
             <Route path="/legal" element={<Legal />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/terms" element={<Legal />} />
             <Route path="/privacy" element={<Legal />} />
             <Route path="/e/:slug" element={<EventPublic />} />
