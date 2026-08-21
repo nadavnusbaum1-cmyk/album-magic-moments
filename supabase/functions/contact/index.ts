@@ -10,9 +10,10 @@ const esc = (s: string) =>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { name, email, message } = await req.json() as { name?: string; email?: string; message?: string };
+    const { name, email, phone, message } = await req.json() as { name?: string; email?: string; phone?: string; message?: string };
     const n = (name || "").trim();
     const e = (email || "").trim();
+    const p = (phone || "").trim().slice(0, 40);
     const m = (message || "").trim();
 
     if (!n || !e || !m) return json({ error: "Missing fields" }, 400);
@@ -23,6 +24,7 @@ Deno.serve(async (req) => {
       <h2 style="margin:0 0 12px;">New contact form message</h2>
       <p style="margin:0 0 4px;"><b>Name:</b> ${esc(n)}</p>
       <p style="margin:0 0 4px;"><b>Email:</b> ${esc(e)}</p>
+      ${p ? `<p style="margin:0 0 4px;"><b>Phone:</b> ${esc(p)}</p>` : ""}
       <p style="margin:12px 0 4px;"><b>Message:</b></p>
       <p style="margin:0;white-space:pre-wrap;background:#f5f4fb;border-radius:10px;padding:12px;">${esc(m)}</p>
     </div>`;

@@ -10,6 +10,7 @@ export function ContactForm({ className = "" }: { className?: string }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -20,10 +21,10 @@ export function ContactForm({ className = "" }: { className?: string }) {
     if (!valid) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("contact", { body: { name, email, message } });
+      const { data, error } = await supabase.functions.invoke("contact", { body: { name, email, phone, message } });
       if (error || (data && (data as { error?: string }).error)) throw new Error("failed");
       toast.success(t("contact_sent"));
-      setName(""); setEmail(""); setMessage("");
+      setName(""); setEmail(""); setPhone(""); setMessage("");
     } catch {
       toast.error(t("contact_fail"));
     } finally {
@@ -35,6 +36,7 @@ export function ContactForm({ className = "" }: { className?: string }) {
     <form onSubmit={submit} className={`space-y-3 w-full max-w-md mx-auto text-start ${className}`}>
       <Input placeholder={t("your_name")} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
       <Input type="email" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />
+      <Input type="tel" placeholder={t("phone")} value={phone} onChange={(e) => setPhone(e.target.value)} disabled={busy} />
       <textarea
         placeholder={t("contact_msg_placeholder")}
         value={message}

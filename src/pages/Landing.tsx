@@ -7,7 +7,7 @@ import {
   PartyPopper, Building2, Medal, GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BrandMark } from "@/components/BrandMark";
 import { Mori } from "@/components/Mori";
 import { HeroMockup } from "@/components/HeroMockup";
@@ -66,15 +66,14 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <FloatingLanguageSwitcher />
-
       {/* Nav */}
       <header className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border/60">
-        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-          <BrandMark avatar avatarSize={40} className="text-xl" />
+        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-2">
+          <BrandMark avatar avatarSize={40} className="text-xl shrink-0" />
           <div className="flex items-center gap-2">
             <a href="#pricing" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_pricing")}</a>
-            <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_signin")}</Link>
+            <Link to="/auth" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_signin")}</Link>
+            <LanguageSwitcher />
             <Button asChild size="sm"><Link to="/auth?mode=signup">{t("get_started")}</Link></Button>
           </div>
         </div>
@@ -260,7 +259,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <BrandMark avatar avatarSize={32} className="text-lg" />
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <a href="#contact" className="hover:text-foreground underline">{tr("contact_link")}</a>
+            <Link to="/contact" className="hover:text-foreground underline">{tr("contact_link")}</Link>
             <Link to="/legal" className="hover:text-foreground underline">{lang === "he" ? "תנאי שימוש ופרטיות" : "Terms & Privacy"}</Link>
             <Link to="/accessibility" className="hover:text-foreground underline">{lang === "he" ? "הצהרת נגישות" : "Accessibility"}</Link>
             <span>© {t("footer_rights")}</span>
