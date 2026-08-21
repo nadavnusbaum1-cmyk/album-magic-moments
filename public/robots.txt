@@ -1,3 +1,13 @@
-# Event albums are private/unlisted — accessible by link only, not for indexing.
 User-agent: *
-Disallow: /
+Allow: /
+# Private, link-only pages — keep out of search engines.
+Disallow: /e/
+Disallow: /u/
+Disallow: /album/
+Disallow: /person/
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /auth
+Disallow: /plan
+
+Sitemap: https://heymori.co.il/sitemap.xml

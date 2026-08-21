@@ -20,6 +20,7 @@ import Legal from "./pages/Legal.tsx";
 import Contact from "./pages/Contact.tsx";
 import { LanguageProvider, useI18n } from "@/lib/i18n";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
+import { RobotsMeta } from "@/components/RobotsMeta";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <RobotsMeta />
           <SkipLink />
           <AccessibilityWidget />
           <Routes>
