@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 
 export function ContactForm({ className = "" }: { className?: string }) {
@@ -13,6 +14,7 @@ export function ContactForm({ className = "" }: { className?: string }) {
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const valid = name.trim() && email.trim() && message.trim();
 
@@ -23,14 +25,22 @@ export function ContactForm({ className = "" }: { className?: string }) {
     try {
       const { data, error } = await supabase.functions.invoke("contact", { body: { name, email, phone, message } });
       if (error || (data && (data as { error?: string }).error)) throw new Error("failed");
-      toast.success(t("contact_sent"));
-      setName(""); setEmail(""); setPhone(""); setMessage("");
+      setSent(true); // replace the form with a confirmation
     } catch {
       toast.error(t("contact_fail"));
     } finally {
       setBusy(false);
     }
   };
+
+  if (sent) {
+    return (
+      <div className={`text-center w-full max-w-md mx-auto py-4 ${className}`}>
+        <Mori expression="celebrating" size={104} className="mx-auto mb-3" />
+        <p className="font-medium text-lg">{t("contact_sent")}</p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={submit} className={`space-y-3 w-full max-w-md mx-auto text-start ${className}`}>

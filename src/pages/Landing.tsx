@@ -69,11 +69,13 @@ export default function Landing() {
       {/* Nav */}
       <header className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-2">
-          <BrandMark avatar avatarSize={40} className="text-xl shrink-0" />
+          <div className="flex items-center gap-3 shrink-0">
+            <BrandMark avatar avatarSize={40} className="text-xl" />
+            <LanguageSwitcher />
+          </div>
           <div className="flex items-center gap-2">
             <a href="#pricing" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_pricing")}</a>
             <Link to="/auth" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground px-3 py-2">{t("nav_signin")}</Link>
-            <LanguageSwitcher />
             <Button asChild size="sm"><Link to="/auth?mode=signup">{t("get_started")}</Link></Button>
           </div>
         </div>
