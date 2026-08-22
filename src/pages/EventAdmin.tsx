@@ -120,8 +120,6 @@ export default function EventAdmin() {
   const [waResult, setWaResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
 
   // EXIF capture-date backfill
-  const [backfilling, setBackfilling] = useState(false);
-  const [backfillStats, setBackfillStats] = useState({ scanned: 0, total: 0, updated: 0 });
 
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
 
@@ -299,34 +297,6 @@ export default function EventAdmin() {
     }
     toast.success(t("reindex_triggered", { n: ok }));
     setTimeout(() => loadPhotos(), 2000);
-  };
-
-  const runBackfill = async () => {
-    if (!id || backfilling) return;
-    setBackfilling(true);
-    setBackfillStats({ scanned: 0, total: 0, updated: 0 });
-    try {
-      let totalUpdated = 0;
-      let totalScanned = 0;
-      // Loop until the server reports 0 remaining, or we hit a sane safety cap.
-      for (let i = 0; i < 50; i++) {
-        const r = await authedInvoke<{ scanned: number; updated: number; remaining: number }>(
-          "backfill-taken-at",
-          { eventId: id, batchSize: 20, maxItems: 800 },
-        );
-        totalUpdated += r.updated;
-        totalScanned += r.scanned;
-        setBackfillStats({ scanned: totalScanned, total: totalScanned + r.remaining, updated: totalUpdated });
-        if (!r.remaining || r.scanned === 0) break;
-      }
-      toast.success(t("redetect_done", { updated: totalUpdated }));
-      // Refresh visible photos so the new order shows up.
-      if (tab === "all") loadPhotos();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("failed"));
-    } finally {
-      setBackfilling(false);
-    }
   };
 
   const updateEvent = async (patch: Partial<Event>) => {
@@ -1000,12 +970,9 @@ export default function EventAdmin() {
               </div>
 
               <div className="flex items-center justify-between border-t pt-4">
-                <div><div className="font-medium text-sm">{t("show_people_title")}</div><p className="text-xs text-muted-foreground">{t("show_people_desc")}</p></div>
-                <Switch checked={event.show_people} onCheckedChange={(v) => updateEvent({ show_people: v })} />
-              </div>
-              <div className="flex items-center justify-between">
                 <div><div className="font-medium text-sm">{t("people_public_title")}</div><p className="text-xs text-muted-foreground">{t("people_public_desc")}</p></div>
-                <Switch checked={event.people_gallery_visibility === "public"} onCheckedChange={(v) => updateEvent({ people_gallery_visibility: v ? "public" : "private" })} />
+                <Switch checked={event.show_people && event.people_gallery_visibility === "public"}
+                  onCheckedChange={(v) => updateEvent({ show_people: v, people_gallery_visibility: v ? "public" : "private" })} />
               </div>
               <div className="flex items-center justify-between">
                 <div><div className="font-medium text-sm">{t("show_all_photos_title")}</div><p className="text-xs text-muted-foreground">{t("show_all_photos_desc")}</p></div>
@@ -1095,16 +1062,6 @@ export default function EventAdmin() {
                 </Button>
               </div>
 
-              <div className="space-y-2 border-t pt-4">
-                <label className="text-sm font-medium">{t("redetect_capture_dates")}</label>
-                <p className="text-xs text-muted-foreground">{t("redetect_hint")}</p>
-                <Button type="button" variant="outline" size="sm" className="gap-2" disabled={backfilling} onClick={runBackfill}>
-                  {backfilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  {backfilling
-                    ? t("redetect_running", { done: backfillStats.scanned, total: backfillStats.total })
-                    : t("redetect_capture_dates")}
-                </Button>
-              </div>
             </Card>
           </TabsContent>
         </Tabs>
