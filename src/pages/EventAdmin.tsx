@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { prepareImageForUpload, uploadRenditions } from "@/lib/imageUtils";
 import { extractTakenAt } from "@/lib/exif";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
-import { useI18n, Lang } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; };
@@ -63,7 +63,7 @@ export default function EventAdmin() {
   const { id } = useParams();
   const { session, loading } = useSession();
   const navigate = useNavigate();
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const [event, setEvent] = useState<Event | null>(null);
   const [tab, setTab] = useState("upload");
   const [coverUploading, setCoverUploading] = useState(false);
@@ -346,18 +346,21 @@ export default function EventAdmin() {
     updateEvent({ hidden_sources: next });
   };
 
-  const uploadCover = async (file: File, kind: "cover" | "home_bg" = "cover") => {
+  // One image is used for BOTH the album cover and the home background.
+  const uploadEventImage = async (file: File) => {
     if (!id) return;
     setCoverUploading(true);
     try {
       const fd = new FormData();
       fd.append("eventId", id);
-      fd.append("kind", kind);
+      fd.append("kind", "cover");
       fd.append("file", file);
       const r = await authedFetch("upload-cover", { method: "POST", body: fd });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || t("failed"));
-      setEvent(j.event);
+      const url = j.event?.cover_image_url || null;
+      const upd = await authedInvoke<{ event: Event }>("update-event", { eventId: id, home_bg_url: url });
+      setEvent(upd.event);
       toast.success(t("cover_uploaded"));
     } catch (e) { toast.error(e instanceof Error ? e.message : t("upload_failed")); }
     finally { setCoverUploading(false); }
@@ -949,16 +952,6 @@ export default function EventAdmin() {
           <TabsContent value="settings">
             <Card className="p-6 space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("language")}</label>
-                <Select value={lang} onValueChange={(v) => setLang(v as Lang)}>
-                  <SelectTrigger className="w-full max-w-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">{t("english")}</SelectItem>
-                    <SelectItem value="he">{t("hebrew")} (RTL)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-medium">{t("default_language")}</label>
                 <p className="text-xs text-muted-foreground">{t("default_language_hint")}</p>
                 <Select
@@ -996,42 +989,14 @@ export default function EventAdmin() {
                       </span>
                     </Button>
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f); e.currentTarget.value = ""; }} />
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadEventImage(f); e.currentTarget.value = ""; }} />
                   </label>
                   {event.cover_image_url && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => updateEvent({ cover_image_url: null })}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateEvent({ cover_image_url: null, home_bg_url: null })}>
                       <X className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
-                <Input defaultValue={event.cover_image_url || ""} placeholder={t("paste_url")}
-                  onBlur={(e) => e.target.value !== (event.cover_image_url || "") && updateEvent({ cover_image_url: e.target.value || null })} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("home_bg_image")}</label>
-                <p className="text-xs text-muted-foreground">{t("home_bg_image_hint")}</p>
-                {event.home_bg_url && (
-                  <img src={event.home_bg_url} alt={t("home_bg_image")} className="w-full max-w-sm aspect-video object-cover rounded-md border" />
-                )}
-                <div className="flex flex-wrap gap-2 items-center">
-                  <label className="inline-flex">
-                    <Button type="button" variant="outline" size="sm" disabled={coverUploading} asChild>
-                      <span className="cursor-pointer gap-2 inline-flex items-center">
-                        {coverUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        {t("upload_image")}
-                      </span>
-                    </Button>
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCover(f, "home_bg"); e.currentTarget.value = ""; }} />
-                  </label>
-                  {event.home_bg_url && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => updateEvent({ home_bg_url: null })}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-                <Input defaultValue={event.home_bg_url || ""} placeholder={t("paste_url")}
-                  onBlur={(e) => e.target.value !== (event.home_bg_url || "") && updateEvent({ home_bg_url: e.target.value || null })} />
               </div>
 
               <div className="flex items-center justify-between border-t pt-4">
