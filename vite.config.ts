@@ -102,7 +102,18 @@ function prerenderMeta(): Plugin {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.writeFileSync(dest, html);
       }
-      console.log(`[prerender-meta] wrote ${routes.length} static route HTML files`);
+
+      // Auto-generate sitemap.xml from the same routes (so new posts appear automatically).
+      const priority = (p: string) => (p === "/" ? "1.0" : p === "/blog" ? "0.8" : p.startsWith("/blog/") ? "0.7" : "0.5");
+      const urls = routes.map((r) => {
+        const lastmod = r.article?.date ? `\n    <lastmod>${r.article.date}</lastmod>` : "";
+        return `  <url>\n    <loc>${SITE}${r.path}</loc>${lastmod}\n    <priority>${priority(r.path)}</priority>\n  </url>`;
+      }).join("\n");
+      fs.writeFileSync(
+        path.join(outDir, "sitemap.xml"),
+        `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+      );
+      console.log(`[prerender-meta] wrote ${routes.length} route HTML files + sitemap.xml`);
     },
   };
 }
