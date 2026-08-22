@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -96,13 +96,13 @@ export default function EventAdmin() {
   const [folderDialog, setFolderDialog] = useState<{ open: boolean; from: string; to: string }>({ open: false, from: "", to: "" });
 
   // Reprocess
-  const [reprocessing, setReprocessing] = useState(false);
 
   // People
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [clustersLoading, setClustersLoading] = useState(false);
   const [editingCluster, setEditingCluster] = useState<Cluster | null>(null);
   const [editingClusterPhotos, setEditingClusterPhotos] = useState<ClusterPhoto[]>([]);
+  const [nameInput, setNameInput] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerPhotos, setPickerPhotos] = useState<Photo[]>([]);
   const [pickerCursor, setPickerCursor] = useState<string | null>(null);
@@ -365,19 +365,9 @@ export default function EventAdmin() {
 
 
 
-  const reprocess = async () => {
-    if (!id) return;
-    if (!confirm(t("reprocess_confirm"))) return;
-    setReprocessing(true);
-    try {
-      const r = await authedFetch("reprocess-event", { method: "POST", body: JSON.stringify({ eventId: id, mode: "all" }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || t("failed"));
-      toast.success(t("reprocessed", { processed: j.processed, total: j.total }));
-      if (tab === "all") loadPhotos();
-      if (tab === "people") loadClusters();
-    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
-    finally { setReprocessing(false); }
+  const copyPersonLink = (clusterId: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/person/${clusterId}`);
+    toast.success(t("link_copied"));
   };
 
   const [autoMerging, setAutoMerging] = useState(false);
@@ -423,6 +413,7 @@ export default function EventAdmin() {
 
   const openClusterEditor = async (c: Cluster) => {
     setEditingCluster(c);
+    setNameInput(c.display_name || "");
     setEditingClusterPhotos([]);
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cluster-photos?id=${c.id}`;
@@ -823,10 +814,6 @@ export default function EventAdmin() {
                     {autoMerging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                     {t("merge_similar")}
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
-                    {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    {t("rerun_matching")}
-                  </Button>
                 </div>
               </div>
               {clustersLoading && clusters.length === 0 ? (
@@ -846,6 +833,11 @@ export default function EventAdmin() {
                         className="absolute top-1 end-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
                         title={c.hidden ? t("show_on_public") : t("hide_from_public")}>
                         {c.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); copyPersonLink(c.id); }}
+                        className="absolute top-1 start-1 bg-background/90 hover:bg-background rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        title={t("copy_person_link")}>
+                        <Link2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -1164,8 +1156,10 @@ export default function EventAdmin() {
           {editingCluster && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Input defaultValue={editingCluster.display_name || ""} placeholder={t("person_name_placeholder")}
-                  onBlur={(e) => { if (e.target.value !== (editingCluster.display_name || "")) renameCluster(e.target.value); }} />
+                <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder={t("person_name_placeholder")}
+                  onKeyDown={(e) => { if (e.key === "Enter") renameCluster(nameInput); }} />
+                <Button onClick={() => renameCluster(nameInput)} disabled={nameInput === (editingCluster.display_name || "")} className="shrink-0">{t("save")}</Button>
+                <Button variant="outline" size="sm" onClick={() => copyPersonLink(editingCluster.id)} className="gap-2 shrink-0" title={t("copy_person_link")}><Link2 className="w-4 h-4" /> {t("copy")}</Button>
                 <Button variant="outline" onClick={openPicker} className="gap-2 shrink-0"><Plus className="w-4 h-4" /> {t("add_photos")}</Button>
               </div>
               <div className="text-sm text-muted-foreground">{t("n_photos_in_person", { n: editingClusterPhotos.length })}</div>

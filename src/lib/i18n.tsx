@@ -259,6 +259,7 @@ const dict: Record<Lang, Record<string, string>> = {
     added_n: "Added {n} photo(s)",
     set_cover_photo: "Set as cover photo",
     remove_from_person: "Remove from this person",
+    copy_person_link: "Copy this person's album link",
 
     // Share tab
     share_title: "Send album via WhatsApp",
@@ -663,6 +664,7 @@ const dict: Record<Lang, Record<string, string>> = {
     added_n: "נוספו {n} תמונות",
     set_cover_photo: "הגדר כתמונת כריכה",
     remove_from_person: "הסר מאדם זה",
+    copy_person_link: "העתקת קישור לאלבום האישי",
 
     share_title: "שלח אלבום ב-WhatsApp",
     share_desc: "שלח את קישור האלבום לאורחים דרך Twilio WhatsApp. המספרים חייבים להיות בפורמט בינלאומי (למשל +972501234567).",
