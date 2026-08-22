@@ -754,13 +754,6 @@ export default function EventAdmin() {
                       {zipping ? <><Loader2 className="w-4 h-4 animate-spin" /> {zipping.done}/{zipping.total}</> : <><Download className="w-4 h-4" /> {t("download_all")}</>}
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => loadPhotos()} disabled={loadingPhotos}>
-                    {loadingPhotos ? "…" : t("refresh")}
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={reprocess} disabled={reprocessing} className="gap-2">
-                    {reprocessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    {t("rerun_face_matching")}
-                  </Button>
                 </div>
               </div>
               {loadingPhotos && photos.length === 0 ? (
