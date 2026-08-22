@@ -51,8 +51,8 @@ export const landingContent: Record<string, Bi> = {
   uc_corporate: { en: "Corporate", he: "אירועי חברה" },
   uc_race: { en: "Bar/Bat Mitzva", he: "בר/בת מצווה" },
   uc_school: { en: "Schools", he: "בתי ספר" },
-  uc_party: { en: "Parties", he: "מסיבות" },
-  uc_festival: { en: "Festivals", he: "פסטיבלים" },
+  uc_party: { en: "Baby Shower", he: "בריתות" },
+  uc_festival: { en: "Festivals", he: "מסיבות" },
 
   // ---------- How it works ----------
   how_title: { en: "How it works", he: "איך זה עובד" },

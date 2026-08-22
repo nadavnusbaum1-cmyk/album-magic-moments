@@ -543,6 +543,13 @@ export default function EventAdmin() {
 
   if (loading || !event) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
+  // Face-recognition breakdown as percentages of the processable (non-video) photos.
+  // recognized + pending + no-face always sum to 100%.
+  const statDenom = Math.max(0, photosTotals.total - photosTotals.skipped);
+  const recognizedPct = statDenom > 0 ? Math.round((photosTotals.processed / statDenom) * 100) : 0;
+  const pendingPct = statDenom > 0 ? Math.round((photosTotals.pending / statDenom) * 100) : 0;
+  const noFacePct = Math.max(0, 100 - recognizedPct - pendingPct);
+
   return (
     <div className="min-h-screen p-6" style={{ background: "var(--gradient-soft)" }}>
       <div className="max-w-5xl mx-auto pt-2">
@@ -647,13 +654,12 @@ export default function EventAdmin() {
                 <div className="rounded-lg border bg-card p-3">
                   <div className="text-xs text-muted-foreground">{t("stat_processed")}</div>
                   <div className="text-2xl font-semibold text-emerald-600">{photosTotals.processed}</div>
-                  {photosTotals.total - photosTotals.skipped > 0 && (
-                    <div className="text-[11px] text-muted-foreground">{Math.round((photosTotals.processed / (photosTotals.total - photosTotals.skipped)) * 100)}%</div>
-                  )}
+                  {statDenom > 0 && <div className="text-[11px] text-muted-foreground">{recognizedPct}%</div>}
                 </div>
                 <div className="rounded-lg border bg-card p-3">
                   <div className="text-xs text-muted-foreground">{t("stat_pending")}</div>
                   <div className="text-2xl font-semibold text-amber-600">{photosTotals.pending}</div>
+                  {statDenom > 0 && photosTotals.pending > 0 && <div className="text-[11px] text-muted-foreground">{pendingPct}%</div>}
                 </div>
                 <button
                   type="button"
@@ -661,11 +667,9 @@ export default function EventAdmin() {
                   disabled={photosTotals.review === 0 && !reviewFilter}
                   className={`text-start rounded-lg border p-3 transition-colors ${reviewFilter ? "border-primary bg-primary/10" : "bg-card"} ${photosTotals.review > 0 || reviewFilter ? "hover:border-primary cursor-pointer" : "opacity-70 cursor-default"}`}
                 >
-                  <div className="text-xs text-muted-foreground">{t("stat_review")}</div>
+                  <div className="text-xs text-muted-foreground">{t("stat_no_face")}</div>
                   <div className="text-2xl font-semibold text-amber-600">{photosTotals.review}</div>
-                  {(photosTotals.review > 0 || reviewFilter) && (
-                    <div className="text-[11px] text-primary">{reviewFilter ? t("all_photos") : t("review")}</div>
-                  )}
+                  {statDenom > 0 && <div className="text-[11px] text-muted-foreground">{noFacePct}%{reviewFilter ? ` · ${t("all_photos")}` : ""}</div>}
                 </button>
               </div>
               {reviewFilter && (

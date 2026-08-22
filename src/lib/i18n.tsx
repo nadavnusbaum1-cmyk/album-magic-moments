@@ -326,6 +326,7 @@ const dict: Record<Lang, Record<string, string>> = {
     stat_processed: "Successfully recognized",
     stat_pending: "Still indexing",
     stat_review: "Need review",
+    stat_no_face: "No face detected",
     searching_photos: "Searching your photos…",
     this_can_take: "This can take a moment for large albums",
 
@@ -729,6 +730,7 @@ const dict: Record<Lang, Record<string, string>> = {
     stat_processed: "זוהו בהצלחה",
     stat_pending: "עדיין מעובדות",
     stat_review: "דורשות בדיקה",
+    stat_no_face: "לא זוהו פנים",
     searching_photos: "מחפש את התמונות שלך…",
     this_can_take: "באלבומים גדולים זה יכול לקחת רגע",
 
