@@ -23,7 +23,11 @@ export function useSession() {
 export async function authedInvoke<T = any>(name: string, body: any = {}): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) throw error;
-  if ((data as any)?.error) throw new Error((data as any).error);
+  if ((data as any)?.error) {
+    const err = new Error((data as any).error) as Error & { code?: string };
+    err.code = (data as any).code;
+    throw err;
+  }
   return data as T;
 }
 

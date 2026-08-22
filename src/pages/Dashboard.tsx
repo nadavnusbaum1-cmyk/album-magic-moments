@@ -5,6 +5,7 @@ import { useSession, authedInvoke } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [limitDialog, setLimitDialog] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -71,7 +73,9 @@ export default function Dashboard() {
       setShowForm(false); setName(""); setDate("");
       navigate(`/dashboard/event/${event.id}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("failed"));
+      const code = (e as { code?: string }).code;
+      if (code === "event_limit") { setShowForm(false); setLimitDialog(true); }
+      else toast.error(e instanceof Error ? e.message : t("failed"));
     } finally {
       setCreating(false);
     }
@@ -160,6 +164,20 @@ export default function Dashboard() {
           <a href="/" className="ms-2 underline inline-flex items-center gap-1">{t("home")} <ExternalLink className="w-3 h-3" /></a>
         </div>
       </div>
+
+      <Dialog open={limitDialog} onOpenChange={setLimitDialog}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <Mori expression="thinking" size={96} className="mx-auto mb-2" />
+            <DialogTitle className="text-center">{t("event_limit_title")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("event_limit_desc")}</p>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button variant="outline" onClick={() => setLimitDialog(false)}>{t("cancel")}</Button>
+            <Button onClick={() => { setLimitDialog(false); navigate("/plan"); }}>{t("event_limit_cta")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

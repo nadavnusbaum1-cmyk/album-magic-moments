@@ -169,6 +169,9 @@ const dict: Record<Lang, Record<string, string>> = {
     draft: "Draft",
     public_url_format: "Public album URL format:",
     failed_load_events: "Failed to load events",
+    event_limit_title: "Add another event?",
+    event_limit_desc: "Your plan includes one event. To create another, choose its type — you only pay for the additional event.",
+    event_limit_cta: "Choose event type",
 
     // EventAdmin tabs
     upload: "Upload",
@@ -580,6 +583,9 @@ const dict: Record<Lang, Record<string, string>> = {
     draft: "טיוטה",
     public_url_format: "פורמט הקישור הציבורי לאלבום:",
     failed_load_events: "טעינת האירועים נכשלה",
+    event_limit_title: "להוסיף אירוע נוסף?",
+    event_limit_desc: "החבילה שלכם כוללת אירוע אחד. כדי ליצור אירוע נוסף, בחרו את סוג האירוע — תשלמו רק על האירוע הנוסף.",
+    event_limit_cta: "בחירת סוג אירוע",
 
     upload: "העלאה",
     photos: "תמונות",
