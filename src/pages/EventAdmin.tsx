@@ -545,6 +545,8 @@ export default function EventAdmin() {
 
   // Face-recognition breakdown as percentages of the processable (non-video) photos.
   // recognized + pending + no-face always sum to 100%.
+  // Twilio isn't connected yet — hide the WhatsApp sender for now. Flip to re-enable.
+  const SHOW_WHATSAPP = false;
   const statDenom = Math.max(0, photosTotals.total - photosTotals.skipped);
   const recognizedPct = statDenom > 0 ? Math.round((photosTotals.processed / statDenom) * 100) : 0;
   const pendingPct = statDenom > 0 ? Math.round((photosTotals.pending / statDenom) * 100) : 0;
@@ -853,8 +855,8 @@ export default function EventAdmin() {
           <TabsContent value="share">
             <Card className="p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> {t("share_title")}</h2>
-                <p className="text-xs text-muted-foreground mt-1">{t("share_desc")}</p>
+                <h2 className="text-lg font-medium flex items-center gap-2"><MessageCircle className="w-5 h-5 text-emerald-600" /> {SHOW_WHATSAPP ? t("share_title") : t("share")}</h2>
+                {SHOW_WHATSAPP && <p className="text-xs text-muted-foreground mt-1">{t("share_desc")}</p>}
               </div>
 
               <div className="space-y-2 border rounded-lg p-3 bg-secondary/30">
@@ -866,9 +868,11 @@ export default function EventAdmin() {
                     onClick={() => { navigator.clipboard.writeText(shortLink || uploadUrl); toast.success(t("link_copied")); }}>
                     {t("copy")}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={shortenUploadLink} disabled={shortening || !!shortLink}>
-                    {shortening ? <Loader2 className="w-4 h-4 animate-spin" /> : t("shorten")}
-                  </Button>
+                  {SHOW_WHATSAPP && (
+                    <Button type="button" variant="outline" size="sm" onClick={shortenUploadLink} disabled={shortening || !!shortLink}>
+                      {shortening ? <Loader2 className="w-4 h-4 animate-spin" /> : t("shorten")}
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -879,7 +883,7 @@ export default function EventAdmin() {
                 </div>
                 <div className="qr-print mx-auto max-w-xs flex flex-col items-center justify-center gap-4 rounded-xl border border-border bg-white text-black p-6 text-center">
                   <div className="font-serif text-2xl">{event.name}</div>
-                  <QRCodeSVG value={publicUrl} size={200} marginSize={2} bgColor="#ffffff" fgColor="#000000" />
+                  <QRCodeSVG value={uploadUrl} size={200} marginSize={2} bgColor="#ffffff" fgColor="#000000" />
                   <div className="text-sm font-medium">{t("qr_scan_cta")}</div>
                 </div>
                 <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
@@ -887,54 +891,57 @@ export default function EventAdmin() {
                 </Button>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("twilio_number")}</label>
-                <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886" />
-                <p className="text-xs text-muted-foreground">{t("twilio_hint")}</p>
-              </div>
+              {SHOW_WHATSAPP && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t("twilio_number")}</label>
+                    <Input value={waFrom} onChange={(e) => setWaFrom(e.target.value)} placeholder="+14155238886" />
+                    <p className="text-xs text-muted-foreground">{t("twilio_hint")}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("recipient_numbers")}</label>
-                <Textarea
-                  rows={5}
-                  value={waNumbers}
-                  onChange={(e) => setWaNumbers(e.target.value)}
-                  placeholder={"+972501234567\n+14155550123"}
-                />
-                <p className="text-xs text-muted-foreground">{t("one_per_line")}</p>
-              </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t("recipient_numbers")}</label>
+                    <Textarea
+                      rows={5}
+                      value={waNumbers}
+                      onChange={(e) => setWaNumbers(e.target.value)}
+                      placeholder={"+972501234567\n+14155550123"}
+                    />
+                    <p className="text-xs text-muted-foreground">{t("one_per_line")}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("share_link_label")}</label>
-                <div className="flex gap-2">
-                  <Input
-                    value={shareUrl}
-                    onChange={(e) => setShareUrl(e.target.value)}
-                    placeholder={publicUrl}
-                    dir="ltr"
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShareUrl(publicUrl)}>
-                    {t("reset_to_album_link")}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t("share_link_label")}</label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={shareUrl}
+                        onChange={(e) => setShareUrl(e.target.value)}
+                        placeholder={publicUrl}
+                        dir="ltr"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShareUrl(publicUrl)}>
+                        {t("reset_to_album_link")}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t("share_link_hint")}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t("message")}</label>
+                    <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
+                    <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
+                  </div>
+
+                  <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
+                    {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
                   </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t("share_link_hint")}</p>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{t("message")}</label>
-                <Textarea rows={4} value={waMessage} onChange={(e) => setWaMessage(e.target.value)} maxLength={1500} />
-                <p className="text-xs text-muted-foreground">{t("chars_count", { n: waMessage.length })}</p>
-              </div>
-
-
-              <Button onClick={sendWhatsApp} disabled={waSending} size="lg" className="w-full gap-2">
-                {waSending ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("sending")}</> : <><Send className="w-4 h-4" /> {t("send_whatsapp")}</>}
-              </Button>
-
-              {waResult && (
-                <div className="text-sm border rounded-md p-3 bg-secondary/40">
-                  {t("sent_summary", { sent: waResult.sent, failed: waResult.failed, skipped: waResult.skipped })}
-                </div>
+                  {waResult && (
+                    <div className="text-sm border rounded-md p-3 bg-secondary/40">
+                      {t("sent_summary", { sent: waResult.sent, failed: waResult.failed, skipped: waResult.skipped })}
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           </TabsContent>
