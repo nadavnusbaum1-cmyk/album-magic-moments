@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       await supabase.from("photo_matches").delete().eq("event_id", eventId);
       await supabase.from("face_clusters").delete().eq("event_id", eventId);
       await supabase.from("guests").update({ photo_count: 0 }).eq("event_id", eventId);
-      await supabase.from("photos").update({ processed: false, processing_status: "queued", face_count: 0, processing_error: null }).eq("event_id", eventId);
+      await supabase.from("photos").update({ processed: false, processing_status: "queued", face_count: 0, processing_error: null, processing_attempts: 0 }).eq("event_id", eventId);
 
       const collection = collectionFor(eventId);
       try { await rekognition("DeleteCollection", { CollectionId: collection }); } catch { /* ignore */ }

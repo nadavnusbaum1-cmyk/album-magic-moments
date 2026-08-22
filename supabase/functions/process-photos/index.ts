@@ -5,7 +5,7 @@ import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { ensureCollection, collectionFor } from "../_shared/rekognition.ts";
 import { processPhoto } from "../_shared/processPhoto.ts";
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 20;
 const MAX_ATTEMPTS = 5;
 
 Deno.serve(async (req) => {
