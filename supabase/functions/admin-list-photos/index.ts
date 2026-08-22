@@ -61,21 +61,31 @@ Deno.serve(async (req) => {
     });
 
     let sources: { label: string; count: number }[] = [];
-    let totals = { total: 0, ready: 0, pending: 0, review: 0, moderation: 0 };
+    let totals = { total: 0, processed: 0, pending: 0, review: 0, skipped: 0, moderation: 0 };
     if (!cursor) {
       const { data: srcRows } = await supabase.rpc("get_event_sources", { _event_id: eventId });
       sources = (srcRows || []).map((r: any) => ({ label: r.source_label as string, count: Number(r.count) }));
       const base = () => supabase.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).is("deleted_at", null);
-      const [{ count: total }, { count: ready }, { count: moderation }] = await Promise.all([
+      // processing_status: 'ready' (done), 'skipped' (video/unsupported — done, no face),
+      // 'failed', else still in the queue. "processed" = recognized a face.
+      const reviewQ = base().eq("review_skipped", false).neq("media_type", "video")
+        .or("and(processing_status.eq.ready,face_count.eq.0),processing_status.eq.failed,upload_status.eq.failed");
+      const [{ count: total }, { count: ready }, { count: skipped }, { count: failed }, { count: recognized }, { count: review }, { count: moderation }] = await Promise.all([
         base(),
         base().eq("processing_status", "ready"),
+        base().eq("processing_status", "skipped"),
+        base().eq("processing_status", "failed"),
+        base().eq("processing_status", "ready").gt("face_count", 0),
+        reviewQ,
         base().eq("moderation_status", "pending"),
       ]);
+      const t = total || 0, r = ready || 0, sk = skipped || 0, fl = failed || 0;
       totals = {
-        total: total || 0,
-        ready: ready || 0,
-        pending: (total || 0) - (ready || 0),
-        review: 0,
+        total: t,
+        processed: recognized || 0,               // recognized at least one face
+        pending: Math.max(0, t - r - sk - fl),     // genuinely still processing (excludes videos)
+        review: review || 0,                        // no face detected / failed
+        skipped: sk,                                // videos & unsupported (done, no face)
         moderation: moderation || 0,
       };
     }

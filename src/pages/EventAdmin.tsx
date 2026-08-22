@@ -82,18 +82,15 @@ export default function EventAdmin() {
   // Gallery
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photosCursor, setPhotosCursor] = useState<string | null>(null);
-  const [photosTotals, setPhotosTotals] = useState({ total: 0, processed: 0, pending: 0, review: 0 });
+  const [photosTotals, setPhotosTotals] = useState({ total: 0, processed: 0, pending: 0, review: 0, skipped: 0 });
   const [sources, setSources] = useState<Source[]>([]);
   const [filterSource, setFilterSource] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
-
-  // Review
-  const [reviewPhotos, setReviewPhotos] = useState<Photo[]>([]);
-  const [reviewCursor, setReviewCursor] = useState<string | null>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
+  // When on, the Photos grid shows only items needing review (merged Review tab).
+  const [reviewFilter, setReviewFilter] = useState(false);
 
   // Folder management dialog
   const [folderDialog, setFolderDialog] = useState<{ open: boolean; from: string; to: string }>({ open: false, from: "", to: "" });
@@ -153,7 +150,7 @@ export default function EventAdmin() {
     try {
       const data = await authedInvoke<{ photos: Photo[]; sources: Source[]; nextCursor: string | null; totals?: typeof photosTotals }>(
         "admin-list-photos",
-        { eventId: id, sourceLabel: filterSource === "all" ? undefined : filterSource, before, limit: 60 },
+        { eventId: id, sourceLabel: reviewFilter || filterSource === "all" ? undefined : filterSource, review: reviewFilter, before, limit: 60 },
       );
       if (before) {
         setPhotos((prev) => [...prev, ...data.photos]);
@@ -168,21 +165,6 @@ export default function EventAdmin() {
     finally { setLoadingPhotos(false); setLoadingMore(false); }
   };
 
-  const loadReview = async (before?: string) => {
-    if (!id) return;
-    setReviewLoading(true);
-    try {
-      const data = await authedInvoke<{ photos: Photo[]; nextCursor: string | null; totals?: typeof photosTotals }>(
-        "admin-list-photos",
-        { eventId: id, review: true, before, limit: 60 },
-      );
-      if (before) setReviewPhotos((p) => [...p, ...data.photos]);
-      else { setReviewPhotos(data.photos); if (data.totals) setPhotosTotals(data.totals); }
-      setReviewCursor(data.nextCursor);
-    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
-    finally { setReviewLoading(false); }
-  };
-
   const loadClusters = async () => {
     if (!event) return;
     setClustersLoading(true);
@@ -195,9 +177,8 @@ export default function EventAdmin() {
   };
 
   useEffect(() => { if (session && id) loadEvent(); }, [session, id]);
-  useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource]);
+  useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource, reviewFilter]);
   useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
-  useEffect(() => { if (session && id && tab === "review") loadReview(); }, [session, id, tab]);
   useEffect(() => { if (session && id && tab === "settings" && !sources.length) loadPhotos(); }, [session, id, tab]);
   // Enable folder selection on the folder input (non-standard attribute).
   useEffect(() => {
@@ -269,7 +250,7 @@ export default function EventAdmin() {
     if (folderChoice === NEW_FOLDER) { setFolderChoice(folderForUpload); setNewFolderName(""); }
   };
 
-  const deletePhotos = async (ids: string[], from: "all" | "review" = "all") => {
+  const deletePhotos = async (ids: string[]) => {
     if (!ids.length) return;
     if (!confirm(t("confirm_delete", { n: ids.length }))) return;
     try {
@@ -277,8 +258,8 @@ export default function EventAdmin() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || t("failed"));
       toast.success(t("deleted_n", { n: j.deleted }));
-      if (from === "all") { setPhotos((p) => p.filter((x) => !ids.includes(x.id))); setSelected(new Set()); }
-      else setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+      setPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+      setSelected(new Set());
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
@@ -289,7 +270,7 @@ export default function EventAdmin() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || t("failed"));
       toast.success(t("skipped_n", { n: ids.length }));
-      setReviewPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+      setPhotos((p) => p.filter((x) => !ids.includes(x.id)));
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
@@ -309,15 +290,15 @@ export default function EventAdmin() {
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
-  const reindexAllReview = async () => {
-    if (!reviewPhotos.length) return;
-    toast.info(t("reindexing_n", { n: reviewPhotos.length }));
+  const reindexShown = async () => {
+    if (!photos.length) return;
+    toast.info(t("reindexing_n", { n: photos.length }));
     let ok = 0;
-    for (const p of reviewPhotos) {
+    for (const p of photos) {
       try { await authedInvoke("process-photo-now", { photoId: p.id }); ok++; } catch { /* ignore */ }
     }
     toast.success(t("reindex_triggered", { n: ok }));
-    setTimeout(() => loadReview(), 2000);
+    setTimeout(() => loadPhotos(), 2000);
   };
 
   const runBackfill = async () => {
@@ -395,7 +376,6 @@ export default function EventAdmin() {
       toast.success(t("reprocessed", { processed: j.processed, total: j.total }));
       if (tab === "all") loadPhotos();
       if (tab === "people") loadClusters();
-      if (tab === "review") loadReview();
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setReprocessing(false); }
   };
@@ -602,7 +582,6 @@ export default function EventAdmin() {
           <TabsList className="grid grid-cols-6 w-full max-w-3xl mb-6">
             <TabsTrigger value="upload" className="gap-2"><Upload className="w-4 h-4" /> {t("upload")}</TabsTrigger>
             <TabsTrigger value="all" className="gap-2"><ImageIcon className="w-4 h-4" /> {t("photos")}</TabsTrigger>
-            <TabsTrigger value="review" className="gap-2 relative"><AlertTriangle className="w-4 h-4" /> {t("review")}{photosTotals.review > 0 && <span className="ml-1 text-xs bg-amber-500 text-white rounded-full px-1.5">{photosTotals.review}</span>}</TabsTrigger>
             <TabsTrigger value="people" className="gap-2"><Users className="w-4 h-4" /> {t("people")}</TabsTrigger>
             <TabsTrigger value="share" className="gap-2"><MessageCircle className="w-4 h-4" /> {t("share")}</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> {t("settings")}</TabsTrigger>
@@ -677,25 +656,47 @@ export default function EventAdmin() {
                 <div className="rounded-lg border bg-card p-3">
                   <div className="text-xs text-muted-foreground">{t("stat_processed")}</div>
                   <div className="text-2xl font-semibold text-emerald-600">{photosTotals.processed}</div>
-                  {photosTotals.total > 0 && (
-                    <div className="text-[11px] text-muted-foreground">{Math.round((photosTotals.processed / photosTotals.total) * 100)}%</div>
+                  {photosTotals.total - photosTotals.skipped > 0 && (
+                    <div className="text-[11px] text-muted-foreground">{Math.round((photosTotals.processed / (photosTotals.total - photosTotals.skipped)) * 100)}%</div>
                   )}
                 </div>
                 <div className="rounded-lg border bg-card p-3">
                   <div className="text-xs text-muted-foreground">{t("stat_pending")}</div>
                   <div className="text-2xl font-semibold text-amber-600">{photosTotals.pending}</div>
                 </div>
-                <div className="rounded-lg border bg-card p-3">
+                <button
+                  type="button"
+                  onClick={() => { if (photosTotals.review > 0 || reviewFilter) { setSelected(new Set()); setReviewFilter((v) => !v); } }}
+                  disabled={photosTotals.review === 0 && !reviewFilter}
+                  className={`text-start rounded-lg border p-3 transition-colors ${reviewFilter ? "border-primary bg-primary/10" : "bg-card"} ${photosTotals.review > 0 || reviewFilter ? "hover:border-primary cursor-pointer" : "opacity-70 cursor-default"}`}
+                >
                   <div className="text-xs text-muted-foreground">{t("stat_review")}</div>
                   <div className="text-2xl font-semibold text-amber-600">{photosTotals.review}</div>
-                </div>
+                  {(photosTotals.review > 0 || reviewFilter) && (
+                    <div className="text-[11px] text-primary">{reviewFilter ? t("all_photos") : t("review")}</div>
+                  )}
+                </button>
               </div>
+              {reviewFilter && (
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">{t("review_title")}</p>
+                    <p className="text-xs text-muted-foreground">{t("review_desc")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" className="gap-2" onClick={reindexShown} disabled={!photos.length}>
+                      <RefreshCw className="w-4 h-4" /> {t("reindex_all")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => { setSelected(new Set()); setReviewFilter(false); }}>{t("all_photos")}</Button>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">{t("n_photos", { n: photosTotals.total || photos.length })}</h2>
+                  <h2 className="font-medium">{reviewFilter ? t("review") : t("n_photos", { n: photosTotals.total || photos.length })}</h2>
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
-                  {sources.length > 0 && (
+                  {!reviewFilter && sources.length > 0 && (
                     <>
                       <Select value={filterSource} onValueChange={setFilterSource}>
                         <SelectTrigger className="w-48"><SelectValue placeholder={t("all_folders")} /></SelectTrigger>
@@ -793,6 +794,16 @@ export default function EventAdmin() {
                             <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ms-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                           </div>
                           {!p.processed && <span className="absolute top-7 end-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">{t("indexing_label")}</span>}
+                          {reviewFilter && (
+                            <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
+                              <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); reindexPhoto(p.id); }}>
+                                <RefreshCw className="w-3 h-3" /> {t("reindex")}
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" title={t("skip")} onClick={(e) => { e.stopPropagation(); skipReviewPhotos([p.id]); }}>
+                                <EyeOff className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -801,57 +812,6 @@ export default function EventAdmin() {
                     <div className="text-center mt-6">
                       <Button variant="outline" onClick={() => loadPhotos(photosCursor)} disabled={loadingMore}>
                         {loadingMore ? t("loading") : t("load_more")}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="review">
-            <Card className="p-6">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <div>
-                  <h2 className="font-medium">{t("review_title")}</h2>
-                  <p className="text-xs text-muted-foreground">{t("review_desc")}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => loadReview()} disabled={reviewLoading}>{reviewLoading ? "…" : t("refresh")}</Button>
-                  <Button variant="secondary" size="sm" className="gap-2" onClick={reindexAllReview} disabled={!reviewPhotos.length}>
-                    <RefreshCw className="w-4 h-4" /> {t("reindex_all")}
-                  </Button>
-                </div>
-              </div>
-              {reviewLoading && reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">{t("loading")}</p>
-              ) : reviewPhotos.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">{t("review_all_done")}</p>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {reviewPhotos.map((p) => (
-                      <div key={p.id} className="relative group rounded-xl overflow-hidden bg-muted aspect-square">
-                        {p.media_type === "video" ? <video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /> : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                        {p.processing_error && <div className="absolute top-1 start-1 end-1 bg-destructive/90 text-destructive-foreground text-[10px] rounded px-1.5 py-0.5 truncate">⚠ {p.processing_error}</div>}
-                        <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
-                          <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={() => reindexPhoto(p.id)}>
-                            <RefreshCw className="w-3 h-3" /> {t("reindex")}
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2" title={t("skip")} onClick={() => skipReviewPhotos([p.id])}>
-                            <EyeOff className="w-3 h-3" />
-                          </Button>
-                          <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => deletePhotos([p.id], "review")}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {reviewCursor && (
-                    <div className="text-center mt-6">
-                      <Button variant="outline" onClick={() => loadReview(reviewCursor)} disabled={reviewLoading}>
-                        {reviewLoading ? t("loading") : t("load_more")}
                       </Button>
                     </div>
                   )}
