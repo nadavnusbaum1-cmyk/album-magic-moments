@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedInvoke } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,19 @@ export default function Dashboard() {
   };
 
   useEffect(() => { if (session) load(); }, [session]);
+
+  // Returning from an Invoice4U checkout. The plan is activated by the
+  // server-to-server callback, which may land a moment after this redirect.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("checkout") === "success") {
+      toast.success(t("payment_thanks"));
+      searchParams.delete("checkout");
+      setSearchParams(searchParams, { replace: true });
+      setTimeout(() => { if (session) load(); }, 2500);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const create = async () => {
     if (!name.trim()) return;

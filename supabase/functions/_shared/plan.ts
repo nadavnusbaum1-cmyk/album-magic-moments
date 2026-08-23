@@ -17,6 +17,15 @@ export const PLAN_LIMITS: Record<string, { photo: number | null; event: number |
   business: { photo: null, event: null, storage: null },
 };
 
+// Server-side price list (NIS) — the ONLY source of truth for charge amounts, so
+// a client can't tamper with what it pays. null = not self-serve purchasable.
+export const PLAN_PRICES: Record<string, number | null> = {
+  free: 0,
+  small: 299,
+  wedding: 499,
+  business: null,
+};
+
 const DEFAULT: Account = { plan: "free", plan_status: "active", photo_limit: 50, event_limit: 1, storage_days: 14 };
 
 export async function getAccount(userId: string): Promise<Account> {

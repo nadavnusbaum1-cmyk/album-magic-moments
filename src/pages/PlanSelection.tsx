@@ -38,12 +38,26 @@ export default function PlanSelection() {
   const choose = async (plan: string) => {
     setSubmitting(plan);
     try {
+      // Always persist onboarding + contact details first.
       const r = await authedFetch("select-plan", {
         method: "POST",
         body: JSON.stringify({ plan, phone, event_date: eventDate, marketing_opt_in: marketing }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Failed");
+
+      // Paid plans go through Invoice4U checkout. If payments aren't enabled yet
+      // (no API key), fall back to the manual request flow just recorded above.
+      if (plan === "small" || plan === "wedding") {
+        const c = await authedFetch("create-checkout", {
+          method: "POST",
+          body: JSON.stringify({ kind: "plan", plan }),
+        });
+        const cj = await c.json();
+        if (c.ok && cj.redirectUrl) { window.location.href = cj.redirectUrl; return; }
+        if (cj.code !== "payments_unconfigured") throw new Error(cj.error || t("failed"));
+      }
+
       toast.success(j.status === "requested" ? t("plan_requested_done") : t("plan_free_done"));
       navigate("/dashboard");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); setSubmitting(null); }
