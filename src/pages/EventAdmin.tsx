@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { prepareImageForUpload, uploadRenditions } from "@/lib/imageUtils";
 import { extractTakenAt } from "@/lib/exif";
 import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; };
@@ -63,7 +63,7 @@ export default function EventAdmin() {
   const { id } = useParams();
   const { session, loading } = useSession();
   const navigate = useNavigate();
-  const { t, lang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const [event, setEvent] = useState<Event | null>(null);
   const [tab, setTab] = useState("upload");
   const [coverUploading, setCoverUploading] = useState(false);
@@ -922,15 +922,14 @@ export default function EventAdmin() {
           <TabsContent value="settings">
             <Card className="p-6 space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("default_language")}</label>
-                <p className="text-xs text-muted-foreground">{t("default_language_hint")}</p>
+                <label className="text-sm font-medium">{t("language")}</label>
+                <p className="text-xs text-muted-foreground">{t("event_language_hint")}</p>
                 <Select
-                  value={event.default_language ?? "__none__"}
-                  onValueChange={(v) => updateEvent({ default_language: v === "__none__" ? null : v })}
+                  value={event.default_language ?? lang}
+                  onValueChange={(v) => { updateEvent({ default_language: v }); setLang(v as Lang); }}
                 >
                   <SelectTrigger className="w-full max-w-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">{t("use_app_default")}</SelectItem>
                     <SelectItem value="en">{t("english")}</SelectItem>
                     <SelectItem value="he">{t("hebrew")} (RTL)</SelectItem>
                   </SelectContent>

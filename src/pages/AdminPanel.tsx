@@ -148,6 +148,7 @@ export default function AdminPanel() {
                         {u.plan_status !== "active" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setPlan(u.id, { plan_status: "active" })}>Activate</Button>}
                         {u.plan_status === "pending" && u.plan_requested && <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setPlan(u.id, { plan: u.plan_requested, plan_status: "active" })}>Approve {u.plan_requested}</Button>}
                         {u.plan_status !== "suspended" && !u.is_super_admin && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setPlan(u.id, { plan_status: "suspended" })}>Suspend</Button>}
+                        {u.event_limit != null && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" title="Grant one more event" onClick={() => setPlan(u.id, { event_limit: (u.event_limit ?? 1) + 1 })}>+ event</Button>}
                       </div>
                     </td>
                   </tr>
