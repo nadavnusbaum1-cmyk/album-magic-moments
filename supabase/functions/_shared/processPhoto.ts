@@ -8,6 +8,7 @@ import { getObjectBytes } from "./s3.ts";
 export const MATCH_THRESHOLD = 80;
 export const CLUSTER_THRESHOLD = 80;
 const REKOGNITION_MAX_BYTES = 5 * 1024 * 1024;
+const MODERATION_MIN_CONFIDENCE = 60; // Rekognition confidence floor for flagging guest uploads
 
 function looksProcessable(name: string): boolean {
   const lower = name.toLowerCase();
@@ -40,6 +41,8 @@ export interface ProcessablePhoto {
   storage_provider: string | null;
   content_type?: string | null;
   media_type?: string | null;
+  source?: string | null;
+  moderation_checked?: boolean | null;
 }
 
 type FaceMatch = { Face?: { FaceId?: string; ExternalImageId?: string }; Similarity?: number };
@@ -120,9 +123,38 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
     return { matches: 0, faces: 0 };
   }
 
+  const faceB64 = bytesToBase64(faceBytes);
+
+  // Guest uploads are untrusted — screen for explicit/violent content before the
+  // photo can go public. Flagged photos are hidden from the album and surface in
+  // the host's moderation queue. We fail SAFE: if the check errors we flag for
+  // manual review rather than publish something unscreened. Runs once (guarded by
+  // moderation_checked) so a later reprocess never overrides a host's decision.
+  // Photographer uploads are trusted and skip this. Images only — videos and
+  // oversize renditions bypass the automated check (host review still applies).
+  let moderationUpdate: Record<string, unknown> = {};
+  if (photo.source === "guest_upload" && !photo.moderation_checked) {
+    moderationUpdate = { moderation_checked: true };
+    try {
+      const mod = await rekognition("DetectModerationLabels", {
+        Image: { Bytes: faceB64 },
+        MinConfidence: MODERATION_MIN_CONFIDENCE,
+      });
+      const labels = (mod.ModerationLabels || []) as { Name?: string; Confidence?: number }[];
+      if (labels.length) {
+        moderationUpdate.moderation_status = "flagged";
+        moderationUpdate.moderation_labels = labels.map((l) => ({ name: l.Name, confidence: l.Confidence }));
+      }
+    } catch (e) {
+      console.error("DetectModerationLabels failed", photo.id, e instanceof Error ? e.message : e);
+      moderationUpdate.moderation_status = "flagged";
+      moderationUpdate.moderation_labels = [{ name: "moderation_unavailable" }];
+    }
+  }
+
   const indexResult = await rekognition("IndexFaces", {
     CollectionId: COLLECTION,
-    Image: { Bytes: bytesToBase64(faceBytes) },
+    Image: { Bytes: faceB64 },
     ExternalImageId: `photo-${photo.id}`,
     DetectionAttributes: [],
     MaxFaces: 20,
@@ -196,6 +228,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   await supabase.from("photos").update({
     processing_status: "ready", face_count: faceRecords.length,
     processing_error: null, processing_attempts: 0,
+    ...moderationUpdate,
   }).eq("id", photo.id);
   return { matches: matchedGuests.size, faces: faceRecords.length };
 }

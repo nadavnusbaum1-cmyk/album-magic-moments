@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data: photo, error } = await supabase
       .from("photos")
-      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, upload_status, processing_status, content_type, media_type")
+      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, upload_status, processing_status, content_type, media_type, source, moderation_checked")
       .eq("id", photoId)
       .single();
     if (error || !photo) return json({ error: "Photo not found" }, 404);

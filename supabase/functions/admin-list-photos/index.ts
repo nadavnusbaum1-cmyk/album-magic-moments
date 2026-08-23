@@ -16,15 +16,15 @@ Deno.serve(async (req) => {
     const pageSize = Math.min(Math.max(Number(limit) || 100, 1), 300);
     const supabase = svc();
     let q = supabase.from("photos")
-      .select("id, storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label, source, processing_error, upload_error, upload_status, processing_status, moderation_status")
+      .select("id, storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label, source, processing_error, upload_error, upload_status, processing_status, moderation_status, moderation_labels")
       .eq("event_id", eventId)
       .is("deleted_at", null)
       .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
     if (moderation) {
-      // Guest uploads awaiting approval.
-      q = q.eq("moderation_status", "pending");
+      // Guest uploads awaiting approval — manual queue ('pending') + auto-flagged.
+      q = q.in("moderation_status", ["pending", "flagged"]);
     } else if (review) {
       // Needs attention: processed-but-no-face, processing failed, or upload broken.
       q = q.eq("review_skipped", false)
@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
         upload_status: p.upload_status,
         processing_status: p.processing_status,
         moderation_status: p.moderation_status,
+        moderation_labels: p.moderation_labels,
         created_at: p.created_at,
         sort_at: (p as any).sort_at,
         uploaded_by: p.uploaded_by,
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
         base().eq("processing_status", "failed"),
         base().eq("processing_status", "ready").gt("face_count", 0),
         reviewQ,
-        base().eq("moderation_status", "pending"),
+        base().in("moderation_status", ["pending", "flagged"]),
       ]);
       const t = total || 0, r = ready || 0, sk = skipped || 0, fl = failed || 0;
       totals = {

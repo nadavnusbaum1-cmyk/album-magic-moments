@@ -20,7 +20,7 @@ import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
 type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; created_at?: string; storage_expires_at?: string | null; storage_expired?: boolean; storage_expired_at?: string | null; };
-type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
+type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; moderation_labels?: { name?: string; confidence?: number }[] | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 type Source = { label: string; count: number };
@@ -82,7 +82,7 @@ export default function EventAdmin() {
   // Gallery
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photosCursor, setPhotosCursor] = useState<string | null>(null);
-  const [photosTotals, setPhotosTotals] = useState({ total: 0, processed: 0, pending: 0, review: 0, skipped: 0 });
+  const [photosTotals, setPhotosTotals] = useState({ total: 0, processed: 0, pending: 0, review: 0, skipped: 0, moderation: 0 });
   const [sources, setSources] = useState<Source[]>([]);
   const [filterSource, setFilterSource] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -91,6 +91,8 @@ export default function EventAdmin() {
   const [zipping, setZipping] = useState<{ done: number; total: number } | null>(null);
   // When on, the Photos grid shows only items needing review (merged Review tab).
   const [reviewFilter, setReviewFilter] = useState(false);
+  // When on, the Photos grid shows only guest uploads awaiting moderation (pending/flagged).
+  const [moderationFilter, setModerationFilter] = useState(false);
 
   // Folder management dialog
   const [folderDialog, setFolderDialog] = useState<{ open: boolean; from: string; to: string }>({ open: false, from: "", to: "" });
@@ -148,7 +150,7 @@ export default function EventAdmin() {
     try {
       const data = await authedInvoke<{ photos: Photo[]; sources: Source[]; nextCursor: string | null; totals?: typeof photosTotals }>(
         "admin-list-photos",
-        { eventId: id, sourceLabel: reviewFilter || filterSource === "all" ? undefined : filterSource, review: reviewFilter, before, limit: 60 },
+        { eventId: id, sourceLabel: reviewFilter || moderationFilter || filterSource === "all" ? undefined : filterSource, review: reviewFilter, moderation: moderationFilter, before, limit: 60 },
       );
       if (before) {
         setPhotos((prev) => [...prev, ...data.photos]);
@@ -175,7 +177,7 @@ export default function EventAdmin() {
   };
 
   useEffect(() => { if (session && id) loadEvent(); }, [session, id]);
-  useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource, reviewFilter]);
+  useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource, reviewFilter, moderationFilter]);
   useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
   useEffect(() => { if (session && id && tab === "settings" && !sources.length) loadPhotos(); }, [session, id, tab]);
   // Enable folder selection on the folder input (non-standard attribute).
@@ -269,6 +271,19 @@ export default function EventAdmin() {
       if (!r.ok) throw new Error(j.error || t("failed"));
       toast.success(t("skipped_n", { n: ids.length }));
       setPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+  };
+
+  const approvePhotos = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      const r = await authedFetch("approve-photos", { method: "POST", body: JSON.stringify({ photoIds: ids }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || t("failed"));
+      toast.success(t("approved_n", { n: j.approved }));
+      setPhotos((p) => p.filter((x) => !ids.includes(x.id)));
+      setSelected(new Set());
+      setPhotosTotals((tt) => ({ ...tt, moderation: Math.max(0, tt.moderation - ids.length) }));
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
   };
 
@@ -621,7 +636,7 @@ export default function EventAdmin() {
 
           <TabsContent value="all">
             <Card className="p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className={`grid grid-cols-2 gap-3 mb-4 ${photosTotals.moderation > 0 || moderationFilter ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
                 <div className="rounded-lg border bg-card p-3">
                   <div className="text-xs text-muted-foreground">{t("stat_total")}</div>
                   <div className="text-2xl font-semibold">{photosTotals.total || photos.length}</div>
@@ -638,7 +653,7 @@ export default function EventAdmin() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { if (photosTotals.review > 0 || reviewFilter) { setSelected(new Set()); setReviewFilter((v) => !v); } }}
+                  onClick={() => { if (photosTotals.review > 0 || reviewFilter) { setSelected(new Set()); setModerationFilter(false); setReviewFilter((v) => !v); } }}
                   disabled={photosTotals.review === 0 && !reviewFilter}
                   className={`text-start rounded-lg border p-3 transition-colors ${reviewFilter ? "border-primary bg-primary/10" : "bg-card"} ${photosTotals.review > 0 || reviewFilter ? "hover:border-primary cursor-pointer" : "opacity-70 cursor-default"}`}
                 >
@@ -646,6 +661,17 @@ export default function EventAdmin() {
                   <div className="text-2xl font-semibold text-amber-600">{photosTotals.review}</div>
                   {statDenom > 0 && <div className="text-[11px] text-muted-foreground">{noFacePct}%{reviewFilter ? ` · ${t("all_photos")}` : ""}</div>}
                 </button>
+                {(photosTotals.moderation > 0 || moderationFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => { setSelected(new Set()); setReviewFilter(false); setModerationFilter((v) => !v); }}
+                    className={`text-start rounded-lg border p-3 transition-colors ${moderationFilter ? "border-destructive bg-destructive/10" : "bg-card"} hover:border-destructive cursor-pointer`}
+                  >
+                    <div className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-destructive" /> {t("stat_flagged")}</div>
+                    <div className="text-2xl font-semibold text-destructive">{photosTotals.moderation}</div>
+                    {moderationFilter && <div className="text-[11px] text-muted-foreground">{t("all_photos")}</div>}
+                  </button>
+                )}
               </div>
               {reviewFilter && (
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
@@ -661,9 +687,23 @@ export default function EventAdmin() {
                   </div>
                 </div>
               )}
+              {moderationFilter && (
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-destructive" /> {t("moderation_title")}</p>
+                    <p className="text-xs text-muted-foreground">{t("moderation_desc")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" className="gap-2" onClick={() => approvePhotos(photos.map((p) => p.id))} disabled={!photos.length}>
+                      <Eye className="w-4 h-4" /> {t("approve_all")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => { setSelected(new Set()); setModerationFilter(false); }}>{t("all_photos")}</Button>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
-                  <h2 className="font-medium">{reviewFilter ? t("review") : t("n_photos", { n: photosTotals.total || photos.length })}</h2>
+                  <h2 className="font-medium">{moderationFilter ? t("stat_flagged") : reviewFilter ? t("review") : t("n_photos", { n: photosTotals.total || photos.length })}</h2>
                 </div>
                 <div className="flex gap-2 items-center flex-wrap">
                   {!reviewFilter && sources.length > 0 && (
@@ -691,6 +731,11 @@ export default function EventAdmin() {
                   )}
                   {selected.size > 0 && (
                     <>
+                      {moderationFilter && (
+                        <Button variant="secondary" size="sm" className="gap-2" onClick={() => approvePhotos([...selected])}>
+                          <Eye className="w-4 h-4" /> {t("approve_n", { n: selected.size })}
+                        </Button>
+                      )}
                       <Button variant="destructive" size="sm" className="gap-2" onClick={() => deletePhotos([...selected])}>
                         <Trash2 className="w-4 h-4" /> {t("delete")} {selected.size}
                       </Button>
@@ -757,6 +802,22 @@ export default function EventAdmin() {
                             <div className="bg-background/85 text-xs rounded-full px-2 py-0.5 flex items-center gap-1 ms-auto"><Users className="w-3 h-3" />{p.face_count}</div>
                           </div>
                           {!p.processed && <span className="absolute top-7 end-1 bg-amber-500/90 text-white text-[10px] px-1.5 rounded">{t("indexing_label")}</span>}
+                          {(p.moderation_status === "flagged" || p.moderation_status === "pending") && (
+                            <span className="absolute top-8 start-1 bg-destructive/90 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                              title={(p.moderation_labels || []).map((l) => l.name).filter(Boolean).join(", ") || undefined}>
+                              <AlertTriangle className="w-3 h-3" /> {t("flagged_badge")}
+                            </span>
+                          )}
+                          {moderationFilter && (
+                            <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
+                              <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); approvePhotos([p.id]); }}>
+                                <Eye className="w-3 h-3" /> {t("approve")}
+                              </Button>
+                              <Button size="sm" variant="destructive" className="h-7 px-2" title={t("delete")} onClick={(e) => { e.stopPropagation(); deletePhotos([p.id]); }}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
                           {reviewFilter && (
                             <div className="absolute inset-x-0 bottom-0 p-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
                               <Button size="sm" variant="secondary" className="flex-1 h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); reindexPhoto(p.id); }}>

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data: pending } = await supabase
       .from("photos")
-      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, content_type, media_type, processing_attempts")
+      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, content_type, media_type, processing_attempts, source, moderation_checked")
       .eq("upload_status", "uploaded")
       .eq("processing_status", "queued")
       .lt("processing_attempts", MAX_ATTEMPTS)

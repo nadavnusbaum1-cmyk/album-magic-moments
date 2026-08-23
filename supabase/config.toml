@@ -63,6 +63,9 @@ verify_jwt = false
 [functions.skip-review-photos]
 verify_jwt = false
 
+[functions.approve-photos]
+verify_jwt = false
+
 [functions.send-whatsapp]
 verify_jwt = false
 
