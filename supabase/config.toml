@@ -93,6 +93,10 @@ verify_jwt = false
 [functions.cleanup-deleted]
 verify_jwt = false
 
+# Cron-secret gated: enforces per-plan storage retention (auto-deletes expired albums from AWS).
+[functions.expire-events]
+verify_jwt = false
+
 [functions.reconcile-storage]
 verify_jwt = false
 

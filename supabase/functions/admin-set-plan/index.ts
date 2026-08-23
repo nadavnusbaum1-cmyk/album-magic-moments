@@ -9,9 +9,9 @@ Deno.serve(async (req) => {
     const auth = await requireSuperAdmin(req);
     if (auth.error) return json({ error: auth.error }, auth.status);
 
-    const { userId, plan, plan_status, photo_limit, event_limit, note } = await req.json() as {
+    const { userId, plan, plan_status, photo_limit, event_limit, storage_days, note } = await req.json() as {
       userId?: string; plan?: string; plan_status?: string;
-      photo_limit?: number | null; event_limit?: number | null; note?: string;
+      photo_limit?: number | null; event_limit?: number | null; storage_days?: number | null; note?: string;
     };
     if (!userId) return json({ error: "userId required" }, 400);
 
@@ -22,10 +22,12 @@ Deno.serve(async (req) => {
       // Apply the plan's default limits unless explicit overrides were passed.
       update.photo_limit = photo_limit !== undefined ? photo_limit : PLAN_LIMITS[plan].photo;
       update.event_limit = event_limit !== undefined ? event_limit : PLAN_LIMITS[plan].event;
+      update.storage_days = storage_days !== undefined ? storage_days : PLAN_LIMITS[plan].storage;
       update.plan_requested = null; // clear any pending request once the plan is set
     } else {
       if (photo_limit !== undefined) update.photo_limit = photo_limit;
       if (event_limit !== undefined) update.event_limit = event_limit;
+      if (storage_days !== undefined) update.storage_days = storage_days;
     }
     if (plan_status) {
       if (!["active", "pending", "suspended"].includes(plan_status)) return json({ error: "Bad status" }, 400);

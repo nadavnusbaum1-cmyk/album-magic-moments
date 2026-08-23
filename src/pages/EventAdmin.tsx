@@ -19,7 +19,7 @@ import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; created_at?: string; storage_expires_at?: string | null; storage_expired?: boolean; storage_expired_at?: string | null; };
 type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
@@ -934,6 +934,18 @@ export default function EventAdmin() {
                     <SelectItem value="he">{t("hebrew")} (RTL)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1 border-t pt-5">
+                <label className="text-sm font-medium">{t("storage_retention")}</label>
+                {event.storage_expired ? (
+                  <p className="text-xs text-destructive">{t("storage_expired_note")}</p>
+                ) : event.storage_expires_at ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("storage_until", { date: new Date(event.storage_expires_at).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { year: "numeric", month: "long", day: "numeric" }) })}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t("storage_forever")}</p>
+                )}
               </div>
               <div className="space-y-2 border-t pt-5">
                 <label className="text-sm font-medium">{t("event_name")}</label>

@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
       update.plan_status = "active";
       update.photo_limit = PLAN_LIMITS.free.photo;
       update.event_limit = PLAN_LIMITS.free.event;
+      update.storage_days = PLAN_LIMITS.free.storage;
       update.plan_requested = null;
     } else if (PLAN_LIMITS[plan]) {
       // Paid plan: request it (admin approves after payment). Start on free tier.
