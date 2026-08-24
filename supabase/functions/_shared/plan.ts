@@ -23,7 +23,7 @@ export const PLAN_LIMITS: Record<string, { photo: number | null; event: number |
 export const PLAN_PRICES: Record<string, number | null> = {
   free: 0,
   small: 1, // TEMP: ₪1 for live payment testing — revert to 299 before launch
-  wedding: 499,
+  wedding: 449,
   business: null,
 };
 

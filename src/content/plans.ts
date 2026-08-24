@@ -24,6 +24,17 @@ export type Plan = {
 
 const feat = (en: string, he: string, included = true): PlanFeature => ({ text: { en, he }, included });
 
+// Percentage saved vs the crossed-out oldPrice (0 if there's no discount). Parses
+// the digits out of the localized price strings (e.g. "₪449").
+export function savingsPct(plan: Plan, lang: "en" | "he"): number {
+  if (!plan.oldPrice) return 0;
+  const num = (s: string) => Number((s || "").replace(/[^\d.]/g, ""));
+  const oldP = num(plan.oldPrice[lang]);
+  const newP = num(plan.price[lang]);
+  if (!oldP || !newP || oldP <= newP) return 0;
+  return Math.round(((oldP - newP) / oldP) * 100);
+}
+
 export const plans: Plan[] = [
   {
     key: "free",
@@ -57,7 +68,7 @@ export const plans: Plan[] = [
   {
     key: "wedding",
     name: { en: "Wedding", he: "חתונה" },
-    price: { en: "₪499", he: "₪499" },
+    price: { en: "₪449", he: "₪449" },
     oldPrice: { en: "₪599", he: "₪599" },
     badge: { en: "Most popular", he: "הכי פופולרי" },
     features: [

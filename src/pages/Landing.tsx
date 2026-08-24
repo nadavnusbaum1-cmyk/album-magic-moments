@@ -14,7 +14,7 @@ import { HeroMockup } from "@/components/HeroMockup";
 import { ContactForm } from "@/components/ContactForm";
 import { useI18n } from "@/lib/i18n";
 import { landingContent } from "@/content/landing";
-import { plans as planTiers } from "@/content/plans";
+import { plans as planTiers, savingsPct } from "@/content/plans";
 
 export default function Landing() {
   const { lang, t: tr } = useI18n();
@@ -204,9 +204,14 @@ export default function Landing() {
               <div key={p.key} className={`rounded-2xl border p-6 bg-background flex flex-col ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
                 {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
                 <h3 className="font-medium text-lg">{p.name[lang]}</h3>
-                <div className="mt-4 flex items-end gap-2">
+                <div className="mt-4 flex items-end flex-wrap gap-2">
                   <span className="font-serif text-3xl">{p.price[lang]}</span>
                   {p.oldPrice && <span className="text-sm text-muted-foreground line-through mb-1.5">{p.oldPrice[lang]}</span>}
+                  {savingsPct(p, lang) > 0 && (
+                    <span className="mb-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5">
+                      {lang === "he" ? `חיסכון ${savingsPct(p, lang)}%` : `Save ${savingsPct(p, lang)}%`}
+                    </span>
+                  )}
                 </div>
                 <ul className="mt-5 space-y-2 flex-1">
                   {p.features.map((f, i) => (
@@ -219,7 +224,6 @@ export default function Landing() {
               </div>
             ))}
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-6">{t("pricing_note")}</p>
         </div>
       </section>
 
@@ -259,7 +263,10 @@ export default function Landing() {
 
       <footer className="border-t border-border/60">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-          <BrandMark avatar avatarSize={32} className="text-lg" />
+          <div className="flex items-center gap-3">
+            <BrandMark avatar avatarSize={32} className="text-lg" />
+            <a href="mailto:info@heymori.co.il" className="hover:text-foreground underline">info@heymori.co.il</a>
+          </div>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <Link to="/blog" className="hover:text-foreground underline">{lang === "he" ? "בלוג" : "Blog"}</Link>
             <Link to="/contact" className="hover:text-foreground underline">{tr("contact_link")}</Link>

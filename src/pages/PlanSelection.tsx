@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedFetch } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
-import { plans } from "@/content/plans";
+import { plans, savingsPct } from "@/content/plans";
 import { useCheckout } from "@/components/CheckoutModal";
 import { toast } from "sonner";
 
@@ -92,9 +92,14 @@ export default function PlanSelection() {
             <div key={p.key} className={`rounded-2xl border p-6 bg-background flex flex-col ${p.badge ? "border-primary ring-2 ring-primary/30 relative" : "border-border"}`}>
               {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs px-3 py-1">{p.badge[lang]}</span>}
               <h3 className="font-medium text-lg">{p.name[lang]}</h3>
-              <div className="mt-3 mb-4 flex items-end gap-2">
+              <div className="mt-3 mb-4 flex items-end flex-wrap gap-2">
                 <span className="font-serif text-2xl">{p.price[lang]}</span>
                 {p.oldPrice && <span className="text-sm text-muted-foreground line-through mb-1">{p.oldPrice[lang]}</span>}
+                {savingsPct(p, lang) > 0 && (
+                  <span className="mb-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5">
+                    {lang === "he" ? `חיסכון ${savingsPct(p, lang)}%` : `Save ${savingsPct(p, lang)}%`}
+                  </span>
+                )}
               </div>
               <ul className="space-y-2 text-sm flex-1">
                 {p.features.map((f, i) => (
