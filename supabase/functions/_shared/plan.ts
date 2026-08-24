@@ -17,8 +17,9 @@ export const PLAN_LIMITS: Record<string, { photo: number | null; event: number |
   business: { photo: null, event: null, storage: null },
 };
 
-// Server-side price list (NIS) — the ONLY source of truth for charge amounts, so
-// a client can't tamper with what it pays. null = not self-serve purchasable.
+// Server-side price list (NIS, VAT-INCLUSIVE gross — what the customer is charged)
+// — the ONLY source of truth for charge amounts, so a client can't tamper with
+// what it pays. The tax invoice breaks 18% VAT out of this. null = not self-serve.
 export const PLAN_PRICES: Record<string, number | null> = {
   free: 0,
   small: 1, // TEMP: ₪1 for live payment testing — revert to 299 before launch

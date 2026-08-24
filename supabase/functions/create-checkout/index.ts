@@ -53,6 +53,9 @@ Deno.serve(async (req) => {
         IsDocCreate: true,
         DocHeadline: desc,
         DocLanguage: "he",
+        // Sum is VAT-inclusive (the gross amount charged); tell Invoice4U the rate
+        // so the tax invoice breaks out 18% VAT from it (net + VAT = Sum).
+        TaxPercentage: cfg.vatPercent,
         ReturnUrl: `${appUrl}/checkout/complete`,
         CallBackUrl: `${supaUrl}/functions/v1/i4u-callback`,
         IsQaMode: cfg.qaMode,

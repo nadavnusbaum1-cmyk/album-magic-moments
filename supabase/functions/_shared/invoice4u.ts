@@ -13,7 +13,10 @@ export function i4uConfig() {
   const baseUrl = (Deno.env.get("INVOICE4U_BASE_URL") || PROD_BASE).replace(/\/+$/, "");
   const ccType = Number(Deno.env.get("INVOICE4U_CC_TYPE") || "15"); // 15 = Cardcom
   const qaMode = (Deno.env.get("INVOICE4U_QA_MODE") || "").toLowerCase() === "true";
-  return { apiKey, baseUrl, ccType, qaMode, configured: !!apiKey };
+  // Israeli VAT, extracted FROM the (VAT-inclusive) charged Sum on the auto-issued
+  // tax invoice. 18% since 2025-01-01. Overridable if the rate changes.
+  const vatPercent = Number(Deno.env.get("INVOICE4U_VAT_PERCENT") || "18");
+  return { apiKey, baseUrl, ccType, qaMode, vatPercent, configured: !!apiKey };
 }
 
 export interface ClearingError { ErrorCode?: number; ErrorMessage?: string }
