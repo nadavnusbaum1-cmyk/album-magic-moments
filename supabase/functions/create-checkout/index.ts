@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         IsDocCreate: true,
         DocHeadline: desc,
         DocLanguage: "he",
-        ReturnUrl: `${appUrl}/dashboard?checkout=success`,
+        ReturnUrl: `${appUrl}/checkout/complete`,
         CallBackUrl: `${supaUrl}/functions/v1/i4u-callback`,
         IsQaMode: cfg.qaMode,
       });

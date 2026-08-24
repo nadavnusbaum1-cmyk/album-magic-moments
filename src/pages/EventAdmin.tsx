@@ -577,12 +577,12 @@ export default function EventAdmin() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {photoLimit != null && (
+            {plan === "free" && (
               <button
                 onClick={() => navigate("/plan")}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
               >
-                <Sparkles className="w-4 h-4" /> {plan === "free" ? t("upgrade_from_demo") : t("upgrade")}
+                <Sparkles className="w-4 h-4" /> {t("upgrade_from_demo")}
               </button>
             )}
             <a

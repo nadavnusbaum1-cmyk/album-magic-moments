@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession, authedInvoke, authedFetch } from "@/lib/auth";
+import { useSession, authedInvoke } from "@/lib/auth";
 import { plans } from "@/content/plans";
+import { useCheckout } from "@/components/CheckoutModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [plan, setPlan] = useState<string | null>(null);
   const [planPrompt, setPlanPrompt] = useState(false);
   const [buyingTier, setBuyingTier] = useState<string | null>(null);
+  const { start: startCheckout, modal: checkoutModal } = useCheckout();
 
   useEffect(() => {
     if (!session) return;
@@ -73,10 +75,12 @@ export default function Dashboard() {
   // server-to-server callback, which may land a moment after this redirect.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
-    if (searchParams.get("checkout") === "success") {
+    // Returned from a plan purchase → open event creation.
+    if (searchParams.get("new") === "1") {
       toast.success(t("payment_thanks"));
-      searchParams.delete("checkout");
+      searchParams.delete("new");
       setSearchParams(searchParams, { replace: true });
+      setShowForm(true);
       setTimeout(() => { if (session) load(); }, 2500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,12 +108,17 @@ export default function Dashboard() {
   const buyExtraEvent = async (tier: string) => {
     setBuyingTier(tier);
     try {
-      const c = await authedFetch("create-checkout", { method: "POST", body: JSON.stringify({ kind: "extra_event", plan: tier }) });
-      const cj = await c.json();
-      if (c.ok && cj.redirectUrl) { window.location.href = cj.redirectUrl; return; }
-      if (cj.code === "payments_unconfigured") { navigate("/plan"); return; }
-      throw new Error(cj.error || t("failed"));
-    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); setBuyingTier(null); }
+      const r = await startCheckout("extra_event", tier, () => {
+        // Paid — refresh entitlement and drop the user straight into event creation.
+        setLimitDialog(false);
+        load();
+        if (session) supabase.from("profiles").select("plan").eq("id", session.user.id).maybeSingle()
+          .then(({ data }) => { const p = data as { plan?: string } | null; if (p?.plan) setPlan(p.plan); });
+        setShowForm(true);
+      });
+      if (r === "unconfigured") navigate("/plan");
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setBuyingTier(null); }
   };
 
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth"); };
@@ -119,6 +128,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-6" style={{ background: "var(--gradient-soft)" }}>
       <FloatingLanguageSwitcher />
+      {checkoutModal}
       <div className="max-w-5xl mx-auto pt-6">
         <header className="flex items-center justify-between mb-8">
           <div>

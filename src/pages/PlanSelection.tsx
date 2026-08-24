@@ -10,6 +10,7 @@ import { useSession, authedFetch } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { plans } from "@/content/plans";
+import { useCheckout } from "@/components/CheckoutModal";
 import { toast } from "sonner";
 
 export default function PlanSelection() {
@@ -20,6 +21,7 @@ export default function PlanSelection() {
   const [eventDate, setEventDate] = useState("");
   const [marketing, setMarketing] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const { start: startCheckout, modal: checkoutModal } = useCheckout();
 
   useEffect(() => { if (!loading && !session) navigate("/auth"); }, [loading, session, navigate]);
 
@@ -46,16 +48,12 @@ export default function PlanSelection() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Failed");
 
-      // Paid plans go through Invoice4U checkout. If payments aren't enabled yet
-      // (no API key), fall back to the manual request flow just recorded above.
+      // Paid plans open the in-page checkout. On success, head to event creation.
+      // If payments aren't enabled yet, fall back to the manual request flow above.
       if (plan === "small" || plan === "wedding") {
-        const c = await authedFetch("create-checkout", {
-          method: "POST",
-          body: JSON.stringify({ kind: "plan", plan }),
-        });
-        const cj = await c.json();
-        if (c.ok && cj.redirectUrl) { window.location.href = cj.redirectUrl; return; }
-        if (cj.code !== "payments_unconfigured") throw new Error(cj.error || t("failed"));
+        const r = await startCheckout("plan", plan, () => navigate("/dashboard?new=1"));
+        if (r === "started") { setSubmitting(null); return; }
+        // r === "unconfigured" → fall through to the requested/manual flow
       }
 
       toast.success(j.status === "requested" ? t("plan_requested_done") : t("plan_free_done"));
@@ -68,6 +66,7 @@ export default function PlanSelection() {
   return (
     <div className="min-h-screen p-6" style={{ background: "var(--gradient-soft)" }}>
       <FloatingLanguageSwitcher />
+      {checkoutModal}
       <div className="max-w-5xl mx-auto pt-8">
         <div className="text-center mb-8">
           <h1 className="font-serif text-3xl md:text-4xl">{t("choose_plan_title")}</h1>

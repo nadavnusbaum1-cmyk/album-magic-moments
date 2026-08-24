@@ -15,6 +15,7 @@ import EventPublic from "./pages/EventPublic.tsx";
 import Upload from "./pages/Upload.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
 import PlanSelection from "./pages/PlanSelection.tsx";
+import CheckoutComplete from "./pages/CheckoutComplete.tsx";
 import Accessibility from "./pages/Accessibility.tsx";
 import Legal from "./pages/Legal.tsx";
 import Contact from "./pages/Contact.tsx";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/dashboard/event/:id" element={<EventAdmin />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/plan" element={<PlanSelection />} />
+            <Route path="/checkout/complete" element={<CheckoutComplete />} />
             <Route path="/accessibility" element={<Accessibility />} />
             <Route path="/legal" element={<Legal />} />
             <Route path="/contact" element={<Contact />} />
