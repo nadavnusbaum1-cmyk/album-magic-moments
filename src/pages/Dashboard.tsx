@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession, authedInvoke } from "@/lib/auth";
+import { useSession, authedInvoke, authedFetch } from "@/lib/auth";
+import { plans } from "@/content/plans";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ type Event = {
 };
 
 export default function Dashboard() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { session, loading } = useSession();
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [limitDialog, setLimitDialog] = useState(false);
   const [plan, setPlan] = useState<string | null>(null);
   const [planPrompt, setPlanPrompt] = useState(false);
+  const [buyingTier, setBuyingTier] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -95,6 +97,19 @@ export default function Dashboard() {
     } finally {
       setCreating(false);
     }
+  };
+
+  // Buy one more event (event-type tier sets the price). On success the callback
+  // bumps event_limit and the user can create the next event.
+  const buyExtraEvent = async (tier: string) => {
+    setBuyingTier(tier);
+    try {
+      const c = await authedFetch("create-checkout", { method: "POST", body: JSON.stringify({ kind: "extra_event", plan: tier }) });
+      const cj = await c.json();
+      if (c.ok && cj.redirectUrl) { window.location.href = cj.redirectUrl; return; }
+      if (cj.code === "payments_unconfigured") { navigate("/plan"); return; }
+      throw new Error(cj.error || t("failed"));
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); setBuyingTier(null); }
   };
 
   const signOut = async () => { await supabase.auth.signOut(); navigate("/auth"); };
@@ -201,10 +216,21 @@ export default function Dashboard() {
             <Mori expression="thinking" size={96} className="mx-auto mb-2" />
             <DialogTitle className="text-center">{t("event_limit_title")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t("event_limit_desc")}</p>
-          <DialogFooter className="sm:justify-center gap-2">
-            <Button variant="outline" onClick={() => setLimitDialog(false)}>{t("cancel")}</Button>
-            <Button onClick={() => { setLimitDialog(false); navigate("/plan"); }}>{t("event_limit_cta")}</Button>
+          <p className="text-sm text-muted-foreground">{t("extra_event_desc")}</p>
+          <div className="grid gap-2 mt-1">
+            {plans.filter((p) => p.key === "small" || p.key === "wedding").map((p) => (
+              <Button key={p.key} variant="outline" className="h-auto justify-between py-3"
+                disabled={!!buyingTier} onClick={() => buyExtraEvent(p.key)}>
+                <span className="flex items-center gap-2">
+                  {buyingTier === p.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {p.name[lang]}
+                </span>
+                <span className="font-semibold">{p.price[lang]}</span>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button variant="ghost" onClick={() => setLimitDialog(false)}>{t("cancel")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
