@@ -6,6 +6,7 @@
 // Always returns 200 so the provider doesn't retry-storm.
 import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { PLAN_LIMITS } from "../_shared/plan.ts";
+import { extraEventEmail, planApprovedEmail, sendEmail } from "../_shared/email.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -70,6 +71,17 @@ Deno.serve(async (req) => {
       // for manual reconciliation rather than losing the paid state.
       console.error("i4u-callback FULFILMENT FAILED for paid order", orderId, fulfilErr);
     }
+
+    // Confirmation email (payment received / plan active). Best-effort — the tax
+    // invoice/receipt is emailed separately by Invoice4U (IsDocCreate).
+    try {
+      const { data: u } = await supabase.auth.admin.getUserById(pay.user_id);
+      const email = u?.user?.email;
+      if (email) {
+        const tpl = pay.kind === "plan" ? planApprovedEmail(pay.plan as string) : extraEventEmail(pay.plan as string);
+        await sendEmail({ to: email, subject: tpl.subject, html: tpl.html });
+      }
+    } catch (mailErr) { console.error("[i4u-callback] confirmation email failed", mailErr); }
 
     return json({ ok: true, status: "paid" });
   } catch (e) {

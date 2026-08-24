@@ -74,6 +74,24 @@ export function planApprovedEmail(plan: string) {
   };
 }
 
+export function extraEventEmail(plan: string) {
+  const p = planName(plan);
+  return {
+    subject: `האירוע הנוסף שלך מוכן · Your extra HeyMori event is ready`,
+    html: shell(`
+      <div dir="rtl" style="text-align:right;">
+        <h1 style="font-size:22px;margin:0 0 10px;">האירוע הנוסף שלך מוכן 🎉</h1>
+        <p style="line-height:1.7;margin:0 0 18px;">קיבלנו את התשלום עבור אירוע נוסף (${p.he}). אפשר ליצור אותו עכשיו מהלוח שלך. חשבונית מס/קבלה נשלחה בנפרד.</p>
+        <div style="margin:6px 0 4px;">${btn(`${APP()}/dashboard`, "ליצירת האירוע")}</div>
+      </div>
+      ${divider}
+      <div style="text-align:left;">
+        <p style="font-size:14px;font-weight:700;margin:0 0 6px;" dir="ltr">Your extra event is ready 🎉</p>
+        ${enP(`We received your payment for an extra event (${p.en}). Create it now from your dashboard — a tax invoice/receipt was sent separately.`)}
+      </div>`),
+  };
+}
+
 export function planRequestedEmail(plan: string) {
   const p = planName(plan);
   return {

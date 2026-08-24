@@ -6,6 +6,7 @@
 import { corsHeaders, getUser, json, svc } from "../_shared/auth.ts";
 import { PLAN_LIMITS } from "../_shared/plan.ts";
 import { adminNewRequestEmail, planRequestedEmail, sendEmail } from "../_shared/email.ts";
+import { i4uConfig } from "../_shared/invoice4u.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -42,9 +43,11 @@ Deno.serve(async (req) => {
     const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
     if (error) throw error;
 
-    // Notify the user (and admin) when a paid plan is requested. Email is
-    // best-effort — never fail the request if it doesn't send.
-    if (status === "requested" && plan) {
+    // Notify the user (and admin) when a paid plan is requested. With payments
+    // live, the user pays right after this and gets a CONFIRMATION from
+    // i4u-callback — so skip the "we'll confirm shortly" note. Only send it in the
+    // manual-approval fallback (payments not configured). Best-effort.
+    if (status === "requested" && plan && !i4uConfig().configured) {
       try {
         if (user.email) {
           const t = planRequestedEmail(plan);
