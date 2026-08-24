@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2, Sparkles } from "lucide-react";
 import { Mori } from "@/components/Mori";
+import { DateField } from "@/components/DateField";
 import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ export default function EventAdmin() {
   const [event, setEvent] = useState<Event | null>(null);
   const [plan, setPlan] = useState<string | null>(null);
   const [photoLimit, setPhotoLimit] = useState<number | null>(null);
+  const [storageDays, setStorageDays] = useState<number | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [tab, setTab] = useState("upload");
   const [coverUploading, setCoverUploading] = useState(false);
@@ -183,11 +185,12 @@ export default function EventAdmin() {
   useEffect(() => { if (session && id) loadEvent(); }, [session, id]);
   useEffect(() => {
     if (!session) return;
-    supabase.from("profiles").select("plan, photo_limit").eq("id", session.user.id).maybeSingle()
+    supabase.from("profiles").select("plan, photo_limit, storage_days").eq("id", session.user.id).maybeSingle()
       .then(({ data }) => {
-        const p = data as { plan?: string; photo_limit?: number | null } | null;
+        const p = data as { plan?: string; photo_limit?: number | null; storage_days?: number | null } | null;
         setPlan(p?.plan ?? null);
         setPhotoLimit(p?.photo_limit ?? null);
+        setStorageDays(p?.storage_days ?? null);
       });
   }, [session]);
   useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource, reviewFilter, moderationFilter]);
@@ -1034,6 +1037,10 @@ export default function EventAdmin() {
                   <p className="text-xs text-muted-foreground">
                     {t("storage_until", { date: new Date(event.storage_expires_at).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { year: "numeric", month: "long", day: "numeric" }) })}
                   </p>
+                ) : storageDays != null ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("storage_pending", { window: storageDays >= 60 ? (lang === "he" ? `${Math.round(storageDays / 30)} חודשים` : `${Math.round(storageDays / 30)} months`) : (lang === "he" ? `${storageDays} יום` : `${storageDays} days`) })}
+                  </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">{t("storage_forever")}</p>
                 )}
@@ -1044,7 +1051,7 @@ export default function EventAdmin() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t("event_date")}</label>
-                <Input type="date" defaultValue={event.event_date || ""} onChange={(e) => updateEvent({ event_date: e.target.value || null })} />
+                <DateField value={event.event_date} onChange={(v) => updateEvent({ event_date: v })} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t("cover_image")}</label>

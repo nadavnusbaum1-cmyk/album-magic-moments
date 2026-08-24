@@ -15,7 +15,7 @@ type UserRow = {
   photo_limit: number | null; event_limit: number | null; is_super_admin: boolean;
   event_count: number; photo_count: number; storage_bytes: number;
 };
-const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString() : "—";
+const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-GB") : "—";
 type Metrics = { users: number; events: number; photos: number; storage_bytes: number; pending: number; paid_active: number };
 
 const PLANS = ["free", "small", "wedding", "business"];

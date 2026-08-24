@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedInvoke } from "@/lib/auth";
 import { plans } from "@/content/plans";
 import { useCheckout } from "@/components/CheckoutModal";
+import { DateField } from "@/components/DateField";
+import { formatDMY } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -151,7 +153,7 @@ export default function Dashboard() {
           <Card className="p-6 mb-6 space-y-3">
             <h2 className="font-serif text-lg">{t("new_event")}</h2>
             <Input placeholder={t("event_name_placeholder")} value={name} onChange={(e) => setName(e.target.value)} />
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DateField value={date} onChange={(v) => setDate(v || "")} />
             <div className="flex gap-2">
               <Button onClick={create} disabled={creating || !name.trim()}>{creating ? t("creating") : t("create_event")}</Button>
               <Button variant="ghost" onClick={() => setShowForm(false)}>{t("cancel")}</Button>
@@ -189,7 +191,7 @@ export default function Dashboard() {
                     <h3 className="font-serif text-lg truncate">{e.name}</h3>
                     <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1">
-                        {e.event_date && <><Calendar className="w-3 h-3" /> {new Date(e.event_date).toLocaleDateString()}</>}
+                        {e.event_date && <><Calendar className="w-3 h-3" /> {formatDMY(e.event_date)}</>}
                       </span>
                       <span>{e.photo_count} {t("photos_count")}</span>
                     </div>

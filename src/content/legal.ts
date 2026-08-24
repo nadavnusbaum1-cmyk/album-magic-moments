@@ -211,7 +211,7 @@ _עודכן לאחרונה: 19 באוגוסט 2026_
 14.3. העברת מידע מחוץ לישראל תבוצע בהתאם להוראות הדין ובאמצעות מנגנוני הגנה מתאימים, ככל שהם נדרשים.
 
 ## 15. שמירת תמונות ותכני האירוע
-15.1. תמונות וסרטונים של האירוע יישמרו במערכת למשך 90 ימים ממועד שליחת האלבומים האישיים לאורחים, אלא אם נקבע אחרת בכתב בין החברה לבין הלקוח.
+15.1. תמונות וסרטונים של האירוע יישמרו בענן למשך תקופת השמירה של התוכנית הנרכשת — 12 חודשים בתוכניות בתשלום, ו-14 ימים בתוכנית ההדגמה (דמו). תקופת השמירה מתחילה במועד העלאת התמונות הראשונות לאירוע, ולא במועד יצירת האירוע, אלא אם נקבע אחרת בכתב בין החברה לבין הלקוח.
 15.2. בתום התקופה החברה תהיה רשאית למחוק את התמונות והסרטונים באופן סופי וללא אפשרות שחזור.
 15.3. הלקוח אחראי להוריד ולשמור עותקים של התכנים הדרושים לו לפני תום תקופת האחסון.
 15.4. HeyMori אינה שירות ארכיון או גיבוי קבוע.
@@ -567,7 +567,7 @@ For the purposes of this document:
 14.3. Transfer of information outside Israel will be carried out in accordance with the law and by means of appropriate protection mechanisms, to the extent required.
 
 ## 15. Retention of Photos and Event Content
-15.1. Photos and videos of the event will be retained in the System for 90 days from the date the personal albums are sent to the guests, unless otherwise agreed in writing between the Company and the customer.
+15.1. Photos and videos of the event will be retained in the cloud for the storage period of the purchased plan — 12 months on paid plans, and 14 days on the demo plan. The storage period begins on the date the first photos are uploaded to the event, not on the date the event is created, unless otherwise agreed in writing between the Company and the customer.
 15.2. At the end of the period, the Company may permanently delete the photos and videos without possibility of recovery.
 15.3. The customer is responsible for downloading and keeping copies of the content they need before the end of the storage period.
 15.4. HeyMori is not an archive or permanent backup service.

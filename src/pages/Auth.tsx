@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/DateField";
 import { Card } from "@/components/ui/card";
 import { Mail } from "lucide-react";
 import { toast } from "sonner";
@@ -131,7 +132,7 @@ export default function Auth() {
             <Input type="tel" placeholder={t("phone")} value={phone} onChange={(e) => setPhone(e.target.value)} disabled={busy} />
             <div>
               <label className="text-xs text-muted-foreground">{t("event_date_label")}</label>
-              <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} disabled={busy} />
+              <DateField value={eventDate} onChange={(v) => setEventDate(v || "")} disabled={busy} />
             </div>
           </>
         )}

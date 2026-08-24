@@ -5,6 +5,7 @@ import { Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/DateField";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, authedFetch } from "@/lib/auth";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -79,7 +80,7 @@ export default function PlanSelection() {
           <Input type="tel" placeholder={t("phone")} value={phone} onChange={(e) => setPhone(e.target.value)} />
           <div>
             <label className="text-xs text-muted-foreground">{t("event_date_label")}</label>
-            <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            <DateField value={eventDate} onChange={(v) => setEventDate(v || "")} />
           </div>
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="accent-primary w-4 h-4" />
