@@ -22,7 +22,25 @@ export function useSession() {
 
 export async function authedInvoke<T = any>(name: string, body: any = {}): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) throw error;
+  if (error) {
+    // supabase-js wraps any non-2xx response in a FunctionsHttpError whose
+    // `.context` is the raw Response. Our functions return { error, code } in the
+    // body (e.g. 403 event_limit / plan_pending), so read that out instead of
+    // surfacing the generic "Edge Function returned a non-2xx status code".
+    let message = error.message;
+    let code: string | undefined;
+    const ctx = (error as { context?: unknown }).context as Response | undefined;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const b = await ctx.json();
+        if (b?.error) message = b.error;
+        code = b?.code;
+      } catch { /* body wasn't JSON — keep the generic message */ }
+    }
+    const err = new Error(message) as Error & { code?: string };
+    err.code = code;
+    throw err;
+  }
   if ((data as any)?.error) {
     const err = new Error((data as any).error) as Error & { code?: string };
     err.code = (data as any).code;
