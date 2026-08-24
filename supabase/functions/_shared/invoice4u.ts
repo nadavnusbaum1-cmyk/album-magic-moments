@@ -38,11 +38,19 @@ export async function processClearing(request: Record<string, unknown>): Promise
   const text = await res.text();
   let parsed: any = {};
   try { parsed = text ? JSON.parse(text) : {}; } catch { throw new Error(`Invoice4U: non-JSON response [${res.status}]: ${text.slice(0, 300)}`); }
-  const result: ClearingResult = parsed?.ProcessApiRequestV2Result ?? parsed ?? {};
+  // WCF wraps the payload in { "d": {...} }; the clearing object sits directly
+  // under d (not under ProcessApiRequestV2Result, despite the docs' example).
+  const root = parsed?.d ?? parsed;
+  const result: ClearingResult = root?.ProcessApiRequestV2Result ?? root ?? {};
   const errs = result.Errors || [];
   if (errs.length) {
     const e = errs[0];
     throw new Error(`Invoice4U error ${e.ErrorCode ?? "?"}: ${e.ErrorMessage ?? "clearing failed"}`);
+  }
+  // Identifiers come back as OpenInfo key/value pairs; surface PaymentId if present.
+  if (!result.PaymentId && Array.isArray((root as any)?.OpenInfo)) {
+    const pid = (root as any).OpenInfo.find((kv: any) => kv?.Key === "PaymentId")?.Value;
+    if (pid && pid !== "0") result.PaymentId = String(pid);
   }
   return result;
 }
