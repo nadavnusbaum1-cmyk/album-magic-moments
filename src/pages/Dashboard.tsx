@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
+import { Plus, LogOut, Calendar, Image as ImageIcon, ExternalLink, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Mori } from "@/components/Mori";
@@ -29,6 +29,8 @@ export default function Dashboard() {
   const [date, setDate] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [limitDialog, setLimitDialog] = useState(false);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [planPrompt, setPlanPrompt] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -39,10 +41,11 @@ export default function Dashboard() {
   // New users pick a plan first.
   useEffect(() => {
     if (!session) return;
-    supabase.from("profiles").select("onboarded").eq("id", session.user.id).maybeSingle()
+    supabase.from("profiles").select("onboarded, plan").eq("id", session.user.id).maybeSingle()
       .then(({ data }) => {
-        const p = data as unknown as { onboarded?: boolean } | null;
+        const p = data as unknown as { onboarded?: boolean; plan?: string } | null;
         if (p && p.onboarded === false) navigate("/plan");
+        if (p?.plan) setPlan(p.plan);
       });
   }, [session, navigate]);
 
@@ -130,7 +133,7 @@ export default function Dashboard() {
             </div>
           </Card>
         ) : (
-          <Button onClick={() => setShowForm(true)} className="mb-6 gap-2"><Plus className="w-4 h-4" /> {t("new_event")}</Button>
+          <Button onClick={() => { if (plan === "free" && events.length === 0) setPlanPrompt(true); else setShowForm(true); }} className="mb-6 gap-2"><Plus className="w-4 h-4" /> {t("new_event")}</Button>
         )}
 
         {loadingEvents ? (
@@ -177,6 +180,20 @@ export default function Dashboard() {
           <a href="/" className="ms-2 underline inline-flex items-center gap-1">{t("home")} <ExternalLink className="w-3 h-3" /></a>
         </div>
       </div>
+
+      <Dialog open={planPrompt} onOpenChange={setPlanPrompt}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <Mori expression="celebrating" size={96} className="mx-auto mb-2" />
+            <DialogTitle className="text-center">{t("plan_prompt_title")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("plan_prompt_desc")}</p>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button variant="outline" onClick={() => { setPlanPrompt(false); setShowForm(true); }}>{t("continue_demo")}</Button>
+            <Button onClick={() => navigate("/plan")}><Sparkles className="w-4 h-4 me-1" /> {t("see_plans")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={limitDialog} onOpenChange={setLimitDialog}>
         <DialogContent className="max-w-md text-center">

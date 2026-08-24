@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2 } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2, Sparkles } from "lucide-react";
+import { Mori } from "@/components/Mori";
 import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -65,6 +66,9 @@ export default function EventAdmin() {
   const navigate = useNavigate();
   const { t, lang, setLang } = useI18n();
   const [event, setEvent] = useState<Event | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [photoLimit, setPhotoLimit] = useState<number | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [tab, setTab] = useState("upload");
   const [coverUploading, setCoverUploading] = useState(false);
 
@@ -177,6 +181,15 @@ export default function EventAdmin() {
   };
 
   useEffect(() => { if (session && id) loadEvent(); }, [session, id]);
+  useEffect(() => {
+    if (!session) return;
+    supabase.from("profiles").select("plan, photo_limit").eq("id", session.user.id).maybeSingle()
+      .then(({ data }) => {
+        const p = data as { plan?: string; photo_limit?: number | null } | null;
+        setPlan(p?.plan ?? null);
+        setPhotoLimit(p?.photo_limit ?? null);
+      });
+  }, [session]);
   useEffect(() => { if (session && id && tab === "all") loadPhotos(); }, [session, id, tab, filterSource, reviewFilter, moderationFilter]);
   useEffect(() => { if (session && event && tab === "people") loadClusters(); }, [session, event, tab]);
   useEffect(() => { if (session && id && tab === "settings" && !sources.length) loadPhotos(); }, [session, id, tab]);
@@ -191,10 +204,12 @@ export default function EventAdmin() {
   const upload = async () => {
     if (!files.length || !id) return;
     if (!folderForUpload) { toast.error(t("pick_folder_first")); return; }
+    // Free/limited plans: catch an over-limit batch up front with an upgrade nudge.
+    if (photoLimit != null && photosTotals.total + files.length > photoLimit) { setUpgradeOpen(true); return; }
     localStorage.setItem(`folder:${id}`, folderChoice === NEW_FOLDER ? folderForUpload : folderChoice);
     setUploading(true);
     setProgress({ done: 0, total: files.length, errors: 0, skipped: 0 });
-    let done = 0, errors = 0, skipped = 0;
+    let done = 0, errors = 0, skipped = 0, limitHit = false;
     const BATCH = 20;
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
@@ -237,11 +252,16 @@ export default function EventAdmin() {
           // Server-side verify (HEAD) + start processing. Replaces the old
           // fire-and-forget process-photo-now (which couldn't verify the upload).
           if (uploadedIds.length) authedInvoke("confirm-upload", { photoIds: uploadedIds }).catch(() => {});
-        } catch (e) { errors += goodFiles.length; console.error(e); }
+        } catch (e) {
+          if ((e as { code?: string }).code === "photo_limit") { limitHit = true; break; }
+          errors += goodFiles.length; console.error(e);
+        }
       }
       done += batch.length;
       setProgress({ done, total: files.length, errors, skipped });
     }
+    setUploading(false);
+    if (limitHit) { setUpgradeOpen(true); loadPhotos(); return; }
     if (skipped) toast.warning(t("heic_skipped", { n: skipped }));
     if (errors) toast.error(t("uploads_failed", { n: errors }));
     const ok = done - errors - skipped;
@@ -556,14 +576,24 @@ export default function EventAdmin() {
               <button onClick={copyPublic} className="hover:text-primary"><Copy className="w-3 h-3" /></button>
             </div>
           </div>
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium hover:border-primary hover:text-primary"
-          >
-            <ExternalLink className="w-4 h-4" /> {t("view_public_page")}
-          </a>
+          <div className="flex items-center gap-2">
+            {photoLimit != null && (
+              <button
+                onClick={() => navigate("/plan")}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
+              >
+                <Sparkles className="w-4 h-4" /> {plan === "free" ? t("upgrade_from_demo") : t("upgrade")}
+              </button>
+            )}
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium hover:border-primary hover:text-primary"
+            >
+              <ExternalLink className="w-4 h-4" /> {t("view_public_page")}
+            </a>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -1138,6 +1168,21 @@ export default function EventAdmin() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Upgrade nudge (photo limit reached) */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader>
+            <Mori expression="thinking" size={96} className="mx-auto mb-2" />
+            <DialogTitle className="text-center">{t("upgrade_limit_title")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("upgrade_limit_desc", { n: photoLimit ?? 50 })}</p>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button variant="outline" onClick={() => setUpgradeOpen(false)}>{t("not_now")}</Button>
+            <Button onClick={() => navigate("/plan")}><Sparkles className="w-4 h-4 me-1" /> {t("see_plans")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Folder edit dialog */}
       <Dialog open={folderDialog.open} onOpenChange={(o) => setFolderDialog((d) => ({ ...d, open: o }))}>
