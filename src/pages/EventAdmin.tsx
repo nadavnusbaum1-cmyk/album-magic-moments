@@ -60,6 +60,7 @@ async function filesFromDrop(dt: DataTransfer): Promise<File[]> {
 }
 
 const NEW_FOLDER = "__new__";
+const NO_FOLDER = "__none__";
 
 export default function EventAdmin() {
   const { id } = useParams();
@@ -80,7 +81,7 @@ export default function EventAdmin() {
   const [dragActive, setDragActive] = useState(false);
   const dragCounter = useRef(0);
   const [uploaderName, setUploaderName] = useState("");
-  const [folderChoice, setFolderChoice] = useState<string>("");
+  const [folderChoice, setFolderChoice] = useState<string>(NO_FOLDER);
   const [newFolderName, setNewFolderName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, errors: 0, skipped: 0 });
@@ -202,11 +203,16 @@ export default function EventAdmin() {
     if (el) { el.setAttribute("webkitdirectory", ""); el.setAttribute("directory", ""); }
   }, []);
 
-  const folderForUpload = folderChoice === NEW_FOLDER ? newFolderName.trim() : folderChoice.trim();
+  // Folder is optional: a real name when one is chosen/typed, otherwise "" →
+  // photos are filed under the "No Folder" label.
+  const folderForUpload = folderChoice === NEW_FOLDER
+    ? newFolderName.trim()
+    : (folderChoice === NO_FOLDER ? "" : folderChoice.trim());
+  const uploadSourceLabel = folderForUpload || t("no_folder");
 
   const upload = async () => {
     if (!files.length || !id) return;
-    if (!folderForUpload) { toast.error(t("pick_folder_first")); return; }
+    if (folderChoice === NEW_FOLDER && !newFolderName.trim()) { toast.error(t("name_new_folder")); return; }
     // Free/limited plans: catch an over-limit batch up front with an upgrade nudge.
     if (photoLimit != null && photosTotals.total + files.length > photoLimit) { setUpgradeOpen(true); return; }
     localStorage.setItem(`folder:${id}`, folderChoice === NEW_FOLDER ? folderForUpload : folderChoice);
@@ -238,7 +244,7 @@ export default function EventAdmin() {
               clientUploadId: `${g.original.name}|${g.original.size}|${g.original.lastModified}`.slice(0, 128),
             })),
             uploadedBy: uploaderName.trim() || null,
-            sourceLabel: folderForUpload,
+            sourceLabel: uploadSourceLabel,
           });
           const uploadedIds: string[] = [];
           await Promise.all(data.uploads.map(async (u, idx) => {
@@ -610,19 +616,23 @@ export default function EventAdmin() {
 
           <TabsContent value="upload">
             <Card className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4" /> {t("folder")} *</label>
+              <div className="rounded-xl border bg-secondary/30 p-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm font-medium flex items-center gap-2"><FolderOpen className="w-4 h-4 text-primary" /> {t("folder")}</label>
+                  <span className="text-[11px] text-muted-foreground">{t("optional")}</span>
+                </div>
                 <p className="text-xs text-muted-foreground">{t("folder_hint")}</p>
                 <Select value={folderChoice} onValueChange={(v) => setFolderChoice(v)} disabled={uploading}>
-                  <SelectTrigger><SelectValue placeholder={t("pick_folder")} /></SelectTrigger>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NO_FOLDER}><span className="text-muted-foreground">{t("no_folder")}</span></SelectItem>
                     {folderOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    <SelectItem value={NEW_FOLDER}>{t("new_folder")}</SelectItem>
+                    <SelectItem value={NEW_FOLDER}><span className="inline-flex items-center gap-1.5 text-primary font-medium"><Plus className="w-3.5 h-3.5" /> {t("new_folder")}</span></SelectItem>
                   </SelectContent>
                 </Select>
                 {folderChoice === NEW_FOLDER && (
                   <Input autoFocus placeholder={t("new_folder_placeholder")} value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)} disabled={uploading} maxLength={60} />
+                    onChange={(e) => setNewFolderName(e.target.value)} disabled={uploading} maxLength={60} className="bg-background" />
                 )}
               </div>
               <Input placeholder={t("uploader_name_optional")} value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} disabled={uploading} maxLength={60} />
@@ -661,8 +671,8 @@ export default function EventAdmin() {
                   {progress.errors ? ` · ${t("uploads_failed", { n: progress.errors })}` : ""} {progress.skipped ? ` · ${t("heic_skipped", { n: progress.skipped })}` : ""}
                 </div>
               )}
-              <Button onClick={upload} disabled={!files.length || uploading || !folderForUpload} size="lg" className="w-full">
-                {uploading ? t("processing") : `${t("upload_files", { n: files.length || "" })}${folderForUpload ? ` ${t("upload_to", { folder: folderForUpload })}` : ""}`}
+              <Button onClick={upload} disabled={!files.length || uploading} size="lg" className="w-full">
+                {uploading ? t("processing") : `${t("upload_files", { n: files.length || "" })} ${t("upload_to", { folder: uploadSourceLabel })}`}
               </Button>
             </Card>
           </TabsContent>
