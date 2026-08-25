@@ -642,7 +642,7 @@ export default function EventAdmin() {
                   {dragActive ? t("drop_to_upload") : files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
                 {!dragActive && !files.length && <span className="text-xs text-muted-foreground/80 text-center">{t("drag_folder_hint")}</span>}
-                <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" disabled={uploading}
+                <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="sr-only" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
 
@@ -651,7 +651,7 @@ export default function EventAdmin() {
                   className="text-sm text-muted-foreground hover:text-primary underline underline-offset-2 disabled:opacity-50">
                   {t("or_select_folder")}
                 </button>
-                <input ref={folderInputRef} type="file" multiple className="hidden" disabled={uploading}
+                <input ref={folderInputRef} type="file" multiple className="sr-only" disabled={uploading}
                   onChange={(e) => { setFiles(Array.from(e.target.files || []).filter(isMediaFile)); e.currentTarget.value = ""; }} />
               </div>
 
@@ -1067,7 +1067,7 @@ export default function EventAdmin() {
                         {t("upload_image")}
                       </span>
                     </Button>
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadEventImage(f); e.currentTarget.value = ""; }} />
                   </label>
                   {event.cover_image_url && (
