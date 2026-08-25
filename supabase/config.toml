@@ -121,6 +121,10 @@ verify_jwt = false
 [functions.create-checkout]
 verify_jwt = false
 
+# Google Photos Picker proxy (browser passes a short-lived Google OAuth token).
+[functions.gphotos]
+verify_jwt = false
+
 # Public Invoice4U payment callback (server-to-server; self-verifies by order id + amount).
 [functions.i4u-callback]
 verify_jwt = false

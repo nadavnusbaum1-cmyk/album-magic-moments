@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2, Sparkles } from "lucide-react";
 import { Mori } from "@/components/Mori";
 import { DateField } from "@/components/DateField";
+import { googlePhotosEnabled, importFromGooglePhotos, type GPhotosProgress } from "@/lib/googlePhotos";
 import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -85,6 +86,7 @@ export default function EventAdmin() {
   const [newFolderName, setNewFolderName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, errors: 0, skipped: 0 });
+  const [gphotos, setGphotos] = useState<GPhotosProgress | null>(null);
 
   // Gallery
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -277,6 +279,20 @@ export default function EventAdmin() {
     if (ok > 0) toast.success(t("upload_success", { n: ok }));
     setFiles([]); setUploading(false);
     if (folderChoice === NEW_FOLDER) { setFolderChoice(folderForUpload); setNewFolderName(""); }
+  };
+
+  const importGooglePhotos = async () => {
+    setGphotos({ phase: "auth" });
+    try {
+      const imported = await importFromGooglePhotos((p) => setGphotos(p));
+      if (imported.length) {
+        setFiles((prev) => [...prev, ...imported]);
+        toast.success(t("gphotos_added", { n: imported.length }));
+      } else {
+        toast.info(t("gphotos_none"));
+      }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setGphotos(null); }
   };
 
   const deletePhotos = async (ids: string[]) => {
@@ -664,6 +680,18 @@ export default function EventAdmin() {
                 <input ref={folderInputRef} type="file" multiple className="sr-only" disabled={uploading}
                   onChange={(e) => { setFiles(Array.from(e.target.files || []).filter(isMediaFile)); e.currentTarget.value = ""; }} />
               </div>
+
+              {googlePhotosEnabled() && (
+                <div className="relative">
+                  <div className="flex items-center gap-3 my-1"><div className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">{t("or")}</span><div className="h-px flex-1 bg-border" /></div>
+                  <Button type="button" variant="outline" className="w-full gap-2" disabled={uploading || !!gphotos} onClick={importGooglePhotos}>
+                    {gphotos ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                    {gphotos
+                      ? (gphotos.phase === "downloading" ? t("gphotos_downloading", { done: gphotos.done ?? 0, total: gphotos.total ?? 0 }) : gphotos.phase === "picking" ? t("gphotos_picking") : t("gphotos_connecting"))
+                      : t("import_google_photos")}
+                  </Button>
+                </div>
+              )}
 
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
