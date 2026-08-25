@@ -28,11 +28,18 @@ Environment Variables), then redeploy the frontend:
 
 ```
 VITE_GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+VITE_GOOGLE_PHOTOS_ENABLED=true   # visibility flag — see below
 ```
 
 No backend secret is needed — the `gphotos` edge function only proxies the
-short-lived token the browser obtains. Once the var is present, an **"Import from
-Google Photos"** button appears in the event Upload tab.
+short-lived token the browser obtains.
+
+**Visibility flag.** The button shows only when BOTH env vars are set. Keep
+`VITE_GOOGLE_PHOTOS_ENABLED` **unset (or not "true") in Production** until Google
+verification clears, so real users don't hit the "unverified app" warning. Set it
+to `true` locally or in a Preview deployment to test now, and in Production once
+verified. (Add your Preview/localhost origins to the OAuth client's Authorized
+JavaScript origins if testing there.)
 
 ## 3. Verification (the long pole)
 
