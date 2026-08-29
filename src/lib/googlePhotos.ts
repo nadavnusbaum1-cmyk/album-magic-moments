@@ -11,11 +11,12 @@ import { authedFetch } from "@/lib/auth";
 const SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
-// Shown wherever the OAuth client id is configured. (Set VITE_GOOGLE_PHOTOS_ENABLED
-// to "false" to force-hide it without removing the client id.)
+// Hidden by default. Requires the OAuth client id AND an explicit opt-in flag, so
+// the button stays off in production until we choose to show it (e.g. after
+// Google verification). Set VITE_GOOGLE_PHOTOS_ENABLED=true to show it.
 export const googlePhotosEnabled = () =>
   !!import.meta.env.VITE_GOOGLE_CLIENT_ID &&
-  import.meta.env.VITE_GOOGLE_PHOTOS_ENABLED !== "false";
+  import.meta.env.VITE_GOOGLE_PHOTOS_ENABLED === "true";
 
 // deno-lint-ignore no-explicit-any
 declare global { interface Window { google?: any } }
