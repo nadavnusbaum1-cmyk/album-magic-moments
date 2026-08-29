@@ -11,13 +11,11 @@ import { authedFetch } from "@/lib/auth";
 const SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
-// Needs the OAuth client id AND an explicit opt-in flag. The flag stays OFF in
-// production until Google verifies the app (so real users don't hit the
-// "unverified app" warning); set VITE_GOOGLE_PHOTOS_ENABLED=true locally / in a
-// preview to test, and in Production once verification clears.
+// Shown wherever the OAuth client id is configured. (Set VITE_GOOGLE_PHOTOS_ENABLED
+// to "false" to force-hide it without removing the client id.)
 export const googlePhotosEnabled = () =>
   !!import.meta.env.VITE_GOOGLE_CLIENT_ID &&
-  import.meta.env.VITE_GOOGLE_PHOTOS_ENABLED === "true";
+  import.meta.env.VITE_GOOGLE_PHOTOS_ENABLED !== "false";
 
 // deno-lint-ignore no-explicit-any
 declare global { interface Window { google?: any } }
