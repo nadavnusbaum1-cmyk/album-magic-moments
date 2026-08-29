@@ -9,10 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2, Sparkles, ChevronDown, Smartphone } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Settings, Trash2, ExternalLink, Copy, Loader2, CheckSquare, Square, Users, Star, RefreshCw, Plus, X, EyeOff, Eye, FolderOpen, AlertTriangle, Pencil, Download, MessageCircle, Send, Printer, Link2, Sparkles } from "lucide-react";
 import { Mori } from "@/components/Mori";
 import { DateField } from "@/components/DateField";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { googlePhotosEnabled, importFromGooglePhotos, type GPhotosProgress } from "@/lib/googlePhotos";
 import { QRCodeSVG } from "qrcode.react";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,7 +82,6 @@ export default function EventAdmin() {
   // Upload
   const [files, setFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
-  const deviceInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const dragCounter = useRef(0);
   const [uploaderName, setUploaderName] = useState("");
@@ -690,40 +688,30 @@ export default function EventAdmin() {
                   {dragActive ? t("drop_to_upload") : files.length ? t("files_ready", { n: files.length }) : t("tap_to_choose")}
                 </span>
                 {!dragActive && !files.length && <span className="text-xs text-muted-foreground/80 text-center">{t("drag_folder_hint")}</span>}
-                <input id="files" ref={deviceInputRef} type="file" accept="image/*,video/*,.heic,.heif" multiple className="sr-only" disabled={uploading}
+                <input id="files" type="file" accept="image/*,video/*,.heic,.heif" multiple className="sr-only" disabled={uploading}
                   onChange={(e) => setFiles(Array.from(e.target.files || []))} />
               </label>
 
-              <div className="flex flex-col items-center gap-1.5">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="gap-2" disabled={uploading || !!gphotos}>
-                      {gphotos ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      {t("add_from")} <ChevronDown className="w-4 h-4 opacity-60" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="w-52">
-                    <DropdownMenuItem onClick={() => deviceInputRef.current?.click()}>
-                      <Smartphone className="w-4 h-4 me-2" /> {t("source_device")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => folderInputRef.current?.click()}>
-                      <FolderOpen className="w-4 h-4 me-2" /> {t("source_folder")}
-                    </DropdownMenuItem>
-                    {googlePhotosEnabled() && (
-                      <DropdownMenuItem onClick={importGooglePhotos}>
-                        <ImageIcon className="w-4 h-4 me-2" /> {t("source_google_photos")}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {gphotos && (
-                  <span className="text-xs text-muted-foreground">
-                    {gphotos.phase === "downloading" ? t("gphotos_downloading", { done: gphotos.done ?? 0, total: gphotos.total ?? 0 }) : gphotos.phase === "picking" ? t("gphotos_picking") : t("gphotos_connecting")}
-                  </span>
-                )}
+              <div className="text-center -mt-1">
+                <button type="button" onClick={() => folderInputRef.current?.click()} disabled={uploading}
+                  className="text-sm text-muted-foreground hover:text-primary underline underline-offset-2 disabled:opacity-50">
+                  {t("or_select_folder")}
+                </button>
                 <input ref={folderInputRef} type="file" multiple className="sr-only" disabled={uploading}
                   onChange={(e) => { setFiles(Array.from(e.target.files || []).filter(isMediaFile)); e.currentTarget.value = ""; }} />
               </div>
+
+              {googlePhotosEnabled() && (
+                <div className="relative">
+                  <div className="flex items-center gap-3 my-1"><div className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">{t("or")}</span><div className="h-px flex-1 bg-border" /></div>
+                  <Button type="button" variant="outline" className="w-full gap-2" disabled={uploading || !!gphotos} onClick={importGooglePhotos}>
+                    {gphotos ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                    {gphotos
+                      ? (gphotos.phase === "downloading" ? t("gphotos_downloading", { done: gphotos.done ?? 0, total: gphotos.total ?? 0 }) : gphotos.phase === "picking" ? t("gphotos_picking") : t("gphotos_connecting"))
+                      : t("import_google_photos")}
+                  </Button>
+                </div>
+              )}
 
               {uploading && (
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
