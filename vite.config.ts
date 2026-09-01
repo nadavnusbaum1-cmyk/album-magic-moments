@@ -47,7 +47,7 @@ function prerenderMeta(): Plugin {
         : [];
 
       const routes: Route[] = [
-        { path: "/", title: "HeyMori — האלבום החכם לאירועים שלכם", description: "מורי מוצאת לכל אורח את התמונות שלו מהאירוע. סורקים QR, שולחים סלפי, ומקבלים גלריה אישית — בלי אפליקציה.", image: "/hero-poster.jpg" },
+        { path: "/", title: "HeyMori — האלבום החכם לאירועים שלכם", description: "HeyMori – הדרך החכמה לשתף תמונות מאירועים. האורחים מעלים תמונות, והמערכת מזהה ומרכזת עבור כל אחד את התמונות שלו באלבום אישי.", image: "/hero-poster.jpg" },
         { path: "/blog", title: "בלוג HeyMori — טיפים לשיתוף תמונות מאירועים", description: "מדריכים וטיפים לשיתוף תמונות מאירועים, זיהוי פנים חכם, ואיך נותנים לכל אורח את התמונות שלו." },
         { path: "/contact", title: "צור קשר | HeyMori", description: "יש שאלה על HeyMori? דברו איתנו ונשמח לעזור." },
         { path: "/legal", title: "תנאי שימוש ומדיניות פרטיות | HeyMori", description: "תנאי השימוש ומדיניות הפרטיות של HeyMori." },
