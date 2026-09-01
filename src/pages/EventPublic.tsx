@@ -61,7 +61,7 @@ export default function EventPublic() {
     if (saved) setGuestName(saved);
   }, [slug]);
 
-  const onGuestFiles = async (fileList: FileList | null) => {
+  const onGuestFiles = async (fileList: File[] | FileList | null) => {
     if (!fileList || !fileList.length || !event) return;
     if (!event.allow_guest_uploads) { toast.error(t("guest_uploads_off")); return; }
     const files = Array.from(fileList);
@@ -371,7 +371,7 @@ export default function EventPublic() {
                 <Upload className="w-4 h-4" /> {t("choose_files")}
               </label>
             </div>
-            <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={(e) => { onGuestFiles(e.target.files); e.target.value = ""; }} disabled={guestUploading} />
+            <input id="guest-gallery" type="file" accept="image/*,video/*" multiple className="sr-only" onChange={(e) => { const fs = Array.from(e.target.files || []); e.currentTarget.value = ""; onGuestFiles(fs); }} disabled={guestUploading} />
             {guestUploading && (
               <div className="space-y-2">
                 <Progress value={guestProgress.total ? (guestProgress.done / guestProgress.total) * 100 : 0} />

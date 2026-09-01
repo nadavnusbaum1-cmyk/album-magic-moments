@@ -164,7 +164,7 @@ export default function Upload() {
               className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-primary bg-secondary/40 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
               <Camera className="w-8 h-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">{added > 0 ? t("add_more_photos") : t("choose_your_photos")}</span>
-              <input id="upload-input" type="file" accept="image/*,video/*,.heic,.heif" multiple className="sr-only"
+              <input id="upload-input" type="file" accept="image/*,video/*" multiple className="sr-only"
                 disabled={uploading} onChange={(e) => { const fs = Array.from(e.target.files || []); e.currentTarget.value = ""; onFiles(fs); }} />
             </label>
 

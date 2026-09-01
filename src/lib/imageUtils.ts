@@ -133,9 +133,54 @@ export const prepareImageForUpload = async (file: File): Promise<File> => {
   return await compressJpegIfLarge(file);
 };
 
+// --- Off-main-thread rendition pool (falls back to main thread when the worker
+// or OffscreenCanvas isn't available, e.g. older iOS) ---
+const canWorker =
+  typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap !== "undefined";
+let renditionWorkers: Worker[] = [];
+let workerBroken = false;
+let rr = 0;
+let reqId = 0;
+const pending = new Map<number, (b: Blob | null) => void>();
+
+function getRenditionWorker(): Worker | null {
+  if (!canWorker || workerBroken) return null;
+  try {
+    if (!renditionWorkers.length) {
+      const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
+      for (let i = 0; i < n; i++) {
+        const w = new Worker(new URL("./rendition.worker.ts", import.meta.url), { type: "module" });
+        w.onmessage = (e: MessageEvent) => {
+          const { id, blob, error } = e.data as { id: number; blob?: Blob; error?: string };
+          const resolve = pending.get(id);
+          if (resolve) { pending.delete(id); resolve(error ? null : (blob ?? null)); }
+        };
+        w.onerror = () => { workerBroken = true; };
+        renditionWorkers.push(w);
+      }
+    }
+    return renditionWorkers[rr++ % renditionWorkers.length];
+  } catch { workerBroken = true; return null; }
+}
+
+function renditionViaWorker(blob: Blob, maxSide: number, quality: number): Promise<Blob | null> {
+  const w = getRenditionWorker();
+  if (!w) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const id = ++reqId;
+    const to = setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve(null); } }, 20000);
+    pending.set(id, (b) => { clearTimeout(to); resolve(b); });
+    try { w.postMessage({ id, blob, maxSide, quality }); }
+    catch { pending.delete(id); clearTimeout(to); resolve(null); }
+  });
+}
+
 // Generate a resized JPEG rendition (thumbnail / medium) for fast gallery loads.
+// Runs in a Web Worker when possible so it never blocks the UI thread.
 export async function makeRendition(file: File, maxSide: number, quality: number): Promise<Blob | null> {
   if (isVideo(file)) return null;
+  const viaWorker = await renditionViaWorker(file, maxSide, quality);
+  if (viaWorker) return viaWorker;
   return await shrinkOnce(file, maxSide, quality);
 }
 
