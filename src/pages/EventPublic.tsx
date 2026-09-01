@@ -20,7 +20,7 @@ import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url?: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url?: string | null; show_people: boolean; show_all_photos: boolean; allow_guest_uploads?: boolean; default_language?: string | null; extra_links?: ExtraLink[] | null; album_tabs?: boolean; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null };
 type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
 
@@ -39,6 +39,12 @@ export default function EventPublic() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showFullAlbum, setShowFullAlbum] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Photographer "album tabs" (folders as tabs) gallery
+  const [tabSources, setTabSources] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [tabPhotos, setTabPhotos] = useState<Photo[]>([]);
+  const [tabCursor, setTabCursor] = useState<string | null>(null);
+  const [tabLoading, setTabLoading] = useState(false);
   const [peopleVisible, setPeopleVisible] = useState(12);
   const { session } = useSession();
   const [isHost, setIsHost] = useState(false);
@@ -166,6 +172,41 @@ export default function EventPublic() {
       }
     } finally { setLoadingMore(false); }
   };
+
+  const loadTab = async (label: string, initial = false) => {
+    if (!event) return;
+    setTabLoading(true);
+    try {
+      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, sourceLabel: label, limit: 60, before: initial ? undefined : tabCursor }) });
+      const j = await r.json();
+      if (r.ok) {
+        setTabPhotos((prev) => initial ? (j.photos || []) : [...prev, ...(j.photos || [])]);
+        setTabCursor(j.nextCursor || null);
+      }
+    } finally { setTabLoading(false); }
+  };
+
+  const selectTab = (label: string) => {
+    if (label === activeTab) return;
+    setActiveTab(label);
+    setTabPhotos([]);
+    setTabCursor(null);
+    loadTab(label, true);
+  };
+
+  // Initialize the folder tabs once the event loads (photographer gallery mode).
+  useEffect(() => {
+    if (!event?.album_tabs) return;
+    (async () => {
+      try {
+        const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 1 }) });
+        const j = await r.json();
+        const srcs: string[] = (j.sources || []).filter(Boolean);
+        if (srcs.length) { setTabSources(srcs); setActiveTab(srcs[0]); loadTab(srcs[0], true); }
+      } catch { /* ignore */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, event?.album_tabs]);
 
   const onSelfieFile = async (file: File) => {
     try {
@@ -332,7 +373,41 @@ export default function EventPublic() {
           </section>
         )}
 
-        {event.show_all_photos && (
+        {event.show_all_photos && event.album_tabs && tabSources.length > 0 && (
+          <section className="max-w-6xl mx-auto mt-12">
+            <div className="border-b border-border/70 overflow-x-auto">
+              <div className="flex gap-6 md:gap-8 min-w-max px-1">
+                {tabSources.map((s) => (
+                  <button key={s} onClick={() => selectTab(s)}
+                    className={`relative py-3 text-sm md:text-[15px] whitespace-nowrap transition-colors ${activeTab === s ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
+                    {s}
+                    {activeTab === s && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-primary rounded-full" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {tabLoading && !tabPhotos.length ? (
+              <p className="text-sm text-muted-foreground text-center py-16">{t("loading")}</p>
+            ) : (
+              <div className="mt-6 columns-2 md:columns-3 gap-2 md:gap-3 [&>*]:mb-2 md:[&>*]:mb-3">
+                {tabPhotos.map((p, i) => (
+                  <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative block w-full overflow-hidden rounded-lg bg-muted hover:opacity-95 transition-opacity break-inside-avoid">
+                    {p.media_type === "video" ? (<><video src={p.url} className="w-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.mediumUrl || p.thumbUrl || p.url} alt="" className="w-full object-cover" loading="lazy" />}
+                  </button>
+                ))}
+              </div>
+            )}
+            {tabCursor && (
+              <div className="text-center mt-6">
+                <Button variant="outline" onClick={() => loadTab(activeTab, false)} disabled={tabLoading}>
+                  {tabLoading ? t("loading") : t("load_more")}
+                </Button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {event.show_all_photos && !event.album_tabs && (
           <section className="max-w-5xl mx-auto mt-12 text-center">
             {!showFullAlbum ? (
               <Button size="lg" variant="outline" onClick={() => loadFullAlbum(true)}>
@@ -379,7 +454,7 @@ export default function EventPublic() {
 
 
       </main>
-      <Lightbox items={allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
+      <Lightbox items={event.album_tabs ? tabPhotos : allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
       {isHost && (
         <Link
           to={`/dashboard/event/${event.id}`}

@@ -22,7 +22,7 @@ import { saveManyToGallery, isAbortError, isMobile } from "@/lib/download";
 import { useI18n, Lang } from "@/lib/i18n";
 
 type ExtraLink = { label_en: string; label_he: string; url: string };
-type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; created_at?: string; storage_expires_at?: string | null; storage_expired?: boolean; storage_expired_at?: string | null; };
+type Event = { id: string; name: string; slug: string; event_date: string | null; cover_image_url: string | null; home_bg_url: string | null; cover_photo_id: string | null; is_published: boolean; show_people: boolean; show_all_photos: boolean; allow_guest_uploads: boolean; people_gallery_visibility?: string; hidden_sources?: string[] | null; default_language: string | null; extra_links?: ExtraLink[] | null; album_tabs?: boolean; created_at?: string; storage_expires_at?: string | null; storage_expired?: boolean; storage_expired_at?: string | null; };
 type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; face_count: number; processed: boolean; processing_error?: string | null; upload_status?: string; processing_status?: string; moderation_status?: string; moderation_labels?: { name?: string; confidence?: number }[] | null; uploaded_by: string | null; media_type?: string; source_label?: string | null; created_at?: string; };
 type Cluster = { id: string; cover_url: string | null; photo_count: number; display_name: string | null; hidden?: boolean };
 type ClusterPhoto = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; media_type?: string };
@@ -1145,6 +1145,12 @@ export default function EventAdmin() {
                 <div><div className="font-medium text-sm">{t("show_all_photos_title")}</div><p className="text-xs text-muted-foreground">{t("show_all_photos_desc")}</p></div>
                 <Switch checked={event.show_all_photos} onCheckedChange={(v) => updateEvent({ show_all_photos: v })} />
               </div>
+              {event.show_all_photos && (
+                <div className="flex items-center justify-between ps-4 border-s-2 border-primary/30">
+                  <div><div className="font-medium text-sm">{t("album_tabs_title")}</div><p className="text-xs text-muted-foreground">{t("album_tabs_desc")}</p></div>
+                  <Switch checked={!!event.album_tabs} onCheckedChange={(v) => updateEvent({ album_tabs: v })} />
+                </div>
+              )}
               <div className="flex items-center justify-between border-t pt-4">
                 <div><div className="font-medium text-sm">{t("allow_guest_title")}</div><p className="text-xs text-muted-foreground">{t("allow_guest_desc")}</p></div>
                 <Switch checked={event.allow_guest_uploads} onCheckedChange={(v) => updateEvent({ allow_guest_uploads: v })} />
