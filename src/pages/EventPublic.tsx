@@ -14,7 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, useSession } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
+import { FloatingLanguageSwitcher, LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { BrandMark } from "@/components/BrandMark";
 import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
 import { ExternalLink } from "lucide-react";
@@ -68,61 +69,81 @@ export default function EventPublic() {
     setGuestUploading(true);
     setGuestProgress({ done: 0, total: files.length, errors: 0 });
     let done = 0, errors = 0;
-    const bumpDone = () => { done++; setGuestProgress({ done, total: files.length, errors }); };
-    const bumpErr = () => { errors++; bumpDone(); };
+    const bump = (isErr = false) => { done++; if (isErr) errors++; setGuestProgress({ done, total: files.length, errors }); };
+    const clientId = (f: File) => `${f.name}|${f.size}|${f.lastModified}`.slice(0, 128);
 
-    const CONCURRENCY = 6;
-    const uploadedIds: string[] = [];
-    let cursor = 0;
-    const worker = async () => {
+    // 1) Prepare all files (HEIC convert + shrink) with a small CPU pool.
+    type Prepped = { raw: File; file: File; takenAt: string | null };
+    const prepped: (Prepped | null)[] = new Array(files.length).fill(null);
+    let pc = 0;
+    await Promise.all(Array.from({ length: Math.min(4, files.length) }, async () => {
       while (true) {
-        const idx = cursor++;
-        if (idx >= files.length) return;
-        const raw = files[idx];
+        const i = pc++; if (i >= files.length) break;
+        const raw = files[i];
         try {
           const takenAt = isVideo(raw) ? null : await extractTakenAt(raw);
-          const prepared = isVideo(raw) ? raw : await prepareImageForUpload(raw);
-          const r = await authedFetch("guest-sign-s3-upload", {
-            method: "POST",
-            body: JSON.stringify({
-              eventSlug: event.slug,
-              uploadedBy: guestName.trim() || null,
-              files: [{
-                name: prepared.name,
-                contentType: prepared.type || "image/jpeg",
-                takenAt,
-                size: prepared.size,
-                clientUploadId: `${raw.name}|${raw.size}|${raw.lastModified}`.slice(0, 128),
-              }],
-            }),
-          });
-          const j = await r.json();
-          if (!r.ok) throw new Error(j.error || "sign failed");
-          const u = (j.uploads || [])[0] as { photoId: string; uploadUrl: string; thumbUploadUrl?: string; mediumUploadUrl?: string; skipped?: boolean } | undefined;
-          if (!u || u.skipped) { bumpErr(); continue; }
-          const put = await fetch(u.uploadUrl, { method: "PUT", headers: { "Content-Type": prepared.type || "image/jpeg" }, body: prepared });
-          if (!put.ok) throw new Error(`put ${put.status}`);
-          uploadedIds.push(u.photoId);
-          await uploadRenditions(prepared, u.thumbUploadUrl, u.mediumUploadUrl);
-          bumpDone();
-        } catch (e) {
-          console.error(raw.name, e);
-          bumpErr();
-        }
+          const file = isVideo(raw) ? raw : await prepareImageForUpload(raw);
+          prepped[i] = { raw, file, takenAt };
+        } catch (e) { console.error(raw.name, e); bump(true); }
       }
-    };
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
+    }));
+    const items = prepped.filter((p): p is Prepped => !!p);
+    if (!items.length) { setGuestUploading(false); if (errors) toast.error(t("n_files_failed", { n: errors })); return; }
 
-    // Verify uploads server-side (HEAD) + start processing. Works for guests
-    // (runs under service role) — replaces the old host-only process-photo-now.
-    if (uploadedIds.length) {
-      authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
+    // 2) Batch-sign in chunks (one edge round-trip per ~25 files, not per file).
+    type Signed = { file: File; photoId?: string; uploadUrl?: string; thumbUploadUrl?: string; mediumUploadUrl?: string; skipped?: boolean };
+    const signed: Signed[] = [];
+    const CHUNK = 25;
+    for (let c = 0; c < items.length; c += CHUNK) {
+      const batch = items.slice(c, c + CHUNK);
+      try {
+        const r = await authedFetch("guest-sign-s3-upload", {
+          method: "POST",
+          body: JSON.stringify({
+            eventSlug: event.slug,
+            uploadedBy: guestName.trim() || null,
+            files: batch.map((b) => ({ name: b.file.name, contentType: b.file.type || "image/jpeg", takenAt: b.takenAt, size: b.file.size, clientUploadId: clientId(b.raw) })),
+          }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "sign failed");
+        (j.uploads || []).forEach((u: Signed, k: number) => signed.push({ ...u, file: batch[k].file }));
+      } catch (e) { console.error(e); batch.forEach(() => bump(true)); }
     }
 
+    // 3) PUT originals concurrently; renditions upload in the BACKGROUND so the
+    // progress bar completes as soon as the originals land (much faster feel).
+    const uploadedIds: string[] = [];
+    const renditionPromises: Promise<void>[] = [];
+    let uc = 0;
+    await Promise.all(Array.from({ length: Math.min(10, signed.length) }, async () => {
+      while (true) {
+        const i = uc++; if (i >= signed.length) break;
+        const s = signed[i];
+        if (!s.uploadUrl || s.skipped) { bump(true); continue; }
+        try {
+          const put = await fetch(s.uploadUrl, { method: "PUT", headers: { "Content-Type": s.file.type || "image/jpeg" }, body: s.file });
+          if (!put.ok) throw new Error(`put ${put.status}`);
+          uploadedIds.push(s.photoId!);
+          renditionPromises.push(uploadRenditions(s.file, s.thumbUploadUrl, s.mediumUploadUrl));
+          bump();
+        } catch (e) { console.error(e); bump(true); }
+      }
+    }));
+
+    // Confirm originals now (so photos aren't lost if the guest closes the tab),
+    // then re-confirm once renditions finish to record their keys — both in the
+    // background so the guest sees success immediately.
     setGuestUploading(false);
     const ok = done - errors;
     if (ok > 0) toast.success(t("thanks_added", { n: ok }));
     if (errors) toast.error(t("n_files_failed", { n: errors }));
+    if (uploadedIds.length) {
+      authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
+      Promise.allSettled(renditionPromises).then(() => {
+        authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
+      });
+    }
   };
 
   useEffect(() => {
@@ -192,6 +213,12 @@ export default function EventPublic() {
     setTabPhotos([]);
     setTabCursor(null);
     loadTab(label, true);
+  };
+
+  const goToAlbum = () => {
+    if (!event) return;
+    if (!event.album_tabs && !showFullAlbum) loadFullAlbum(true);
+    setTimeout(() => document.getElementById("full-album")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
   };
 
   // Initialize the folder tabs once the event loads (photographer gallery mode).
@@ -270,16 +297,19 @@ export default function EventPublic() {
       {event.home_bg_url && <div className="absolute inset-0 bg-background/70 backdrop-blur-sm pointer-events-none" aria-hidden />}
       <div className="relative">
 
-      <FloatingLanguageSwitcher />
-      <header className="px-6 pt-12 pb-8 text-center">
-        <Mori expression="searching" size={128} className="mx-auto mb-2" />
-        <div className="inline-flex items-center gap-2 text-primary mb-3">
-          <Heart className="w-5 h-5 fill-current" />
+      <div className="flex items-center justify-between px-4 md:px-6 pt-3">
+        <Link to="/" aria-label="HeyMori"><BrandMark avatar avatarSize={28} className="text-base md:text-lg" /></Link>
+        <LanguageSwitcher />
+      </div>
+      <header className="px-6 pt-4 md:pt-8 pb-6 md:pb-8 text-center">
+        <Mori expression="searching" size={isMobile ? 76 : 128} className="mx-auto mb-1 md:mb-2" />
+        <div className="inline-flex items-center gap-2 text-primary mb-2 md:mb-3">
+          <Heart className="w-4 h-4 md:w-5 md:h-5 fill-current" />
           <span className="text-sm tracking-wide uppercase">{event.name}</span>
-          <Heart className="w-5 h-5 fill-current" />
+          <Heart className="w-4 h-4 md:w-5 md:h-5 fill-current" />
         </div>
-        <h1 className="text-4xl md:text-5xl font-serif">{t("find_your_photos")}</h1>
-        <p className="text-muted-foreground mt-3 max-w-md mx-auto">{t("find_desc")}</p>
+        <h1 className="text-3xl md:text-5xl font-serif">{t("find_your_photos")}</h1>
+        <p className="text-muted-foreground mt-2 md:mt-3 max-w-md mx-auto text-sm md:text-base">{t("find_desc")}</p>
       </header>
 
       <main className="px-6 pb-12">
@@ -313,6 +343,15 @@ export default function EventPublic() {
             </div>
           )}
         </Card>
+
+        {event.show_all_photos && (
+          <div className="max-w-md mx-auto mt-6">
+            <button onClick={goToAlbum}
+              className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-foreground text-background py-4 px-5 text-base font-semibold shadow-lg hover:opacity-90 transition-opacity">
+              <ImageIcon className="w-5 h-5" /> {t("view_full_album")}
+            </button>
+          </div>
+        )}
 
         {event.allow_guest_uploads && (
           <Card className="max-w-md mx-auto mt-6 p-6 space-y-4">
@@ -374,7 +413,7 @@ export default function EventPublic() {
         )}
 
         {event.show_all_photos && event.album_tabs && tabSources.length > 0 && (
-          <section className="max-w-6xl mx-auto mt-12">
+          <section id="full-album" className="max-w-6xl mx-auto mt-12 scroll-mt-4">
             <div className="border-b border-border/70 overflow-x-auto">
               <div className="flex gap-6 md:gap-8 min-w-max px-1">
                 {tabSources.map((s) => (
@@ -408,7 +447,7 @@ export default function EventPublic() {
         )}
 
         {event.show_all_photos && !event.album_tabs && (
-          <section className="max-w-5xl mx-auto mt-12 text-center">
+          <section id="full-album" className="max-w-5xl mx-auto mt-12 text-center scroll-mt-4">
             {!showFullAlbum ? (
               <Button size="lg" variant="outline" onClick={() => loadFullAlbum(true)}>
                 <ImageIcon className="w-4 h-4 me-2" /> {t("view_full_album")}
