@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { convertHeicIfNeeded, prepareImageForUpload, isVideo, uploadRenditions } from "@/lib/imageUtils";
-import { extractTakenAt } from "@/lib/exif";
+import { convertHeicIfNeeded, prepareImageForUpload } from "@/lib/imageUtils";
+import { uploadGuestFiles } from "@/lib/guestUpload";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Lightbox } from "@/components/Lightbox";
 import { authedFetch, useSession } from "@/lib/auth";
@@ -69,82 +69,16 @@ export default function EventPublic() {
     if (guestName.trim()) localStorage.setItem(`guest-name:${slug}`, guestName.trim());
     setGuestUploading(true);
     setGuestProgress({ done: 0, total: files.length, errors: 0 });
-    let done = 0, errors = 0;
-    const bump = (isErr = false) => { done++; if (isErr) errors++; setGuestProgress({ done, total: files.length, errors }); };
-    const clientId = (f: File) => `${f.name}|${f.size}|${f.lastModified}`.slice(0, 128);
-
-    // 1) Prepare all files (HEIC convert + shrink) with a small CPU pool.
-    type Prepped = { raw: File; file: File; takenAt: string | null };
-    const prepped: (Prepped | null)[] = new Array(files.length).fill(null);
-    let pc = 0;
-    await Promise.all(Array.from({ length: Math.min(4, files.length) }, async () => {
-      while (true) {
-        const i = pc++; if (i >= files.length) break;
-        const raw = files[i];
-        try {
-          const takenAt = isVideo(raw) ? null : await extractTakenAt(raw);
-          const file = isVideo(raw) ? raw : await prepareImageForUpload(raw);
-          prepped[i] = { raw, file, takenAt };
-        } catch (e) { console.error(raw.name, e); bump(true); }
-      }
-    }));
-    const items = prepped.filter((p): p is Prepped => !!p);
-    if (!items.length) { setGuestUploading(false); if (errors) toast.error(t("n_files_failed", { n: errors })); return; }
-
-    // 2) Batch-sign in chunks (one edge round-trip per ~25 files, not per file).
-    type Signed = { file: File; photoId?: string; uploadUrl?: string; thumbUploadUrl?: string; mediumUploadUrl?: string; skipped?: boolean };
-    const signed: Signed[] = [];
-    const CHUNK = 25;
-    for (let c = 0; c < items.length; c += CHUNK) {
-      const batch = items.slice(c, c + CHUNK);
-      try {
-        const r = await authedFetch("guest-sign-s3-upload", {
-          method: "POST",
-          body: JSON.stringify({
-            eventSlug: event.slug,
-            uploadedBy: guestName.trim() || null,
-            files: batch.map((b) => ({ name: b.file.name, contentType: b.file.type || "image/jpeg", takenAt: b.takenAt, size: b.file.size, clientUploadId: clientId(b.raw) })),
-          }),
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "sign failed");
-        (j.uploads || []).forEach((u: Signed, k: number) => signed.push({ ...u, file: batch[k].file }));
-      } catch (e) { console.error(e); batch.forEach(() => bump(true)); }
-    }
-
-    // 3) PUT originals concurrently; renditions upload in the BACKGROUND so the
-    // progress bar completes as soon as the originals land (much faster feel).
-    const uploadedIds: string[] = [];
-    const renditionPromises: Promise<void>[] = [];
-    let uc = 0;
-    await Promise.all(Array.from({ length: Math.min(10, signed.length) }, async () => {
-      while (true) {
-        const i = uc++; if (i >= signed.length) break;
-        const s = signed[i];
-        if (!s.uploadUrl || s.skipped) { bump(true); continue; }
-        try {
-          const put = await fetch(s.uploadUrl, { method: "PUT", headers: { "Content-Type": s.file.type || "image/jpeg" }, body: s.file });
-          if (!put.ok) throw new Error(`put ${put.status}`);
-          uploadedIds.push(s.photoId!);
-          renditionPromises.push(uploadRenditions(s.file, s.thumbUploadUrl, s.mediumUploadUrl));
-          bump();
-        } catch (e) { console.error(e); bump(true); }
-      }
-    }));
-
-    // Confirm originals now (so photos aren't lost if the guest closes the tab),
-    // then re-confirm once renditions finish to record their keys — both in the
-    // background so the guest sees success immediately.
+    const { done, errors } = await uploadGuestFiles({
+      files,
+      eventSlug: event.slug,
+      uploadedBy: guestName.trim() || null,
+      onProgress: (d, e) => setGuestProgress({ done: d, total: files.length, errors: e }),
+    });
     setGuestUploading(false);
     const ok = done - errors;
     if (ok > 0) toast.success(t("thanks_added", { n: ok }));
     if (errors) toast.error(t("n_files_failed", { n: errors }));
-    if (uploadedIds.length) {
-      authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
-      Promise.allSettled(renditionPromises).then(() => {
-        authedFetch("confirm-upload", { method: "POST", body: JSON.stringify({ photoIds: uploadedIds }) }).catch(() => {});
-      });
-    }
   };
 
   useEffect(() => {
