@@ -1,7 +1,7 @@
 // Public event landing page (replaces old Index for guests).
 // Path: /e/:slug
 import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Camera, Sparkles, Upload, Heart, Users, Loader2, Image as ImageIcon, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ type Photo = { id: string; url: string; thumbUrl?: string; mediumUrl?: string; m
 export default function EventPublic() {
   const { t, setDefaultLang, lang } = useI18n();
   const { slug } = useParams();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [event, setEvent] = useState<Event | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -221,20 +222,6 @@ export default function EventPublic() {
     setTimeout(() => document.getElementById("full-album")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
   };
 
-  // Initialize the folder tabs once the event loads (photographer gallery mode).
-  useEffect(() => {
-    if (!event?.album_tabs) return;
-    (async () => {
-      try {
-        const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, limit: 1 }) });
-        const j = await r.json();
-        const srcs: string[] = (j.sources || []).filter(Boolean);
-        if (srcs.length) { setTabSources(srcs); setActiveTab(srcs[0]); loadTab(srcs[0], true); }
-      } catch { /* ignore */ }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event?.id, event?.album_tabs]);
-
   const onSelfieFile = async (file: File) => {
     try {
       const converted = await prepareImageForUpload(await convertHeicIfNeeded(file));
@@ -301,14 +288,16 @@ export default function EventPublic() {
         <Link to="/" aria-label="HeyMori"><BrandMark avatar avatarSize={28} className="text-base md:text-lg" /></Link>
         <LanguageSwitcher />
       </div>
-      <header className="px-6 pt-4 md:pt-8 pb-6 md:pb-8 text-center">
-        <Mori expression="searching" size={isMobile ? 76 : 128} className="mx-auto mb-1 md:mb-2" />
-        <div className="inline-flex items-center gap-2 text-primary mb-2 md:mb-3">
+      <header className="px-6 pt-2 md:pt-6 pb-5 md:pb-8 text-center">
+        <div className="inline-flex items-center gap-2 text-primary mb-2">
           <Heart className="w-4 h-4 md:w-5 md:h-5 fill-current" />
           <span className="text-sm tracking-wide uppercase">{event.name}</span>
           <Heart className="w-4 h-4 md:w-5 md:h-5 fill-current" />
         </div>
-        <h1 className="text-3xl md:text-5xl font-serif">{t("find_your_photos")}</h1>
+        <h1 className="text-3xl md:text-5xl font-serif flex items-center justify-center flex-wrap gap-x-3 gap-y-1">
+          <Mori expression="searching" size={isMobile ? 54 : 76} className="inline-block shrink-0 -my-2" />
+          <span>{t("find_your_photos")}</span>
+        </h1>
         <p className="text-muted-foreground mt-2 md:mt-3 max-w-md mx-auto text-sm md:text-base">{t("find_desc")}</p>
       </header>
 
@@ -346,7 +335,7 @@ export default function EventPublic() {
 
         {event.show_all_photos && (
           <div className="max-w-md mx-auto mt-6">
-            <button onClick={goToAlbum}
+            <button onClick={() => navigate(`/e/${slug}/album`)}
               className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-foreground text-background py-4 px-5 text-base font-semibold shadow-lg hover:opacity-90 transition-opacity">
               <ImageIcon className="w-5 h-5" /> {t("view_full_album")}
             </button>
@@ -371,7 +360,7 @@ export default function EventPublic() {
                 <Upload className="w-4 h-4" /> {t("choose_files")}
               </label>
             </div>
-            <input id="guest-gallery" type="file" accept="image/*,video/*" multiple className="sr-only" onChange={(e) => { const fs = Array.from(e.target.files || []); e.currentTarget.value = ""; onGuestFiles(fs); }} disabled={guestUploading} />
+            <input id="guest-gallery" type="file" accept="image/*,video/*,.heic,.heif" multiple className="sr-only" onChange={(e) => { const fs = Array.from(e.target.files || []); e.currentTarget.value = ""; onGuestFiles(fs); }} disabled={guestUploading} />
             {guestUploading && (
               <div className="space-y-2">
                 <Progress value={guestProgress.total ? (guestProgress.done / guestProgress.total) * 100 : 0} />
@@ -412,69 +401,6 @@ export default function EventPublic() {
           </section>
         )}
 
-        {event.show_all_photos && event.album_tabs && tabSources.length > 0 && (
-          <section id="full-album" className="max-w-6xl mx-auto mt-12 scroll-mt-4">
-            <div className="border-b border-border/70 overflow-x-auto">
-              <div className="flex gap-6 md:gap-8 min-w-max px-1">
-                {tabSources.map((s) => (
-                  <button key={s} onClick={() => selectTab(s)}
-                    className={`relative py-3 text-sm md:text-[15px] whitespace-nowrap transition-colors ${activeTab === s ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
-                    {s}
-                    {activeTab === s && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-primary rounded-full" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {tabLoading && !tabPhotos.length ? (
-              <p className="text-sm text-muted-foreground text-center py-16">{t("loading")}</p>
-            ) : (
-              <div className="mt-6 columns-2 md:columns-3 gap-2 md:gap-3 [&>*]:mb-2 md:[&>*]:mb-3">
-                {tabPhotos.map((p, i) => (
-                  <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative block w-full overflow-hidden rounded-lg bg-muted hover:opacity-95 transition-opacity break-inside-avoid">
-                    {p.media_type === "video" ? (<><video src={p.url} className="w-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.mediumUrl || p.thumbUrl || p.url} alt="" className="w-full object-cover" loading="lazy" />}
-                  </button>
-                ))}
-              </div>
-            )}
-            {tabCursor && (
-              <div className="text-center mt-6">
-                <Button variant="outline" onClick={() => loadTab(activeTab, false)} disabled={tabLoading}>
-                  {tabLoading ? t("loading") : t("load_more")}
-                </Button>
-              </div>
-            )}
-          </section>
-        )}
-
-        {event.show_all_photos && !event.album_tabs && (
-          <section id="full-album" className="max-w-5xl mx-auto mt-12 text-center scroll-mt-4">
-            {!showFullAlbum ? (
-              <Button size="lg" variant="outline" onClick={() => loadFullAlbum(true)}>
-                <ImageIcon className="w-4 h-4 me-2" /> {t("view_full_album")}
-              </Button>
-            ) : (
-              <>
-                <h2 className="text-2xl md:text-3xl font-serif mb-4 px-1 text-start">{t("all_photos")}</h2>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {allPhotos.map((p, i) => (
-                    <button key={p.id} onClick={() => setLightboxIndex(i)} className="relative aspect-square overflow-hidden rounded-xl bg-muted hover:opacity-90">
-                      {p.media_type === "video" ? (<><video src={p.url} className="w-full h-full object-cover" muted playsInline preload="metadata" /><span className="absolute bottom-1 end-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">▶</span></>) : <img src={p.thumbUrl || p.url} alt="" className="w-full h-full object-cover" loading="lazy" />}
-                    </button>
-                  ))}
-                </div>
-                {photosCursor && (
-                  <div className="text-center mt-6">
-                    <Button variant="outline" onClick={() => loadFullAlbum(false)} disabled={loadingMore}>
-                      {loadingMore ? t("loading") : t("load_more")}
-                    </Button>
-                  </div>
-                )}
-                {!allPhotos.length && loadingMore && <p className="text-sm text-muted-foreground py-6">{t("loading")}</p>}
-              </>
-            )}
-          </section>
-        )}
-
         {(event.extra_links || []).filter((l) => l.url && (l.label_en || l.label_he)).length > 0 && (
           <Card className="max-w-md mx-auto mt-6 p-6 space-y-3">
             <h3 className="font-serif text-xl">{t("more_from_event")}</h3>
@@ -493,7 +419,6 @@ export default function EventPublic() {
 
 
       </main>
-      <Lightbox items={event.album_tabs ? tabPhotos : allPhotos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} fileNamePrefix={event.slug} />
       {isHost && (
         <Link
           to={`/dashboard/event/${event.id}`}

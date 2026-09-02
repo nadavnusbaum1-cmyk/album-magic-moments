@@ -129,8 +129,16 @@ async function compressJpegIfLarge(file: File): Promise<File> {
 // JPEG/PNG so AWS Rekognition's 5MB inline-bytes cap is never hit.
 export const prepareImageForUpload = async (file: File): Promise<File> => {
   if (isVideo(file)) return file;
-  if (isHeic(file)) return await convertHeicIfNeeded(file);
-  return await compressJpegIfLarge(file);
+  // HEIC or large images: transcode/resize to JPEG in the Web Worker (off the UI
+  // thread) so the picker returns instantly and the page never freezes. Falls
+  // back to the main thread when the worker/OffscreenCanvas isn't available.
+  if (isHeic(file) || file.size > SHRINK_THRESHOLD) {
+    const blob = await renditionViaWorker(file, isHeic(file) ? 2600 : 2200, 0.85);
+    if (blob) return new File([blob], withJpgExtension(file.name), { type: "image/jpeg" });
+    if (isHeic(file)) return await convertHeicIfNeeded(file);
+    return await compressJpegIfLarge(file);
+  }
+  return file; // small JPEG/PNG — upload as-is
 };
 
 // --- Off-main-thread rendition pool (falls back to main thread when the worker

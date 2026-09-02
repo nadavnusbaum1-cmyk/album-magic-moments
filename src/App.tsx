@@ -12,6 +12,7 @@ import Auth from "./pages/Auth.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import EventAdmin from "./pages/EventAdmin.tsx";
 import EventPublic from "./pages/EventPublic.tsx";
+import AlbumFull from "./pages/AlbumFull.tsx";
 import Upload from "./pages/Upload.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
 import PlanSelection from "./pages/PlanSelection.tsx";
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="/terms" element={<Legal />} />
             <Route path="/privacy" element={<Legal />} />
             <Route path="/e/:slug" element={<EventPublic />} />
+            <Route path="/e/:slug/album" element={<AlbumFull />} />
             <Route path="/u/:slug" element={<Upload />} />
             <Route path="/album/:token" element={<Album />} />
             <Route path="/person/:id" element={<Person />} />

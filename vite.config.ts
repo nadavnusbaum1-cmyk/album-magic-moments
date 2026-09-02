@@ -128,6 +128,8 @@ export default defineConfig(() => ({
     },
   },
   plugins: [react(), prerenderMeta()],
+  // ES-module workers so the rendition worker can code-split (lazy heic2any).
+  worker: { format: "es" },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
