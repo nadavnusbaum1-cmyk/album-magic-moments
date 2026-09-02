@@ -10,8 +10,8 @@ function pgList(values: string[]): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { eventSlug, sourceLabel, before, after, limit } = await req.json() as {
-      eventSlug?: string; sourceLabel?: string; before?: string; after?: string; limit?: number;
+    const { eventSlug, sourceLabel, mediaType, before, after, limit } = await req.json() as {
+      eventSlug?: string; sourceLabel?: string; mediaType?: string; before?: string; after?: string; limit?: number;
     };
     if (!eventSlug) return json({ error: "eventSlug required" }, 400);
     const event = await eventBySlug(eventSlug);
@@ -31,6 +31,10 @@ Deno.serve(async (req) => {
       .order("sort_at", { ascending: true })
       .limit(pageSize);
     if (sourceLabel) q = q.eq("source_label", sourceLabel);
+    // Optional media-type filter. Legacy rows may have a null media_type, which we
+    // treat as "image".
+    if (mediaType === "video") q = q.eq("media_type", "video");
+    else if (mediaType === "image") q = q.or("media_type.eq.image,media_type.is.null");
     // Hide folders the organizer chose not to share publicly.
     const hidden = Array.isArray((event as { hidden_sources?: unknown }).hidden_sources)
       ? ((event as { hidden_sources: string[] }).hidden_sources).filter((s) => typeof s === "string")
@@ -60,17 +64,24 @@ Deno.serve(async (req) => {
       };
     }));
 
-    // Distinct source labels (only on first page request, to keep payload small)
+    // Distinct source labels + whether any videos exist (only on the first page
+    // request, to keep the payload small).
     let sources: string[] = [];
+    let hasVideos = false;
     if (!cursor) {
       const { data: srcRows } = await supabase
         .from("photos").select("source_label").eq("event_id", event.id).not("source_label", "is", null).limit(1000);
       sources = (Array.from(new Set((srcRows || []).map((p: any) => p.source_label).filter(Boolean))) as string[])
         .filter((s) => !hidden.includes(s));
+      const { count: vidCount } = await supabase
+        .from("photos").select("id", { count: "exact", head: true })
+        .eq("event_id", event.id).eq("upload_status", "uploaded").eq("moderation_status", "approved")
+        .is("deleted_at", null).eq("media_type", "video");
+      hasVideos = (vidCount || 0) > 0;
     }
 
     const nextCursor = items.length === pageSize ? items[items.length - 1].sort_at : null;
-    return json({ photos: items, sources, nextCursor });
+    return json({ photos: items, sources, hasVideos, nextCursor });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }

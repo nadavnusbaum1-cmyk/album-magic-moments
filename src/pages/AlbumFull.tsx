@@ -17,6 +17,7 @@ export default function AlbumFull() {
   const [event, setEvent] = useState<Ev | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [sources, setSources] = useState<string[]>([]);
+  const [hasVideos, setHasVideos] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -37,32 +38,50 @@ export default function AlbumFull() {
     })();
   }, [slug, setDefaultLang]);
 
-  const load = useCallback(async (label: string, initial: boolean) => {
+  // Photographer albums organise by folder (source_label); everyone else splits
+  // Photos vs Videos. The active tab key is a folder name in folder mode, or a
+  // media_type ("image"/"video") otherwise.
+  const folderMode = !!event?.album_tabs;
+
+  const load = useCallback(async (tabKey: string, initial: boolean) => {
     if (!event) return;
     setLoading(true);
     try {
-      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify({ eventSlug: event.slug, sourceLabel: label || undefined, limit: 60, before: initial ? undefined : cursor }) });
+      const body: Record<string, unknown> = { eventSlug: event.slug, limit: 60, before: initial ? undefined : cursor };
+      if (event.album_tabs) { if (tabKey) body.sourceLabel = tabKey; }
+      else { body.mediaType = tabKey || "image"; }
+      const r = await authedFetch("list-photos", { method: "POST", body: JSON.stringify(body) });
       const j = await r.json();
       if (r.ok) {
-        if (initial && j.sources && !sources.length) setSources(j.sources.filter(Boolean));
+        if (initial) {
+          if (j.sources && !sources.length) setSources(j.sources.filter(Boolean));
+          if (typeof j.hasVideos === "boolean") setHasVideos(j.hasVideos);
+        }
         setPhotos((prev) => initial ? (j.photos || []) : [...prev, ...(j.photos || [])]);
         setCursor(j.nextCursor || null);
       }
     } finally { setLoading(false); }
   }, [event, cursor, sources.length]);
 
-  // First load once the event resolves — always starts on "All photos" (label
-  // ""), which also returns the folder list for the tabs.
+  // First load once the event resolves. Folder albums start on "All photos";
+  // standard albums start on the Photos tab (videos live behind their own tab so
+  // slow-uploading videos never hold up the photos).
   useEffect(() => {
     if (!event) return;
-    load("", true).then(() => {});
+    const def = event.album_tabs ? "" : "image";
+    setActiveTab(def);
+    load(def, true).then(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id]);
 
-  const selectTab = (label: string) => {
-    if (label === activeTab) return;
-    setActiveTab(label); setPhotos([]); setCursor(null); load(label, true);
+  const selectTab = (key: string) => {
+    if (key === activeTab) return;
+    setActiveTab(key); setPhotos([]); setCursor(null); load(key, true);
   };
+
+  const tabs: { key: string; label: string }[] = folderMode
+    ? (sources.length ? ["", ...sources].map((s) => ({ key: s, label: s || t("all_photos") })) : [])
+    : (hasVideos ? [{ key: "image", label: t("photos_tab") }, { key: "video", label: t("videos_tab") }] : []);
 
   // Infinite scroll.
   useEffect(() => {
@@ -92,14 +111,14 @@ export default function AlbumFull() {
             <h1 className="font-serif text-lg leading-tight truncate">{event?.name || t("all_photos")}</h1>
           </div>
         </div>
-        {event?.album_tabs && sources.length > 0 && (
+        {tabs.length > 0 && (
           <div className="overflow-x-auto no-scrollbar border-t border-border/50">
             <div className="flex gap-5 md:gap-7 px-4 min-w-max">
-              {["", ...sources].map((s) => (
-                <button key={s || "__all"} onClick={() => selectTab(s)}
-                  className={`relative py-2.5 text-sm whitespace-nowrap transition-colors ${activeTab === s ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
-                  {s || t("all_photos")}
-                  {activeTab === s && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-primary rounded-full" />}
+              {tabs.map((tab) => (
+                <button key={tab.key || "__all"} onClick={() => selectTab(tab.key)}
+                  className={`relative py-2.5 text-sm whitespace-nowrap transition-colors ${activeTab === tab.key ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
+                  {tab.label}
+                  {activeTab === tab.key && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-primary rounded-full" />}
                 </button>
               ))}
             </div>

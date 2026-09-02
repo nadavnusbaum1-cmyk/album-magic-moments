@@ -469,6 +469,8 @@ const dict: Record<Lang, Record<string, string>> = {
     view_public_page: "View public album",
     copy_album_link: "Copy album link",
     all_photos: "All photos",
+    photos_tab: "Photos",
+    videos_tab: "Videos",
     couldnt_read_image: "Could not read that image",
 
     // Album / Person
@@ -927,6 +929,8 @@ const dict: Record<Lang, Record<string, string>> = {
     view_public_page: "צפייה באלבום הציבורי",
     copy_album_link: "העתקת קישור לאלבום",
     all_photos: "כל התמונות",
+    photos_tab: "תמונות",
+    videos_tab: "סרטונים",
     couldnt_read_image: "לא ניתן לקרוא את התמונה הזו",
 
     personal_album: "אלבום אישי",

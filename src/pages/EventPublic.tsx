@@ -232,7 +232,6 @@ export default function EventPublic() {
           <img src="/mori/searching.png" alt="" width={isMobile ? 46 : 66} height={isMobile ? 46 : 66} className="inline-block align-middle -mt-1 mx-1.5 select-none" draggable={false} />
           {t("find_your_photos")}
         </h1>
-        <p className="text-muted-foreground mt-2 md:mt-3 max-w-md mx-auto text-sm md:text-base">{t("find_desc")}</p>
       </header>
 
       <main className="px-6 pb-12">
