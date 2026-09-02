@@ -537,14 +537,6 @@ export default function EventAdmin() {
   const publicUrl = event ? `${window.location.origin}/e/${event.slug}` : "";
   const copyPublic = async () => { await navigator.clipboard.writeText(publicUrl); toast.success(t("link_copied")); };
   const uploadUrl = event ? `${window.location.origin}/u/${event.slug}` : "";
-  const shareUpload = async () => {
-    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
-    if (nav.share) {
-      try { await nav.share({ title: event?.name, text: t("share_upload_text"), url: uploadUrl }); return; }
-      catch { return; } // user cancelled the share sheet
-    }
-    try { await navigator.clipboard.writeText(uploadUrl); toast.success(t("upload_link_copied")); } catch { /* ignore */ }
-  };
   const shortenUploadLink = async () => {
     if (!event) return;
     setShortening(true);
@@ -639,10 +631,10 @@ export default function EventAdmin() {
               </button>
             )}
             <button
-              onClick={shareUpload}
+              onClick={copyPublic}
               className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
             >
-              <Send className="w-4 h-4" /> {t("share_upload_link")}
+              <Copy className="w-4 h-4" /> {t("copy_album_link")}
             </button>
             <a
               href={publicUrl}

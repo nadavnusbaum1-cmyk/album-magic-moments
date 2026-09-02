@@ -294,9 +294,9 @@ export default function EventPublic() {
           <span className="text-sm tracking-wide uppercase">{event.name}</span>
           <Heart className="w-4 h-4 md:w-5 md:h-5 fill-current" />
         </div>
-        <h1 className="text-3xl md:text-5xl font-serif flex items-center justify-center flex-wrap gap-x-3 gap-y-1">
-          <Mori expression="searching" size={isMobile ? 54 : 76} className="inline-block shrink-0 -my-2" />
-          <span>{t("find_your_photos")}</span>
+        <h1 className="text-3xl md:text-5xl font-serif text-center leading-snug">
+          <img src="/mori/searching.png" alt="" width={isMobile ? 46 : 66} height={isMobile ? 46 : 66} className="inline-block align-middle -mt-1 mx-1.5 select-none" draggable={false} />
+          {t("find_your_photos")}
         </h1>
         <p className="text-muted-foreground mt-2 md:mt-3 max-w-md mx-auto text-sm md:text-base">{t("find_desc")}</p>
       </header>

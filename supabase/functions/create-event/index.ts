@@ -39,6 +39,9 @@ Deno.serve(async (req) => {
       slug,
       event_date: event_date || null,
       cover_image_url: cover_image_url || null,
+      // Photographers/business default to the folders-as-tabs album; others show
+      // a flat "all photos" album. Either can be toggled in Settings.
+      album_tabs: account.plan === "business",
     }).select().single();
     if (error) throw error;
     return json({ event: data });

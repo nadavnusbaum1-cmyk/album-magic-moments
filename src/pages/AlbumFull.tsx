@@ -51,23 +51,13 @@ export default function AlbumFull() {
     } finally { setLoading(false); }
   }, [event, cursor, sources.length]);
 
-  // First load once the event resolves.
+  // First load once the event resolves — always starts on "All photos" (label
+  // ""), which also returns the folder list for the tabs.
   useEffect(() => {
     if (!event) return;
-    const first = event.album_tabs ? "" : ""; // sources come back with the first page
-    load(first, true).then(() => {});
+    load("", true).then(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id]);
-
-  // If this is a photographer (tabbed) album, default to the first folder once sources arrive.
-  useEffect(() => {
-    if (event?.album_tabs && sources.length && !activeTab) {
-      setActiveTab(sources[0]);
-      setPhotos([]); setCursor(null);
-      load(sources[0], true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources, event?.album_tabs]);
 
   const selectTab = (label: string) => {
     if (label === activeTab) return;
@@ -105,10 +95,10 @@ export default function AlbumFull() {
         {event?.album_tabs && sources.length > 0 && (
           <div className="overflow-x-auto no-scrollbar border-t border-border/50">
             <div className="flex gap-5 md:gap-7 px-4 min-w-max">
-              {sources.map((s) => (
-                <button key={s} onClick={() => selectTab(s)}
+              {["", ...sources].map((s) => (
+                <button key={s || "__all"} onClick={() => selectTab(s)}
                   className={`relative py-2.5 text-sm whitespace-nowrap transition-colors ${activeTab === s ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
-                  {s}
+                  {s || t("all_photos")}
                   {activeTab === s && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-primary rounded-full" />}
                 </button>
               ))}
