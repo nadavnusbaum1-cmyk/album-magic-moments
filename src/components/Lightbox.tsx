@@ -21,7 +21,6 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
   const isOpen = index !== null && index >= 0 && index < items.length;
   const len = items.length;
 
-  const [vw, setVw] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 0));
   const [drag, setDrag] = useState(0);        // px offset while swiping / animating
   const [animating, setAnimating] = useState(false);
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -34,12 +33,6 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
   // chain correctly without waiting for the parent round-trip.
   useEffect(() => { indexRef.current = index; }, [index]);
 
-  useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
   // Slide to the next/prev image with a smooth animation, then commit the index.
   const commit = useCallback((dir: 1 | -1) => {
     const idx = indexRef.current;
@@ -47,13 +40,13 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
     const target = (idx + dir + len) % len;
     indexRef.current = target; // optimistic: chained swipes stay correct
     setAnimating(true);
-    setDrag(dir === 1 ? -vw : vw);
+    setDrag(dir === 1 ? -window.innerWidth : window.innerWidth);
     window.setTimeout(() => {
       onIndexChange(target);
       setAnimating(false);
       setDrag(0);
     }, 260);
-  }, [len, vw, onIndexChange]);
+  }, [len, onIndexChange]);
 
   const next = useCallback(() => commit(1), [commit]);
   const prev = useCallback(() => commit(-1), [commit]);
@@ -93,13 +86,14 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
       onClick={() => { if (moved.current) { moved.current = false; return; } onClose(); }}
       role="dialog"
       aria-modal="true"
+      dir="ltr"
     >
       {/* Swipeable 3-slide track (prev · current · next) */}
       <div
         className="flex h-full touch-pan-y"
         style={{
-          width: vw * 3,
-          transform: `translate3d(${-vw + drag}px,0,0)`,
+          width: "300vw",
+          transform: `translate3d(calc(-100vw + ${drag}px),0,0)`,
           transition: animating ? "transform 260ms cubic-bezier(.22,.61,.36,1)" : "none",
           willChange: "transform",
         }}
@@ -124,14 +118,14 @@ export const Lightbox = ({ items, index, onClose, onIndexChange, fileNamePrefix 
           const dx = dragRef.current;
           dragRef.current = 0;
           start.current = null; axis.current = null;
-          const threshold = Math.min(90, vw * 0.18);
+          const threshold = Math.min(90, window.innerWidth * 0.18);
           if (len > 1 && dx <= -threshold) commit(1);
           else if (len > 1 && dx >= threshold) commit(-1);
           else { setAnimating(true); setDrag(0); }
         }}
       >
         {slides.map((it, k) => (
-          <div key={k} className="shrink-0 h-full flex items-center justify-center px-2" style={{ width: vw }}>
+          <div key={k} className="shrink-0 h-full flex items-center justify-center px-2" style={{ width: "100vw" }}>
             {it?.media_type === "video" ? (
               <video src={it.url} className="max-w-full max-h-[92vh] object-contain" controls playsInline autoPlay={k === 1} onClick={(e) => e.stopPropagation()} />
             ) : (
