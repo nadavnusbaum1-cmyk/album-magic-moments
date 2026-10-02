@@ -16,7 +16,7 @@ const GOOGLE_ADS_ID = "AW-18417038077";
 // filled in, the GA `generate_lead` event still fires but the Ads conversion
 // does not — so set this before relying on it, and remove the old page-load
 // trigger on /auth so the conversion isn't counted twice.
-const LEAD_CONVERSION_LABEL = "";
+const LEAD_CONVERSION_LABEL = "40U0CKPc-I0dEP3l9s1E";
 
 /**
  * Fire a lead conversion — a sign-up or a contact-form submission.
