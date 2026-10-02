@@ -22,7 +22,7 @@ export const PLAN_LIMITS: Record<string, { photo: number | null; event: number |
 // what it pays. The tax invoice breaks 18% VAT out of this. null = not self-serve.
 export const PLAN_PRICES: Record<string, number | null> = {
   free: 0,
-  small: 1, // TEMP: ₪1 for live payment testing — revert to 299 before launch
+  small: 299, // gross, VAT-inclusive (displayed as ₪299, was ₪349)
   wedding: 449,
   business: null,
 };
