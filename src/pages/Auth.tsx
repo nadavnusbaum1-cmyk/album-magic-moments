@@ -11,6 +11,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
+import { trackLead } from "@/lib/analytics";
 
 export default function Auth() {
   const { t } = useI18n();
@@ -43,6 +44,7 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        trackLead("signup"); // the user left their details — count the lead
         // Email confirmation ON → no session yet; user must verify via email.
         if (!data.session) { setVerifyEmailSent(true); return; }
         toast.success(t("account_created"));

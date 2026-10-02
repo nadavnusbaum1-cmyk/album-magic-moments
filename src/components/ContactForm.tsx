@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
+import { trackLead } from "@/lib/analytics";
 
 export function ContactForm({ className = "" }: { className?: string }) {
   const { t } = useI18n();
@@ -25,6 +26,7 @@ export function ContactForm({ className = "" }: { className?: string }) {
     try {
       const { data, error } = await supabase.functions.invoke("contact", { body: { name, email, phone, message } });
       if (error || (data && (data as { error?: string }).error)) throw new Error("failed");
+      trackLead("contact"); // lead left their details in the contact form
       setSent(true); // replace the form with a confirmation
     } catch {
       toast.error(t("contact_fail"));
