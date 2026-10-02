@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { FloatingLanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Mori } from "@/components/Mori";
 import { useI18n } from "@/lib/i18n";
+import { trackLead } from "@/lib/analytics";
 
 type Event = {
   id: string; name: string; slug: string; event_date: string | null;
@@ -58,6 +59,25 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !session) navigate("/auth");
   }, [loading, session, navigate]);
+
+  // Google sign-ups redirect off-site, so the lead conversion can't fire on the
+  // Auth page like the email/password flow does. Fire it here the first time a
+  // brand-new Google account lands on the dashboard — gated to new accounts
+  // (created in the last 10 min) and deduped per user so returning logins and
+  // repeat visits never re-count.
+  useEffect(() => {
+    const u = session?.user;
+    if (!u) return;
+    const provider = (u.app_metadata as { provider?: string } | undefined)?.provider;
+    const createdMs = u.created_at ? Date.parse(u.created_at) : NaN;
+    const isNew = !Number.isNaN(createdMs) && Date.now() - createdMs < 10 * 60 * 1000;
+    if (provider !== "google" || !isNew) return;
+    const key = `heymori_lead:${u.id}`;
+    let already = false;
+    try { already = !!localStorage.getItem(key); if (!already) localStorage.setItem(key, "1"); } catch { /* storage unavailable */ }
+    if (already) return;
+    trackLead("signup");
+  }, [session]);
 
   const load = async () => {
     setLoadingEvents(true);
