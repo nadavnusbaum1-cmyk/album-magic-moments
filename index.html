@@ -3,13 +3,16 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!-- Google tag (gtag.js) — Google Ads (AW-18417038077) -->
+    <!-- Google tag (gtag.js) — one loader serves both Google Ads (AW-18417038077)
+         and Google Analytics 4 (G-QMPYE4SXMF). The generate_lead events fired from
+         the app show up in GA4 automatically. -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18417038077"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'AW-18417038077');
+      gtag('config', 'G-QMPYE4SXMF');
     </script>
 
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
