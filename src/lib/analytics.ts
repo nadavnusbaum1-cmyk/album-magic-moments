@@ -22,7 +22,7 @@ const LEAD_CONVERSION_LABEL = "40U0CKPc-I0dEP3l9s1E";
  * Fire a lead conversion — a sign-up or a contact-form submission.
  * Safe to call anytime: if gtag hasn't loaded (ad blocker, etc.) it's a no-op.
  */
-export function trackLead(source: "signup" | "contact") {
+export function trackLead(source: "signup" | "contact" | "whatsapp") {
   try {
     const g = window.gtag;
     if (typeof g !== "function") return;
