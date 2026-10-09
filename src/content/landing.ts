@@ -23,7 +23,7 @@ export const landingContent: Record<string, Bi> = {
     en: "Guests scan a QR code, send Mori a selfie, and Mori instantly finds every photo they appear in — then adds the moments they captured, too. No app, no scrolling, no hassle.",
     he: "האורחים נכנסים לקישור, שולחים למורי סלפי, ומורי מוצאת מיד כל תמונה שהם מופיעים בה — ומוסיפה גם את הרגעים שהם צילמו. בלי אפליקציה, ובלי גלילה אינסופית.",
   },
-  hero_cta_secondary: { en: "How it works", he: "איך זה עובד" },
+  hero_cta_secondary: { en: "Chat on WhatsApp", he: "דברו איתנו ב-WhatsApp" },
 
   // ---------- Trust bar ----------
   trust_ai: { en: "AI face recognition", he: "זיהוי פנים חכם" },

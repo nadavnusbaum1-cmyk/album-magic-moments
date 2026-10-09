@@ -4,8 +4,11 @@ import { Link } from "react-router-dom";
 import {
   Camera, Sparkles, Users, Heart, QrCode, Upload, ArrowRight, Check, X,
   ShieldCheck, Smartphone, FolderTree, Download, ChevronDown,
-  PartyPopper, Building2, Medal, GraduationCap,
+  PartyPopper, Building2, Medal, GraduationCap, MessageCircle,
 } from "lucide-react";
+
+// WhatsApp contact CTA → opens a chat to the HeyMori number with a prefilled message.
+const WHATSAPP_CTA = `https://wa.me/972544750439?text=${encodeURIComponent("היי, אשמח לשמוע עוד פרטים על HeyMori")}`;
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BrandMark } from "@/components/BrandMark";
@@ -93,7 +96,7 @@ export default function Landing() {
           <p className="mt-5 text-base md:text-xl text-muted-foreground max-w-2xl mx-auto">{t("hero_subtitle")}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="gap-2"><Link to="/auth?mode=signup">{t("get_started")} <ArrowRight className="w-4 h-4 rtl:rotate-180" /></Link></Button>
-            <Button asChild size="lg" variant="outline"><a href="#how">{t("hero_cta_secondary")}</a></Button>
+            <Button asChild size="lg" variant="outline" className="gap-2"><a href={WHATSAPP_CTA} target="_blank" rel="noopener noreferrer"><MessageCircle className="w-4 h-4" /> {t("hero_cta_secondary")}</a></Button>
           </div>
 
           {/* Demo — self-explanatory UI mockup */}
