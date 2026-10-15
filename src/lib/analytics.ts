@@ -4,6 +4,7 @@ declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
     dataLayer?: unknown[];
+    fbq?: (...args: unknown[]) => void;
   }
 }
 
@@ -34,5 +35,11 @@ export function trackLead(source: "signup" | "contact" | "whatsapp") {
     }
   } catch {
     /* analytics must never break the app */
+  }
+  // Meta Pixel — standard Lead event (so Meta campaigns can optimize for leads too).
+  try {
+    window.fbq?.("track", "Lead", { content_name: source, value: 1, currency: "ILS" });
+  } catch {
+    /* ignore */
   }
 }
