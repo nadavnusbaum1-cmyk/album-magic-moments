@@ -5,7 +5,7 @@ import { corsHeaders, json, svc } from "../_shared/auth.ts";
 import { ensureCollection, collectionFor } from "../_shared/rekognition.ts";
 import { processPhoto } from "../_shared/processPhoto.ts";
 
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 40;
 const MAX_ATTEMPTS = 5;
 
 Deno.serve(async (req) => {
@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     const { data: pending } = await supabase
       .from("photos")
-      .select("id, event_id, s3_key, s3_key_medium, storage_path, storage_provider, content_type, media_type, processing_attempts, source, moderation_checked")
+      .select("id, event_id, s3_key, s3_key_medium, s3_key_thumbnail, storage_path, storage_provider, source_url, content_type, media_type, processing_attempts, source, moderation_checked")
       .eq("upload_status", "uploaded")
       .eq("processing_status", "queued")
       .lt("processing_attempts", MAX_ATTEMPTS)

@@ -1,6 +1,7 @@
 // Serve photos via direct-AWS presigned GET (replaces the connector gateway).
 // Exposes thumbnail / medium / full renditions so galleries never load originals.
 import { presignGet } from "./s3.ts";
+import { pixiesetVariant } from "./pixieset.ts";
 
 /** Back-compat: existing callers expect a single signed read URL for a key. */
 export function signS3Read(key: string, expiresIn = 3600): Promise<string> {
@@ -18,6 +19,7 @@ export interface PhotoStorageRow {
   s3_key_thumbnail?: string | null;
   s3_key_medium?: string | null;
   storage_path: string;
+  source_url?: string | null; // Pixieset base (medium/full served straight from their CDN)
 }
 
 export interface PhotoAssets {
@@ -28,6 +30,9 @@ export interface PhotoAssets {
 
 /** Single original URL (kept for callers that only need one size). */
 export async function resolvePhotoUrl(photo: PhotoStorageRow, expiresIn = 3600): Promise<string> {
+  if (photo.storage_provider === "pixieset" && photo.source_url) {
+    return pixiesetVariant(photo.source_url, "xxlarge");
+  }
   if (photo.storage_provider === "s3" && photo.s3_key) {
     return await signS3Read(photo.s3_key, expiresIn);
   }
@@ -37,6 +42,18 @@ export async function resolvePhotoUrl(photo: PhotoStorageRow, expiresIn = 3600):
 /** Thumb/medium/full signed URLs, falling back to the original when a
  *  derivative doesn't exist yet (e.g. not-yet-processed or legacy rows). */
 export async function resolvePhotoAssets(photo: PhotoStorageRow, expiresIn = 3600): Promise<PhotoAssets> {
+  // Pixieset overlay: thumbnail is cached in our S3 (fast, robust grid); the
+  // medium/full renditions are served straight from Pixieset's CDN.
+  if (photo.storage_provider === "pixieset" && photo.source_url) {
+    const thumb = photo.s3_key_thumbnail
+      ? await signS3Read(photo.s3_key_thumbnail, expiresIn)
+      : pixiesetVariant(photo.source_url, "small");
+    return {
+      thumb,
+      medium: pixiesetVariant(photo.source_url, "xlarge"),
+      full: pixiesetVariant(photo.source_url, "xxlarge"),
+    };
+  }
   if (photo.storage_provider === "s3" && photo.s3_key) {
     const [thumb, medium, full] = await Promise.all([
       signS3Read(photo.s3_key_thumbnail || photo.s3_key, expiresIn),

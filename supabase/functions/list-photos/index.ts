@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const supabase = svc();
     let q = supabase
       .from("photos")
-      .select("id, storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label")
+      .select("id, storage_path, storage_provider, source_url, s3_key, s3_key_thumbnail, s3_key_medium, face_count, processed, created_at, sort_at, uploaded_by, media_type, content_type, source_label")
       .eq("event_id", event.id)
       // Public gallery: only confirmed, approved, non-deleted photos (no ghosts,
       // no un-moderated guest uploads).

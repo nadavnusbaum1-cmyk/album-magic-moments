@@ -17,24 +17,29 @@ Deno.serve(async (req) => {
     const photoId = params.get("id");
     const size = (params.get("size") || "full") as "thumb" | "medium" | "full";
     let url = params.get("url");
+    // A URL resolved from one of our own photo rows is trusted (it may legitimately
+    // point at an external CDN such as Pixieset); a raw ?url= param is not.
+    let trusted = false;
 
     if (photoId) {
       const supabase = svc();
       const { data: photo, error } = await supabase
         .from("photos")
-        .select("storage_path, storage_provider, s3_key, s3_key_thumbnail, s3_key_medium, deleted_at")
+        .select("storage_path, storage_provider, source_url, s3_key, s3_key_thumbnail, s3_key_medium, deleted_at")
         .eq("id", photoId)
         .maybeSingle();
       if (error) throw error;
       if (!photo || photo.deleted_at) return new Response("photo not found", { status: 404, headers: corsHeaders });
       const assets = await resolvePhotoAssets(photo);
       url = size === "thumb" ? assets.thumb : size === "medium" ? assets.medium : assets.full;
+      trusted = true;
     }
 
     if (!url) return new Response("url or id required", { status: 400, headers: corsHeaders });
 
     const target = new URL(url);
-    if (target.protocol !== "https:" || !allowedHost(target.host)) {
+    const hostOk = allowedHost(target.host) || (trusted && target.host.endsWith(".pixieset.com"));
+    if (target.protocol !== "https:" || !hostOk) {
       return new Response("unsupported photo source", { status: 400, headers: corsHeaders });
     }
 

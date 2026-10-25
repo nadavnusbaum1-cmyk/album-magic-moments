@@ -63,6 +63,28 @@ async function filesFromDrop(dt: DataTransfer): Promise<File[]> {
 const NEW_FOLDER = "__new__";
 const NO_FOLDER = "__none__";
 
+// Build the Pixieset import bookmarklet. It runs in the photographer's browser ON
+// their Pixieset gallery (same-origin, logged in, past Cloudflare): reads the
+// collection id + sets, pulls the photo list, and POSTs the manifest to HeyMori.
+function buildPixiesetBookmarklet(fnUrl: string, anonKey: string, token: string): string {
+  const src = `(async()=>{try{
+var U=${JSON.stringify(fnUrl)},K=${JSON.stringify(anonKey)},T=${JSON.stringify(token)};
+var slug=(location.pathname.match(/^\\/([^\\/]+)\\//)||[])[1];
+var html=document.documentElement.innerHTML;
+var cid=(html.match(/collectionId["']?\\s*[:=]\\s*["']?(\\d{6,})/i)||[])[1];
+if(!slug||!cid){alert("Open your Pixieset gallery first, then click this again.");return;}
+var seen={},sets=[];(html.match(/id=\\"nav-[a-f0-9]{6,}\\"/g)||[]).forEach(function(s){var g=s.match(/nav-([a-f0-9]{6,})/)[1];if(!seen[g]){seen[g]=1;sets.push(g);}});
+var names={},re=/<li id=\\"nav-([a-f0-9]{6,})\\"[^>]*>([\\s\\S]{0,260}?)<\\/li>/g,mm;while(mm=re.exec(html)){var nm=(mm[2].match(/>([^<>]{2,80})<\\/(?:a|span|div)>/)||[])[1];if(nm)names[mm[1]]=nm.trim();}
+var photos=[];
+for(var i=0;i<sets.length;i++){var gs=sets[i],page=1,last=false;while(!last&&page<=200){var j=await (await fetch("/client/loadphotos/?cuk="+slug+"&cid="+cid+"&gs="+gs+"&fk=&clientDownloads=false&page="+page+"&size=100",{headers:{"X-Requested-With":"XMLHttpRequest"},credentials:"include"})).json();var arr=[];try{arr=JSON.parse(j.content||"[]")}catch(e){}for(var k=0;k<arr.length;k++){var p=arr[k];var any=String(p.pathXlarge||p.pathLarge||p.pathThumb||"");var base=any.replace(/-(?:thumb|small|medium|large|xlarge|xxlarge)\\.jpg.*$/i,"");if(base)photos.push({id:String(p.id),base:base,name:String(p.name||""),setName:names[gs]||null});}last=!!j.isLastPage;if(!arr.length)break;page++;}}
+if(!photos.length){alert("No photos found in this gallery.");return;}
+var r=await fetch(U,{method:"POST",headers:{"Content-Type":"application/json","apikey":K,"Authorization":"Bearer "+K},body:JSON.stringify({action:"manifest",token:T,photos:photos})});
+var res=await r.json();
+alert(res.error?("HeyMori error: "+res.error):("Sent "+photos.length+" photos to HeyMori. Return to HeyMori to watch the album build."));
+}catch(e){alert("Error: "+(e&&e.message||e));}})();`;
+  return "javascript:" + encodeURIComponent(src);
+}
+
 export default function EventAdmin() {
   const { id } = useParams();
   const { session, loading } = useSession();
@@ -90,6 +112,13 @@ export default function EventAdmin() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, errors: 0, skipped: 0 });
   const [gphotos, setGphotos] = useState<GPhotosProgress | null>(null);
+  // Pixieset overlay import (enumerated in the photographer's browser via a
+  // bookmarklet; Cloudflare blocks server-side reads).
+  const [pixieOwn, setPixieOwn] = useState(false);
+  const [pixieToken, setPixieToken] = useState<string | null>(null);
+  const [pixieGenerating, setPixieGenerating] = useState(false);
+  const [pixieCopied, setPixieCopied] = useState(false);
+  const [pixie, setPixie] = useState<{ total: number; processed: number } | null>(null);
 
   // Gallery
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -296,6 +325,40 @@ export default function EventAdmin() {
       }
     } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
     finally { setGphotos(null); }
+  };
+
+  const generatePixieImport = async () => {
+    if (!id) return;
+    if (!pixieOwn) { toast.error(t("pixieset_confirm_required")); return; }
+    setPixieGenerating(true);
+    try {
+      const res = await authedInvoke<{ token: string }>("import-pixieset", { action: "token", eventId: id });
+      setPixieToken(res.token);
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("failed")); }
+    finally { setPixieGenerating(false); }
+  };
+
+  const checkPixieProgress = async () => {
+    if (!id) return;
+    setPixie({ total: 0, processed: 0 });
+    try {
+      let sawPhotos = false;
+      for (let i = 0; i < 3000; i++) {
+        const st = await authedInvoke<{ total: number; processed: number; pending: number }>(
+          "import-pixieset", { action: "status", eventId: id },
+        );
+        setPixie({ total: st.total, processed: st.processed });
+        if (st.total > 0) sawPhotos = true;
+        if (sawPhotos && st.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      loadPhotos();
+      toast.success(t("pixieset_done"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("failed"));
+    } finally {
+      setPixie(null);
+    }
   };
 
   const deleteEvent = async () => {
@@ -728,6 +791,73 @@ export default function EventAdmin() {
               <Button onClick={upload} disabled={!files.length || uploading} size="lg" className="w-full">
                 {uploading ? t("processing") : `${t("upload_files", { n: files.length || "" })} ${t("upload_to", { folder: uploadSourceLabel })}`}
               </Button>
+            </Card>
+
+            {/* Pixieset overlay import — enumerated in the photographer's browser via
+                a bookmarklet (Pixieset is behind Cloudflare), then referenced here
+                without re-hosting; each Pixieset set becomes a folder. */}
+            <Card className="p-6 space-y-3 mt-4">
+              <div>
+                <h2 className="text-lg font-medium flex items-center gap-2"><Link2 className="w-5 h-5 text-primary" /> {t("pixieset_title")}</h2>
+                <p className="text-xs text-muted-foreground mt-1">{t("pixieset_desc")}</p>
+              </div>
+
+              {!pixieToken ? (
+                <>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" checked={pixieOwn} onChange={(e) => setPixieOwn(e.target.checked)} disabled={pixieGenerating} className="accent-primary w-4 h-4 mt-0.5" />
+                    {t("pixieset_own_confirm")}
+                  </label>
+                  <Button onClick={generatePixieImport} disabled={!pixieOwn || pixieGenerating} size="lg" className="w-full gap-2">
+                    {pixieGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />} {t("pixieset_generate")}
+                  </Button>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <ol className="list-decimal ms-4 space-y-2 text-xs text-muted-foreground">
+                    <li>{t("pixieset_step1")}</li>
+                    <li>
+                      {t("pixieset_step2")}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <a
+                          href={buildPixiesetBookmarklet(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-pixieset`, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, pixieToken)}
+                          onClick={(e) => e.preventDefault()}
+                          draggable
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-medium cursor-grab select-none"
+                        >
+                          <Link2 className="w-4 h-4" /> {t("pixieset_bookmarklet_label")}
+                        </a>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const code = decodeURIComponent(buildPixiesetBookmarklet(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-pixieset`, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, pixieToken).replace(/^javascript:/, ""));
+                          navigator.clipboard.writeText(code); setPixieCopied(true); setTimeout(() => setPixieCopied(false), 2000);
+                        }}>
+                          {pixieCopied ? t("pixieset_copied") : t("pixieset_copy_code")}
+                        </Button>
+                      </div>
+                    </li>
+                    <li>{t("pixieset_step3")}</li>
+                  </ol>
+
+                  {pixie ? (
+                    <div className="space-y-1.5">
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: pixie.total ? `${Math.round((pixie.processed / pixie.total) * 100)}%` : "8%" }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("pixieset_processing", { done: pixie.processed, total: pixie.total })}
+                      </p>
+                    </div>
+                  ) : (
+                    <Button onClick={checkPixieProgress} variant="secondary" className="w-full gap-2">
+                      <RefreshCw className="w-4 h-4" /> {t("pixieset_check")}
+                    </Button>
+                  )}
+                  <button onClick={() => { setPixieToken(null); setPixieOwn(false); }} className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2">
+                    {t("pixieset_restart")}
+                  </button>
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground/80">{t("pixieset_note")}</p>
             </Card>
           </TabsContent>
 

@@ -3,7 +3,14 @@
 // alongside the original. Here we just run face indexing/matching on the MEDIUM
 // rendition (small, always under Rekognition's 5MB cap) → drive processing_status.
 import { rekognition, collectionFor } from "./rekognition.ts";
-import { getObjectBytes } from "./s3.ts";
+import { getObjectBytes, putObjectBytes } from "./s3.ts";
+import { pixiesetVariant } from "./pixieset.ts";
+
+async function fetchBytes(url: string): Promise<Uint8Array> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${res.status} ${url}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
 
 export const MATCH_THRESHOLD = 80;
 export const CLUSTER_THRESHOLD = 80;
@@ -37,8 +44,10 @@ export interface ProcessablePhoto {
   event_id: string;
   s3_key: string | null;
   s3_key_medium?: string | null;
+  s3_key_thumbnail?: string | null;
   storage_path: string;
   storage_provider: string | null;
+  source_url?: string | null; // Pixieset base, when storage_provider === "pixieset"
   content_type?: string | null;
   media_type?: string | null;
   source?: string | null;
@@ -88,6 +97,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   const eventId = photo.event_id;
   const COLLECTION = collectionFor(eventId);
   const isS3 = photo.storage_provider === "s3" && !!photo.s3_key;
+  const isPixieset = photo.storage_provider === "pixieset" && !!photo.source_url;
 
   // Video / unsupported: displayable but no face processing or derivatives.
   if (photo.media_type === "video" || isVideo(ref, photo.content_type)) {
@@ -105,9 +115,24 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
 
   // Face indexing uses the MEDIUM rendition when available (small, always under
   // Rekognition's 5MB cap); otherwise the original.
+  // Pixieset overlay photos aren't re-hosted — we pull the xlarge straight from
+  // Pixieset's CDN to index, and cache a thumbnail in our S3 for a fast grid.
   const faceKey = (isS3 && photo.s3_key_medium) ? photo.s3_key_medium : photo.s3_key;
   let faceBytes: Uint8Array;
-  if (isS3 && faceKey) {
+  let pixiesetThumbKey: string | null = photo.s3_key_thumbnail || null;
+  if (isPixieset) {
+    faceBytes = await fetchBytes(pixiesetVariant(photo.source_url!, "xlarge"));
+    if (!pixiesetThumbKey) {
+      try {
+        const thumbBytes = await fetchBytes(pixiesetVariant(photo.source_url!, "small"));
+        const key = `event-photos/${eventId}/${photo.id}_thumb.jpg`;
+        await putObjectBytes(key, thumbBytes, "image/jpeg");
+        pixiesetThumbKey = key;
+      } catch (e) {
+        console.error("pixieset thumb cache failed", photo.id, e instanceof Error ? e.message : e);
+      }
+    }
+  } else if (isS3 && faceKey) {
     faceBytes = await getObjectBytes(faceKey);
   } else {
     const { data, error } = await supabase.storage.from("event-photos").download(photo.storage_path);
@@ -228,6 +253,7 @@ export async function processPhoto(supabase: Supa, photo: ProcessablePhoto): Pro
   await supabase.from("photos").update({
     processing_status: "ready", face_count: faceRecords.length,
     processing_error: null, processing_attempts: 0,
+    ...(pixiesetThumbKey && !photo.s3_key_thumbnail ? { s3_key_thumbnail: pixiesetThumbKey } : {}),
     ...moderationUpdate,
   }).eq("id", photo.id);
   return { matches: matchedGuests.size, faces: faceRecords.length };

@@ -1,5 +1,8 @@
 project_id = "hasuohhrpwqwiwmnftsc"
 
+[functions.import-pixieset]
+verify_jwt = false
+
 [functions.register-guest]
 verify_jwt = false
 
